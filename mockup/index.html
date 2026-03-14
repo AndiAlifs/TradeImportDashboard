@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shila Dashboard — L/C Processing Time Tracker</title>
+    <meta name="description"
+        content="Internal operational dashboard for tracking Letter of Credit processing times and SLA compliance." />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <!-- ========== SIDEBAR ========== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="logo-icon">⚡</div>
+            <div>
+                <h1>Shila Dashboard</h1>
+                <div class="subtitle">Trade Finance Ops</div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-label" data-i18n="nav.main_menu">Main Menu</div>
+
+            <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.dashboard">Dashboard</span>
+            </div>
+
+            <div class="nav-item" data-view="queue" onclick="switchView('queue')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.queue">L/C Queue</span>
+                <span class="badge" id="queue-badge">0</span>
+            </div>
+
+            <div class="nav-item" data-view="create" onclick="switchView('create')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.create">Create Order</span>
+            </div>
+
+            <div class="nav-item" data-view="sla" onclick="switchView('sla')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.sla">SLA Settings</span>
+            </div>
+
+            <div class="nav-item" data-view="eventlog" onclick="switchView('eventlog')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.eventlog">Event Log</span>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="avatar">SM</div>
+            <div class="user-info">
+                <div class="user-name">Ops Manager</div>
+                <div class="user-role" data-i18n="sidebar.user_role">Administrator</div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ========== MAIN CONTENT ========== -->
+    <main class="main-content">
+
+        <!-- ---- Top Bar ---- -->
+        <header class="top-bar">
+            <div style="display:flex;align-items:center;gap:0.75rem">
+                <button class="burger-btn" id="burger-btn" onclick="toggleSidebar()" title="Menu"
+                    aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+                <div>
+                    <h2 id="page-title">Dashboard</h2>
+                    <div class="breadcrumb" id="page-breadcrumb">Shila Dashboard / Overview</div>
+                </div>
+            </div>
+            <div class="top-bar-actions">
+                <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()" title="Switch Language">🇬🇧
+                    EN</button>
+                <button class="reset-btn" onclick="handleReset()" title="Reset all data and regenerate"
+                    data-i18n="topbar.reset">↻ Reset Data</button>
+                <div style="font-size:0.8rem;color:var(--text-muted)" id="clock"></div>
+            </div>
+        </header>
+
+        <!-- ==================== DASHBOARD VIEW ==================== -->
+        <div class="view active" id="view-dashboard">
+            <div class="page-content">
+
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card accent">
+                        <div class="kpi-icon">📋</div>
+                        <div class="kpi-value" id="kpi-active">0</div>
+                        <div class="kpi-label" data-i18n="kpi.active">Active L/Cs</div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-value" id="kpi-completed">0</div>
+                        <div class="kpi-label" data-i18n="kpi.completed">Completed Today</div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-icon">🚨</div>
+                        <div class="kpi-value" id="kpi-breaches">0</div>
+                        <div class="kpi-label" data-i18n="kpi.breaches">SLA Breaches</div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-icon">⏱️</div>
+                        <div class="kpi-value" id="kpi-avgtime">0m</div>
+                        <div class="kpi-label" data-i18n="kpi.avgtime">Avg Processing Time</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Stage Duration Chart -->
+                    <div class="stage-chart">
+                        <h3 data-i18n="chart.title">Average Stage Duration</h3>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.inbox">Inbox Wait</span>
+                            <div class="bar-track">
+                                <div class="bar-fill purple" id="bar-inbox" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.drafting">Drafting</span>
+                            <div class="bar-track">
+                                <div class="bar-fill amber" id="bar-drafting" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.checking">Checking</span>
+                            <div class="bar-track">
+                                <div class="bar-fill indigo" id="bar-checking" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.total">Total Lifecycle</span>
+                            <div class="bar-track">
+                                <div class="bar-fill teal" id="bar-total" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="data-table-wrapper">
+                        <div class="table-header">
+                            <h3 data-i18n="recent.title">Recent Activity</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="recent.col_time">Time</th>
+                                    <th data-i18n="recent.col_event">Event</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-activity-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status Breakdown Mini Table -->
+                <div class="data-table-wrapper" style="margin-top:1.25rem">
+                    <div class="table-header">
+                        <h3 data-i18n="summary.title">Today's L/C Summary</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="summary.col_urn">URN</th>
+                                    <th data-i18n="summary.col_sender">Sender</th>
+                                    <th data-i18n="summary.col_status">Status</th>
+                                    <th data-i18n="summary.col_received">Received</th>
+                                    <th data-i18n="summary.col_elapsed">Elapsed</th>
+                                    <th data-i18n="summary.col_sla">SLA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dashboard-summary-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== L/C QUEUE VIEW ==================== -->
+        <div class="view" id="view-queue">
+            <div class="page-content">
+
+                <div class="data-table-wrapper">
+                    <div class="table-header">
+                        <h3 data-i18n="queue.title">L/C Processing Queue</h3>
+                        <div class="table-filters">
+                            <input type="text" class="search-input" data-i18n="queue.search"
+                                placeholder="Search URN or sender…" id="queue-search" oninput="renderQueue()" />
+                            <button class="filter-btn active" data-filter="all" onclick="setQueueFilter('all')"
+                                data-i18n="queue.filter_all">All</button>
+                            <button class="filter-btn" data-filter="Received"
+                                onclick="setQueueFilter('Received')">Received</button>
+                            <button class="filter-btn" data-filter="Drafting"
+                                onclick="setQueueFilter('Drafting')">Drafting</button>
+                            <button class="filter-btn" data-filter="Checking Underlying"
+                                onclick="setQueueFilter('Checking Underlying')">Checking</button>
+                            <button class="filter-btn" data-filter="Exception"
+                                onclick="setQueueFilter('Exception')" data-i18n="queue.filter_exception">Exception</button>
+                            <button class="filter-btn" data-filter="Released"
+                                onclick="setQueueFilter('Released')">Released</button>
+                            <button class="filter-btn" data-filter="Breached"
+                                onclick="setQueueFilter('Breached')">Breached</button>
+                        </div>
+                    </div>
+                    <div class="table-scroll" style="max-height:600px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="queue.col_num">#</th>
+                                    <th data-i18n="queue.col_urn">URN</th>
+                                    <th data-i18n="queue.col_sender">Sender</th>
+                                    <th data-i18n="queue.col_subject">Subject</th>
+                                    <th data-i18n="queue.col_assigned">Assigned To</th>
+                                    <th data-i18n="queue.col_status">Status</th>
+                                    <th data-i18n="queue.col_received">Received</th>
+                                    <th data-i18n="queue.col_elapsed">Elapsed</th>
+                                    <th data-i18n="queue.col_sla">SLA</th>
+                                    <th data-i18n="queue.col_action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="queue-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="queue-count">Showing 0 records</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== CREATE ORDER VIEW ==================== -->
+        <div class="view" id="view-create">
+            <div class="page-content">
+                <div class="settings-card">
+                    <h3 data-i18n="create.title">Create New Order</h3>
+                    <p data-i18n="create.desc">Fill in the details below to create a new L/C order.</p>
+
+                    <form onsubmit="handleCreateOrder(event)" style="margin-top: 1.5rem;">
+                        <div class="form-group">
+                            <label for="create-sender" data-i18n="create.form.sender">Sender Email</label>
+                            <input type="email" id="create-sender" required placeholder="exporter@client.com" />
+                        </div>
+                        <div class="form-group">
+                            <label for="create-subject" data-i18n="create.form.subject">Subject</label>
+                            <input type="text" id="create-subject" required placeholder="L/C Application – PO#1234" />
+                        </div>
+                        <div class="form-group">
+                            <label for="create-assigned" data-i18n="create.form.assigned">Assigned To</label>
+                            <select id="create-assigned" required>
+                                <option value="Rina Hartono">Rina Hartono</option>
+                                <option value="Budi Setiawan">Budi Setiawan</option>
+                                <option value="Dewi Lestari">Dewi Lestari</option>
+                                <option value="Andi Pratama">Andi Pratama</option>
+                                <option value="Siti Nurhaliza">Siti Nurhaliza</option>
+                                <option value="Fajar Hidayat">Fajar Hidayat</option>
+                                <option value="Mega Putri">Mega Putri</option>
+                                <option value="Hendra Wijaya">Hendra Wijaya</option>
+                            </select>
+                        </div>
+                        <div class="form-actions" style="margin-top: 2rem;">
+                            <button type="submit" class="btn btn-primary" data-i18n="create.form.submit">➕ Create Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SLA SETTINGS VIEW ==================== -->
+        <div class="view" id="view-sla">
+            <div class="page-content">
+
+                <div class="settings-card">
+                    <h3 data-i18n="sla.config_title">⏱️ SLA Configuration</h3>
+                    <p data-i18n="sla.config_desc">Define the minimum and maximum Service Level Agreement thresholds for
+                        L/C processing. Items exceeding the maximum will be flagged as breaches.</p>
+
+                    <div class="form-group">
+                        <label for="sla-min" data-i18n="sla.min_label">SLA Minimum (minutes)</label>
+                        <input type="number" id="sla-min" min="1" value="90" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sla-max" data-i18n="sla.max_label">SLA Maximum (minutes)</label>
+                        <input type="number" id="sla-max" min="1" value="120" />
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick="handleSaveSla()" data-i18n="sla.save">💾 Save
+                            Settings</button>
+                        <button class="btn btn-secondary" onclick="handleResetSla()" data-i18n="sla.reset_default">Reset
+                            to Default</button>
+                    </div>
+                </div>
+
+                <div class="settings-card" style="margin-top:1.5rem">
+                    <h3 data-i18n="sla.data_title">🗑️ Data Management</h3>
+                    <p data-i18n="sla.data_desc">Reset all L/C data, event logs, and SLA configuration back to defaults.
+                        This will regenerate 30 fresh mock records.</p>
+                    <div class="form-actions">
+                        <button class="btn btn-danger" onclick="handleReset()" data-i18n="sla.reset_all">Reset All
+                            Data</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== EVENT LOG VIEW ==================== -->
+        <div class="view" id="view-eventlog">
+            <div class="page-content">
+
+                <div class="data-table-wrapper">
+                    <div class="table-header">
+                        <h3 data-i18n="eventlog.title">Event Log</h3>
+                        <button class="filter-btn" onclick="clearEventLog()" data-i18n="eventlog.clear">Clear
+                            Log</button>
+                    </div>
+                    <div class="table-scroll" style="max-height:600px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="eventlog.col_timestamp">Timestamp</th>
+                                    <th data-i18n="eventlog.col_urn">URN</th>
+                                    <th data-i18n="eventlog.col_user">User</th>
+                                    <th data-i18n="eventlog.col_action">Action</th>
+                                    <th data-i18n="eventlog.col_from">From</th>
+                                    <th data-i18n="eventlog.col_to">To</th>
+                                    <th data-i18n="eventlog.col_notes">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventlog-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="eventlog-count">0 events</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ========== SIDEBAR OVERLAY (mobile) ========== -->
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- ========== TOAST CONTAINER ========== -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- ========== L/C DETAILS MODAL ========== -->
+    <div class="modal-overlay" id="lc-modal" onclick="if(event.target === this) closeLcDetails()">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modal-urn-title">LC-00000000-000</h3>
+                    <div style="font-size:0.75rem;color:var(--text-secondary)" id="modal-subject">Subject</div>
+                </div>
+                <button class="modal-close" onclick="closeLcDetails()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="timeline" id="modal-timeline">
+                    <!-- Timeline items injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SCRIPTS ========== -->
+    <script src="data.js"></script>
+    <script src="lang.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
