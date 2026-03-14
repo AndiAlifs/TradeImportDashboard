@@ -52,6 +52,10 @@ The core value proposition is **operational transparency**: a lightweight system
 - [x] Parameterized SLA configuration (e.g., default 90-120 minutes)
 - [x] Analytics dashboard showing average stage duration and highlighting SLA breaches
 - [x] Event log tracking exact user, state, and timestamp
+- [x] Status exceptions to pause the SLA timer and log exception reasons
+- [x] Manual order creation via UI form
+- [x] Multi-language support (English/Indonesian toggle)
+- [x] Mobile-responsive UI with hamburger menu toggle
 
 **Technical**
 - [x] n8n workflow for email ingestion and API webhook triggering
@@ -91,6 +95,18 @@ The core value proposition is **operational transparency**: a lightweight system
 
 6. **As a manager, I want to view a dashboard of all active and completed L/Cs today, so that I can see which ones have breached the 120-minute SLA.**
    - Example: Dashboard flags `LC-20260311-002` in red because it has been in the "Checking Underlying" stage for 95 minutes.
+
+7. **As an operations officer, I want to mark an L/C with an 'Exception' status and provide a detailed reason, so that uncontrollable delays do not negatively impact the SLA timer.**
+   - Example: Waiting for underlying checking documents, pausing the SLA clock.
+
+8. **As an operations officer, I want to manually create a new L/C order through a form in the UI, so that I can process requests that circumvent the automated email ingestion system.**
+   - Example: Filling out sender, subject, and assignee on the "Create Order" page.
+
+9. **As a user, I want to toggle between English and Indonesian languages, so that I can interact with the system in my preferred language.**
+   - Example: Clicking the "EN/ID" button translates all core UI text dynamically.
+
+10. **As a user on a mobile device, I want to use a hamburger menu to access the navigation, so that the screen real estate is optimized for my display.**
+    - Example: Viewing the dashboard on a phone, clicking the menu icon to switch to the Queue view.
 
 ---
 
