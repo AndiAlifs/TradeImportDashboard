@@ -483,6 +483,29 @@ function clearEventLog() {
 }
 
 // --------------- Actions ---------------
+function promptRelease(id) {
+    const data = getData();
+    const record = data.find(r => r.id === id);
+    if (!record) return;
+    
+    document.getElementById('release-lc-id').value = id;
+    document.getElementById('release-modal').classList.add('active');
+}
+
+function closeReleaseModal() {
+    document.getElementById('release-modal').classList.remove('active');
+}
+
+async function submitRelease() {
+    const idStr = document.getElementById('release-lc-id').value;
+    const officer = document.getElementById('release-officer').value;
+    if (!idStr || !officer) return;
+    
+    const id = parseInt(idStr, 10);
+    closeReleaseModal();
+    await handleAction(id, 'release', officer);
+}
+
 function promptMarkException(id) {
     const data = getData();
     const record = data.find(r => r.id === id);
@@ -539,6 +562,10 @@ async function handleAction(id, action, payload = null) {
         case 'release':
             newStatus = 'Released';
             notes = t('note.release');
+            if (payload) {
+                requestBody.approvedBy = payload;
+                notes += ` (Approved by: ${payload})`;
+            }
             break;
         case 'mark-exception':
             newStatus = 'Exception';
@@ -722,7 +749,7 @@ function actionButton(record) {
             return `<button class="action-btn warning" onclick="handleAction(${record.id}, 'start-checking')">${t('action.start_checking')}</button>
                     <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary);margin-top:4px" onclick="promptMarkException(${record.id})">${t('action.mark_exception')}</button>`;
         case 'Checking Underlying':
-            return `<button class="action-btn success" onclick="handleAction(${record.id}, 'release')">${t('action.release')}</button>
+            return `<button class="action-btn success" onclick="promptRelease(${record.id})">${t('action.release')}</button>
                     <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary);margin-top:4px" onclick="promptMarkException(${record.id})">${t('action.mark_exception')}</button>`;
         case 'Released':
             return `<span class="action-btn completed">${t('action.completed')}</span>`;

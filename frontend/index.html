@@ -666,6 +666,33 @@
         </div>
     </div>
 
+    <!-- ========== RELEASE APPROVAL MODAL ========== -->
+    <div class="modal-overlay" id="release-modal" onclick="if(event.target === this) closeReleaseModal()">
+        <div class="modal-container" style="max-width: 400px;">
+            <div class="modal-header">
+                <div>
+                    <h3>Approve Release</h3>
+                </div>
+                <button class="modal-close" onclick="closeReleaseModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group" style="text-align: left;">
+                    <label>Select Approving Officer</label>
+                    <select id="release-officer" class="form-control" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
+                        <option value="Alice Smith">Alice Smith</option>
+                        <option value="Bob Jones">Bob Jones</option>
+                        <option value="Charlie Davis">Charlie Davis</option>
+                        <option value="Diana Prince">Diana Prince</option>
+                        <option value="Rina Hartono">Rina Hartono</option>
+                        <option value="Budi Setiawan">Budi Setiawan</option>
+                    </select>
+                </div>
+                <input type="hidden" id="release-lc-id" />
+                <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="submitRelease()">Confirm Release</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ========== SCRIPTS ========== -->
     <script src="data.js"></script>
     <script src="lang.js"></script>

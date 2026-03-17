@@ -28,6 +28,7 @@ type updateStatusRequest struct {
 	UserID           string `json:"userId"`
 	ExceptionReason  string `json:"exceptionReason"`
 	ExceptionMinutes *int   `json:"exceptionMinutes"`
+	ApprovedBy       string `json:"approvedBy"`
 }
 
 var errInvalidTransition = errors.New("invalid status transition")
@@ -293,6 +294,9 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 	case models.StatusReleased:
 		lc.Status = models.StatusReleased
 		lc.ReleasedAt = &now
+		if req.ApprovedBy != "" {
+			lc.ApprovedBy = &req.ApprovedBy
+		}
 		if notes == "" {
 			notes = "Released"
 		}

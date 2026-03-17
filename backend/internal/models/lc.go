@@ -36,6 +36,7 @@ type LC struct {
 	ExceptionTotalMinutes int        `json:"exceptionTotalMinutes" gorm:"not null;default:0"`
 	ExceptionReason       *string    `json:"exceptionReason" gorm:"type:text"`
 	PreviousStatus        *string    `json:"previousStatus" gorm:"size:64"`
+	ApprovedBy            *string    `json:"approvedBy" gorm:"size:100"`
 	CreatedAt             time.Time  `json:"createdAt"`
 	UpdatedAt             time.Time  `json:"updatedAt"`
 }
