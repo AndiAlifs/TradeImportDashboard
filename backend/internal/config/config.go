@@ -19,7 +19,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
-	_ = godotenv.Load()
+	_ = godotenv.Load(".env", "backend/.env")
 
 	cfg := Config{
 		AppPort:       getEnv("APP_PORT", "8080"),

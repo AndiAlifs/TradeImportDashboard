@@ -7,7 +7,7 @@ const STORAGE_KEY = 'shila_lc_data';
 const SLA_KEY = 'shila_sla_config';
 const EVENT_LOG_KEY = 'shila_event_log';
 const DEFAULT_SLA = { slaMinMinutes: 90, slaMaxMinutes: 120 };
-const API_BASE = window.SHILA_API_BASE || 'http://localhost:8080/api';
+const API_BASE = window.SHILA_API_BASE || 'http://localhost:8081/api';
 
 let lcCache = [];
 let slaCache = { ...DEFAULT_SLA };
