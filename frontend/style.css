@@ -998,6 +998,248 @@ body {
   gap: 1.25rem;
 }
 
+/* ---------- Executive KPI Grid (6 cards) ---------- */
+.exec-kpi-grid {
+  grid-template-columns: repeat(6, 1fr) !important;
+}
+
+.kpi-card.info::before {
+  background: linear-gradient(90deg, var(--info), #60a5fa);
+}
+
+.kpi-card.info .kpi-icon {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--info);
+}
+
+/* ---------- Comparison Chart ---------- */
+.comparison-chart {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.comparison-chart h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+}
+
+.comparison-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.comparison-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comparison-label {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.comparison-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.comparison-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.comp-type-label {
+  width: 56px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.comp-type-label.import-label {
+  color: #7c3aed;
+}
+
+.comp-type-label.export-label {
+  color: #0d9488;
+}
+
+/* ---------- AI Summary Card ---------- */
+.ai-summary-card {
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px;
+  padding: 1.5rem;
+  color: #e2e8f0;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #a78bfa, #ec4899);
+}
+
+.ai-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ai-summary-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.ai-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.ai-summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.ai-insight {
+  font-size: 0.825rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ai-insight strong {
+  color: #f1f5f9;
+}
+
+.ai-insight em {
+  color: #fbbf24;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.ai-health {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.health-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.health-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.health-detail {
+  font-size: 0.775rem;
+  color: #94a3b8;
+}
+
+.ai-health.health-good .health-value {
+  color: #34d399;
+}
+
+.ai-health.health-moderate .health-value {
+  color: #fbbf24;
+}
+
+.ai-health.health-critical .health-value {
+  color: #f87171;
+}
+
+/* ---------- Type Badge ---------- */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.type-badge.import {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.type-badge.export {
+  background: #ecfdf5;
+  color: #059669;
+}
+
+/* ---------- Status Badge — Exception ---------- */
+.status-badge.exception {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.status-badge.exception .dot {
+  background: #dc2626;
+  animation: pulse-dot 1.2s infinite;
+}
+
+/* ---------- Form Select ---------- */
+.form-group select {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease;
+  outline: none;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  appearance: auto;
+}
+
+.form-group select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
 /* ---------- Elapsed time cell ---------- */
 .elapsed-time {
   font-variant-numeric: tabular-nums;
@@ -1092,6 +1334,10 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 
+  .exec-kpi-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
   .grid-2 {
     grid-template-columns: 1fr;
   }
@@ -1126,6 +1372,10 @@ body {
 
   .kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .exec-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .table-filters {

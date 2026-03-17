@@ -10,6 +10,10 @@ const translations = {
     en: {
         // Sidebar
         'nav.main_menu': 'Main Menu',
+        'nav.operations': 'Operations',
+        'nav.exec_dashboard': 'Executive Dashboard',
+        'nav.import': 'Import',
+        'nav.export': 'Export',
         'nav.dashboard': 'Dashboard',
         'nav.queue': 'L/C Queue',
         'nav.create': 'Create Order',
@@ -21,6 +25,12 @@ const translations = {
         'topbar.reset': '↻ Reset Data',
 
         // Page titles & breadcrumbs
+        'page.exec_dashboard.title': 'Executive Dashboard',
+        'page.exec_dashboard.breadcrumb': 'Shila Dashboard / Executive Overview',
+        'page.import.title': 'Import Operations',
+        'page.import.breadcrumb': 'Shila Dashboard / Import',
+        'page.export.title': 'Export Operations',
+        'page.export.breadcrumb': 'Shila Dashboard / Export',
         'page.dashboard.title': 'Dashboard',
         'page.dashboard.breadcrumb': 'Shila Dashboard / Overview',
         'page.queue.title': 'L/C Processing Queue',
@@ -35,6 +45,7 @@ const translations = {
         // Create Order
         'create.title': 'Create New Order',
         'create.desc': 'Fill in the details below to create a new L/C order.',
+        'create.form.type': 'Transaction Type',
         'create.form.sender': 'Sender Email',
         'create.form.subject': 'Subject',
         'create.form.assigned': 'Assigned To',
@@ -62,11 +73,31 @@ const translations = {
         // Dashboard summary
         'summary.title': "Today's L/C Summary",
         'summary.col_urn': 'URN',
+        'summary.col_type': 'Type',
         'summary.col_sender': 'Sender',
         'summary.col_status': 'Status',
         'summary.col_received': 'Received',
         'summary.col_elapsed': 'Elapsed',
         'summary.col_sla': 'SLA',
+
+        // Executive Dashboard
+        'exec.import_processed': 'Import Processed',
+        'exec.export_processed': 'Export Processed',
+        'exec.import_sla': 'Import SLA %',
+        'exec.export_sla': 'Export SLA %',
+        'exec.total_breaches': 'Total Breaches',
+        'exec.avg_time': 'Avg Cycle Time',
+        'exec.comparison_title': 'Import vs Export: Stage Duration',
+        'exec.import_label': 'Import',
+        'exec.export_label': 'Export',
+        'exec.ai_title': '🤖 AI Performance Summary',
+        'exec.ai_generating': 'Generating AI summary...',
+        'exec.ai_refresh': '↻ Refresh',
+        'exec.combined_activity': 'Combined Recent Activity',
+
+        // Type badges
+        'type.import': 'Import',
+        'type.export': 'Export',
 
         // Queue
         'queue.title': 'L/C Processing Queue',
@@ -163,6 +194,10 @@ const translations = {
     id: {
         // Sidebar
         'nav.main_menu': 'Menu Utama',
+        'nav.operations': 'Operasional',
+        'nav.exec_dashboard': 'Dasbor Eksekutif',
+        'nav.import': 'Impor',
+        'nav.export': 'Ekspor',
         'nav.dashboard': 'Dasbor',
         'nav.queue': 'Antrian L/C',
         'nav.create': 'Buat Pesanan',
@@ -174,6 +209,12 @@ const translations = {
         'topbar.reset': '↻ Reset Data',
 
         // Page titles & breadcrumbs
+        'page.exec_dashboard.title': 'Dasbor Eksekutif',
+        'page.exec_dashboard.breadcrumb': 'Shila Dashboard / Ringkasan Eksekutif',
+        'page.import.title': 'Operasi Impor',
+        'page.import.breadcrumb': 'Shila Dashboard / Impor',
+        'page.export.title': 'Operasi Ekspor',
+        'page.export.breadcrumb': 'Shila Dashboard / Ekspor',
         'page.dashboard.title': 'Dasbor',
         'page.dashboard.breadcrumb': 'Shila Dashboard / Ringkasan',
         'page.queue.title': 'Antrian Proses L/C',
@@ -188,6 +229,7 @@ const translations = {
         // Create Order
         'create.title': 'Buat Pesanan Baru',
         'create.desc': 'Isi detail di bawah ini untuk membuat pesanan L/C baru.',
+        'create.form.type': 'Jenis Transaksi',
         'create.form.sender': 'Email Pengirim',
         'create.form.subject': 'Perihal',
         'create.form.assigned': 'Ditugaskan Ke',
@@ -215,11 +257,31 @@ const translations = {
         // Dashboard summary
         'summary.title': 'Ringkasan L/C Hari Ini',
         'summary.col_urn': 'URN',
+        'summary.col_type': 'Tipe',
         'summary.col_sender': 'Pengirim',
         'summary.col_status': 'Status',
         'summary.col_received': 'Diterima',
         'summary.col_elapsed': 'Berlalu',
         'summary.col_sla': 'SLA',
+
+        // Executive Dashboard
+        'exec.import_processed': 'Impor Diproses',
+        'exec.export_processed': 'Ekspor Diproses',
+        'exec.import_sla': 'SLA Impor %',
+        'exec.export_sla': 'SLA Ekspor %',
+        'exec.total_breaches': 'Total Pelanggaran',
+        'exec.avg_time': 'Rata-rata Siklus',
+        'exec.comparison_title': 'Impor vs Ekspor: Durasi Tahapan',
+        'exec.import_label': 'Impor',
+        'exec.export_label': 'Ekspor',
+        'exec.ai_title': '🤖 Ringkasan Kinerja AI',
+        'exec.ai_generating': 'Membuat ringkasan AI...',
+        'exec.ai_refresh': '↻ Perbarui',
+        'exec.combined_activity': 'Aktivitas Gabungan Terkini',
+
+        // Type badges
+        'type.import': 'Impor',
+        'type.export': 'Ekspor',
 
         // Queue
         'queue.title': 'Antrian Proses L/C',

@@ -49,17 +49,24 @@ function generateMockData() {
     'System error during SWIFT generation'
   ];
 
-  const subjects = [
+  const importSubjects = [
     'Import L/C Application – PO#8821',
-    'New L/C Request – Invoice INV-4420',
-    'Urgent: L/C Amendment Request',
-    'L/C Issuance for Commodity Shipment',
-    'Re: L/C Draft Confirmation Needed',
-    'L/C Opening – Beneficiary ABC Corp',
-    'Trade Finance: New L/C Instruction',
+    'New Import L/C Request – Invoice INV-4420',
+    'Urgent: Import L/C Amendment Request',
+    'Import L/C Issuance for Commodity Shipment',
     'L/C Request – Machinery Import',
-    'Documentary Credit Application',
-    'L/C Issuance – Raw Materials Order'
+    'Import Documentary Credit Application',
+    'Import L/C Issuance – Raw Materials Order'
+  ];
+
+  const exportSubjects = [
+    'Export L/C Advising – PO#9932',
+    'Export L/C Confirmation Request',
+    'Export Documentary Credit – Textile Shipment',
+    'Export L/C Amendment – Beneficiary Update',
+    'Export L/C Negotiation – Invoice EXP-7781',
+    'Export L/C – Agricultural Products',
+    'Export Trade Finance: New L/C Instruction'
   ];
 
   const today = new Date();
@@ -94,6 +101,9 @@ function generateMockData() {
     const status = statusPlan[i];
     const receivedMinutesAgo = randomInt(20, 300);
     const receivedAt = minutesAgo(receivedMinutesAgo);
+    // ~60% Import, ~40% Export
+    const transactionType = Math.random() < 0.6 ? 'Import' : 'Export';
+    const subject = transactionType === 'Import' ? randomItem(importSubjects) : randomItem(exportSubjects);
 
     let draftingStartedAt = null;
     let checkingStartedAt = null;
@@ -140,7 +150,8 @@ function generateMockData() {
       id: i + 1,
       urn: `LC-${dateStr}-${pad(i + 1)}`,
       senderEmail: randomItem(senders),
-      subject: randomItem(subjects),
+      subject: subject,
+      transactionType: transactionType,
       status: status,
       receivedAt: receivedAt,
       draftingStartedAt: draftingStartedAt,

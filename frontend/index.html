@@ -26,13 +26,35 @@
         <nav class="sidebar-nav">
             <div class="nav-section-label" data-i18n="nav.main_menu">Main Menu</div>
 
-            <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+            <div class="nav-item active" data-view="exec-dashboard" onclick="switchView('exec-dashboard')">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                 </span>
-                <span data-i18n="nav.dashboard">Dashboard</span>
+                <span data-i18n="nav.exec_dashboard">Executive Dashboard</span>
+            </div>
+
+            <div class="nav-section-label" data-i18n="nav.operations">Operations</div>
+
+            <div class="nav-item" data-view="import" onclick="switchView('import')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.import">Import</span>
+                <span class="badge" id="import-badge">0</span>
+            </div>
+
+            <div class="nav-item" data-view="export" onclick="switchView('export')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.export">Export</span>
+                <span class="badge" id="export-badge">0</span>
             </div>
 
             <div class="nav-item" data-view="queue" onclick="switchView('queue')">
@@ -108,65 +130,198 @@
             </div>
         </header>
 
-        <!-- ==================== DASHBOARD VIEW ==================== -->
-        <div class="view active" id="view-dashboard">
+        <!-- ==================== EXECUTIVE DASHBOARD VIEW ==================== -->
+        <div class="view active" id="view-exec-dashboard">
             <div class="page-content">
 
-                <!-- KPI Cards -->
+                <!-- Executive KPI Cards -->
+                <div class="kpi-grid exec-kpi-grid">
+                    <div class="kpi-card accent">
+                        <div class="kpi-icon">📦</div>
+                        <div class="kpi-value" id="exec-import-processed">0</div>
+                        <div class="kpi-label" data-i18n="exec.import_processed">Import Processed</div>
+                    </div>
+                    <div class="kpi-card info">
+                        <div class="kpi-icon">🚢</div>
+                        <div class="kpi-value" id="exec-export-processed">0</div>
+                        <div class="kpi-label" data-i18n="exec.export_processed">Export Processed</div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-icon">📊</div>
+                        <div class="kpi-value" id="exec-import-sla">0%</div>
+                        <div class="kpi-label" data-i18n="exec.import_sla">Import SLA %</div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-icon">📈</div>
+                        <div class="kpi-value" id="exec-export-sla">0%</div>
+                        <div class="kpi-label" data-i18n="exec.export_sla">Export SLA %</div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-icon">🚨</div>
+                        <div class="kpi-value" id="exec-total-breaches">0</div>
+                        <div class="kpi-label" data-i18n="exec.total_breaches">Total Breaches</div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-icon">⏱️</div>
+                        <div class="kpi-value" id="exec-avg-time">0m</div>
+                        <div class="kpi-label" data-i18n="exec.avg_time">Avg Cycle Time</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Import vs Export Comparison Chart -->
+                    <div class="comparison-chart">
+                        <h3 data-i18n="exec.comparison_title">Import vs Export: Stage Duration</h3>
+                        <div class="comparison-section">
+                            <div class="comparison-group">
+                                <div class="comparison-label" data-i18n="chart.inbox">Inbox Wait</div>
+                                <div class="comparison-bars">
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label import-label" data-i18n="exec.import_label">Import</span>
+                                        <div class="bar-track"><div class="bar-fill purple" id="exec-bar-inbox-import" style="width:0%">0 min</div></div>
+                                    </div>
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label export-label" data-i18n="exec.export_label">Export</span>
+                                        <div class="bar-track"><div class="bar-fill teal" id="exec-bar-inbox-export" style="width:0%">0 min</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="comparison-group">
+                                <div class="comparison-label" data-i18n="chart.drafting">Drafting</div>
+                                <div class="comparison-bars">
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label import-label" data-i18n="exec.import_label">Import</span>
+                                        <div class="bar-track"><div class="bar-fill purple" id="exec-bar-drafting-import" style="width:0%">0 min</div></div>
+                                    </div>
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label export-label" data-i18n="exec.export_label">Export</span>
+                                        <div class="bar-track"><div class="bar-fill teal" id="exec-bar-drafting-export" style="width:0%">0 min</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="comparison-group">
+                                <div class="comparison-label" data-i18n="chart.checking">Checking</div>
+                                <div class="comparison-bars">
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label import-label" data-i18n="exec.import_label">Import</span>
+                                        <div class="bar-track"><div class="bar-fill purple" id="exec-bar-checking-import" style="width:0%">0 min</div></div>
+                                    </div>
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label export-label" data-i18n="exec.export_label">Export</span>
+                                        <div class="bar-track"><div class="bar-fill teal" id="exec-bar-checking-export" style="width:0%">0 min</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="comparison-group">
+                                <div class="comparison-label" data-i18n="chart.total">Total Lifecycle</div>
+                                <div class="comparison-bars">
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label import-label" data-i18n="exec.import_label">Import</span>
+                                        <div class="bar-track"><div class="bar-fill purple" id="exec-bar-total-import" style="width:0%">0 min</div></div>
+                                    </div>
+                                    <div class="comparison-bar-row">
+                                        <span class="comp-type-label export-label" data-i18n="exec.export_label">Export</span>
+                                        <div class="bar-track"><div class="bar-fill teal" id="exec-bar-total-export" style="width:0%">0 min</div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Summary Card -->
+                    <div class="ai-summary-card">
+                        <div class="ai-summary-header">
+                            <h3 data-i18n="exec.ai_title">🤖 AI Performance Summary</h3>
+                            <div style="display:flex;align-items:center;gap:0.5rem">
+                                <span class="ai-tag">AI Generated</span>
+                                <button class="filter-btn" onclick="refreshAISummary()" data-i18n="exec.ai_refresh">↻ Refresh</button>
+                            </div>
+                        </div>
+                        <div class="ai-summary-content" id="ai-summary-content">
+                            <p data-i18n="exec.ai_generating">Generating AI summary...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Combined Recent Activity -->
+                <div class="data-table-wrapper" style="margin-top:1.25rem">
+                    <div class="table-header">
+                        <h3 data-i18n="exec.combined_activity">Combined Recent Activity</h3>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="recent.col_time">Time</th>
+                                <th data-i18n="recent.col_event">Event</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exec-recent-activity-body">
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== IMPORT VIEW ==================== -->
+        <div class="view" id="view-import">
+            <div class="page-content">
+
+                <!-- Import KPI Cards -->
                 <div class="kpi-grid">
                     <div class="kpi-card accent">
                         <div class="kpi-icon">📋</div>
-                        <div class="kpi-value" id="kpi-active">0</div>
+                        <div class="kpi-value" id="import-kpi-active">0</div>
                         <div class="kpi-label" data-i18n="kpi.active">Active L/Cs</div>
                     </div>
                     <div class="kpi-card success">
                         <div class="kpi-icon">✅</div>
-                        <div class="kpi-value" id="kpi-completed">0</div>
+                        <div class="kpi-value" id="import-kpi-completed">0</div>
                         <div class="kpi-label" data-i18n="kpi.completed">Completed Today</div>
                     </div>
                     <div class="kpi-card danger">
                         <div class="kpi-icon">🚨</div>
-                        <div class="kpi-value" id="kpi-breaches">0</div>
+                        <div class="kpi-value" id="import-kpi-breaches">0</div>
                         <div class="kpi-label" data-i18n="kpi.breaches">SLA Breaches</div>
                     </div>
                     <div class="kpi-card warning">
                         <div class="kpi-icon">⏱️</div>
-                        <div class="kpi-value" id="kpi-avgtime">0m</div>
+                        <div class="kpi-value" id="import-kpi-avgtime">0m</div>
                         <div class="kpi-label" data-i18n="kpi.avgtime">Avg Processing Time</div>
                     </div>
                 </div>
 
                 <div class="grid-2">
-                    <!-- Stage Duration Chart -->
+                    <!-- Import Stage Duration Chart -->
                     <div class="stage-chart">
                         <h3 data-i18n="chart.title">Average Stage Duration</h3>
                         <div class="bar-row">
                             <span class="bar-label" data-i18n="chart.inbox">Inbox Wait</span>
                             <div class="bar-track">
-                                <div class="bar-fill purple" id="bar-inbox" style="width:0%">0 min</div>
+                                <div class="bar-fill purple" id="import-bar-inbox" style="width:0%">0 min</div>
                             </div>
                         </div>
                         <div class="bar-row">
                             <span class="bar-label" data-i18n="chart.drafting">Drafting</span>
                             <div class="bar-track">
-                                <div class="bar-fill amber" id="bar-drafting" style="width:0%">0 min</div>
+                                <div class="bar-fill amber" id="import-bar-drafting" style="width:0%">0 min</div>
                             </div>
                         </div>
                         <div class="bar-row">
                             <span class="bar-label" data-i18n="chart.checking">Checking</span>
                             <div class="bar-track">
-                                <div class="bar-fill indigo" id="bar-checking" style="width:0%">0 min</div>
+                                <div class="bar-fill indigo" id="import-bar-checking" style="width:0%">0 min</div>
                             </div>
                         </div>
                         <div class="bar-row">
                             <span class="bar-label" data-i18n="chart.total">Total Lifecycle</span>
                             <div class="bar-track">
-                                <div class="bar-fill teal" id="bar-total" style="width:0%">0 min</div>
+                                <div class="bar-fill teal" id="import-bar-total" style="width:0%">0 min</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Recent Activity -->
+                    <!-- Import Recent Activity -->
                     <div class="data-table-wrapper">
                         <div class="table-header">
                             <h3 data-i18n="recent.title">Recent Activity</h3>
@@ -178,13 +333,13 @@
                                     <th data-i18n="recent.col_event">Event</th>
                                 </tr>
                             </thead>
-                            <tbody id="recent-activity-body">
+                            <tbody id="import-recent-activity-body">
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- Status Breakdown Mini Table -->
+                <!-- Import Summary Table -->
                 <div class="data-table-wrapper" style="margin-top:1.25rem">
                     <div class="table-header">
                         <h3 data-i18n="summary.title">Today's L/C Summary</h3>
@@ -201,7 +356,109 @@
                                     <th data-i18n="summary.col_sla">SLA</th>
                                 </tr>
                             </thead>
-                            <tbody id="dashboard-summary-body">
+                            <tbody id="import-summary-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== EXPORT VIEW ==================== -->
+        <div class="view" id="view-export">
+            <div class="page-content">
+
+                <!-- Export KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card accent">
+                        <div class="kpi-icon">📋</div>
+                        <div class="kpi-value" id="export-kpi-active">0</div>
+                        <div class="kpi-label" data-i18n="kpi.active">Active L/Cs</div>
+                    </div>
+                    <div class="kpi-card success">
+                        <div class="kpi-icon">✅</div>
+                        <div class="kpi-value" id="export-kpi-completed">0</div>
+                        <div class="kpi-label" data-i18n="kpi.completed">Completed Today</div>
+                    </div>
+                    <div class="kpi-card danger">
+                        <div class="kpi-icon">🚨</div>
+                        <div class="kpi-value" id="export-kpi-breaches">0</div>
+                        <div class="kpi-label" data-i18n="kpi.breaches">SLA Breaches</div>
+                    </div>
+                    <div class="kpi-card warning">
+                        <div class="kpi-icon">⏱️</div>
+                        <div class="kpi-value" id="export-kpi-avgtime">0m</div>
+                        <div class="kpi-label" data-i18n="kpi.avgtime">Avg Processing Time</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Export Stage Duration Chart -->
+                    <div class="stage-chart">
+                        <h3 data-i18n="chart.title">Average Stage Duration</h3>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.inbox">Inbox Wait</span>
+                            <div class="bar-track">
+                                <div class="bar-fill purple" id="export-bar-inbox" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.drafting">Drafting</span>
+                            <div class="bar-track">
+                                <div class="bar-fill amber" id="export-bar-drafting" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.checking">Checking</span>
+                            <div class="bar-track">
+                                <div class="bar-fill indigo" id="export-bar-checking" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                        <div class="bar-row">
+                            <span class="bar-label" data-i18n="chart.total">Total Lifecycle</span>
+                            <div class="bar-track">
+                                <div class="bar-fill teal" id="export-bar-total" style="width:0%">0 min</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Recent Activity -->
+                    <div class="data-table-wrapper">
+                        <div class="table-header">
+                            <h3 data-i18n="recent.title">Recent Activity</h3>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="recent.col_time">Time</th>
+                                    <th data-i18n="recent.col_event">Event</th>
+                                </tr>
+                            </thead>
+                            <tbody id="export-recent-activity-body">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Export Summary Table -->
+                <div class="data-table-wrapper" style="margin-top:1.25rem">
+                    <div class="table-header">
+                        <h3 data-i18n="summary.title">Today's L/C Summary</h3>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="summary.col_urn">URN</th>
+                                    <th data-i18n="summary.col_sender">Sender</th>
+                                    <th data-i18n="summary.col_status">Status</th>
+                                    <th data-i18n="summary.col_received">Received</th>
+                                    <th data-i18n="summary.col_elapsed">Elapsed</th>
+                                    <th data-i18n="summary.col_sla">SLA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="export-summary-body">
                             </tbody>
                         </table>
                     </div>
@@ -272,6 +529,13 @@
                     <p data-i18n="create.desc">Fill in the details below to create a new L/C order.</p>
 
                     <form onsubmit="handleCreateOrder(event)" style="margin-top: 1.5rem;">
+                        <div class="form-group">
+                            <label for="create-type" data-i18n="create.form.type">Transaction Type</label>
+                            <select id="create-type" required>
+                                <option value="Import">Import</option>
+                                <option value="Export">Export</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="create-sender" data-i18n="create.form.sender">Sender Email</label>
                             <input type="email" id="create-sender" required placeholder="exporter@client.com" />
