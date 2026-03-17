@@ -9,6 +9,10 @@ Core CRUD backend starter for the L/C dashboard using Gin + GORM + MySQL.
 - `GET /api/lc`
 - `GET /api/lc/:id`
 - `PATCH /api/lc/:id/status`
+- `GET /api/assignees`
+- `POST /api/assignees`
+- `GET /api/officers`
+- `POST /api/officers`
 - `GET /api/events`
 - `GET /api/sla`
 - `PATCH /api/sla`
@@ -86,6 +90,6 @@ Server default: `http://localhost:8080`
 
 ## Notes
 
-- The app runs auto-migration on startup for: `lcs`, `events`, `sla_config`.
+- The app runs auto-migration on startup for: `lcs`, `events`, `sla_config`, `assignees`, `officers`.
 - It seeds one default SLA row (90/120) if not present.
 - Credentials are loaded from `.env` only.

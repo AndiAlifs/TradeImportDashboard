@@ -6,12 +6,16 @@
 const STORAGE_KEY = 'shila_lc_data';
 const SLA_KEY = 'shila_sla_config';
 const EVENT_LOG_KEY = 'shila_event_log';
+const ASSIGNEE_KEY = 'shila_assignee_master';
+const OFFICER_KEY = 'shila_officer_master';
 const DEFAULT_SLA = { slaMinMinutes: 90, slaMaxMinutes: 120 };
 const API_BASE = window.SHILA_API_BASE || 'http://localhost:8081/api';
 
 let lcCache = [];
 let slaCache = { ...DEFAULT_SLA };
 let eventCache = [];
+let assigneeCache = [];
+let officerCache = [];
 let backendOnline = false;
 
 async function apiRequest(path, options = {}) {
@@ -58,24 +62,42 @@ function loadLocalFallback() {
   } catch (_ignored) {
     eventCache = [];
   }
+
+  try {
+    assigneeCache = JSON.parse(localStorage.getItem(ASSIGNEE_KEY) || '[]');
+  } catch (_ignored) {
+    assigneeCache = [];
+  }
+
+  try {
+    officerCache = JSON.parse(localStorage.getItem(OFFICER_KEY) || '[]');
+  } catch (_ignored) {
+    officerCache = [];
+  }
 }
 
 function persistLocalCache() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(lcCache));
   localStorage.setItem(SLA_KEY, JSON.stringify(slaCache));
   localStorage.setItem(EVENT_LOG_KEY, JSON.stringify(eventCache));
+  localStorage.setItem(ASSIGNEE_KEY, JSON.stringify(assigneeCache));
+  localStorage.setItem(OFFICER_KEY, JSON.stringify(officerCache));
 }
 
 async function refreshData() {
-  const [lcResp, slaResp, eventResp] = await Promise.all([
+  const [lcResp, slaResp, eventResp, assigneeResp, officerResp] = await Promise.all([
     apiRequest('/lc?limit=500&offset=0'),
     apiRequest('/sla'),
     apiRequest('/events?limit=500&offset=0'),
+    apiRequest('/assignees'),
+    apiRequest('/officers'),
   ]);
 
   lcCache = Array.isArray(lcResp?.data) ? lcResp.data : [];
   slaCache = slaResp || { ...DEFAULT_SLA };
   eventCache = Array.isArray(eventResp?.data) ? eventResp.data : [];
+  assigneeCache = Array.isArray(assigneeResp?.data) ? assigneeResp.data : [];
+  officerCache = Array.isArray(officerResp?.data) ? officerResp.data : [];
   backendOnline = true;
   persistLocalCache();
 }
@@ -126,6 +148,32 @@ function addEventLog(entry) {
     ...entry,
   });
   persistLocalCache();
+}
+
+function getAssignees() {
+  return assigneeCache;
+}
+
+async function createAssignee(payload) {
+  const created = await apiRequest('/assignees', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  await refreshData();
+  return created;
+}
+
+function getOfficers() {
+  return officerCache;
+}
+
+async function createOfficer(payload) {
+  const created = await apiRequest('/officers', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  await refreshData();
+  return created;
 }
 
 async function createLCOrder(payload) {

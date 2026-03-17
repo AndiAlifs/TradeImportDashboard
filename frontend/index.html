@@ -68,6 +68,15 @@
                 <span class="badge" id="queue-badge">0</span>
             </div>
 
+            <div class="nav-item" data-view="officer-release" onclick="switchView('officer-release')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.officer_release">Officer Release L/C</span>
+            </div>
+
             <div class="nav-item" data-view="create" onclick="switchView('create')">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -75,6 +84,26 @@
                     </svg>
                 </span>
                 <span data-i18n="nav.create">Create Order</span>
+            </div>
+
+            <div class="nav-section-label" data-i18n="nav.master_data">Master Data</div>
+
+            <div class="nav-item" data-view="assignee-master" onclick="switchView('assignee-master')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5V4h-5m0 16H7m10 0v-6m0 6H7m0 0H2V4h5m0 16v-6m0-4V4m10 0H7m10 0v6m-10 4h10" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.assignee_master">L/C Assignee Master</span>
+            </div>
+
+            <div class="nav-item" data-view="officer-registration" onclick="switchView('officer-registration')">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5V4h-5m0 16H7m10 0v-6m0 6H7m0 0H2V4h5m0 16v-6m0-4V4m10 0H7m10 0v6m-10 4h10" />
+                    </svg>
+                </span>
+                <span data-i18n="nav.officer_registration">Officer Registration</span>
             </div>
 
             <div class="nav-item" data-view="sla" onclick="switchView('sla')">
@@ -521,6 +550,44 @@
             </div>
         </div>
 
+        <!-- ==================== OFFICER RELEASE VIEW ==================== -->
+        <div class="view" id="view-officer-release">
+            <div class="page-content">
+
+                <div class="data-table-wrapper">
+                    <div class="table-header">
+                        <h3 data-i18n="officer_release.title">Officer Release L/C</h3>
+                        <div class="table-filters">
+                            <input type="text" class="search-input" data-i18n="officer_release.search"
+                                placeholder="Search releasable L/C..." id="officer-release-search" oninput="renderOfficerReleaseQueue()" />
+                        </div>
+                    </div>
+                    <div class="table-scroll" style="max-height:600px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="officer_release.col_num">#</th>
+                                    <th data-i18n="officer_release.col_urn">URN</th>
+                                    <th data-i18n="officer_release.col_type">Type</th>
+                                    <th data-i18n="officer_release.col_sender">Sender</th>
+                                    <th data-i18n="officer_release.col_assigned">Assigned To</th>
+                                    <th data-i18n="officer_release.col_status">Status</th>
+                                    <th data-i18n="officer_release.col_elapsed">Elapsed</th>
+                                    <th data-i18n="officer_release.col_action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="officer-release-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="officer-release-count">Showing 0 records</span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
         <!-- ==================== CREATE ORDER VIEW ==================== -->
         <div class="view" id="view-create">
             <div class="page-content">
@@ -547,20 +614,89 @@
                         <div class="form-group">
                             <label for="create-assigned" data-i18n="create.form.assigned">Assigned To</label>
                             <select id="create-assigned" required>
-                                <option value="Rina Hartono">Rina Hartono</option>
-                                <option value="Budi Setiawan">Budi Setiawan</option>
-                                <option value="Dewi Lestari">Dewi Lestari</option>
-                                <option value="Andi Pratama">Andi Pratama</option>
-                                <option value="Siti Nurhaliza">Siti Nurhaliza</option>
-                                <option value="Fajar Hidayat">Fajar Hidayat</option>
-                                <option value="Mega Putri">Mega Putri</option>
-                                <option value="Hendra Wijaya">Hendra Wijaya</option>
+                                <option value="" data-i18n="create.form.assigned_loading">Loading assignees...</option>
                             </select>
                         </div>
                         <div class="form-actions" style="margin-top: 2rem;">
                             <button type="submit" class="btn btn-primary" data-i18n="create.form.submit">➕ Create Order</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ASSIGNEE MASTER VIEW ==================== -->
+        <div class="view" id="view-assignee-master">
+            <div class="page-content">
+                <div class="settings-card">
+                    <h3 data-i18n="assignee.title">L/C Assignee Master</h3>
+                    <p data-i18n="assignee.desc">Add and manage assignees available for new L/C orders.</p>
+
+                    <form onsubmit="handleCreateAssignee(event)" style="margin-top: 1.5rem; display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
+                        <div class="form-group" style="margin:0; flex: 1; min-width:260px;">
+                            <label for="assignee-name" data-i18n="assignee.form.name">Assignee Name</label>
+                            <input type="text" id="assignee-name" required data-i18n="assignee.form.placeholder" placeholder="Enter assignee name" />
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-i18n="assignee.form.submit">➕ Add Assignee</button>
+                    </form>
+                </div>
+
+                <div class="data-table-wrapper" style="margin-top:1.25rem">
+                    <div class="table-header">
+                        <h3 data-i18n="assignee.list_title">Assignee List</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height:520px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th data-i18n="assignee.col_name">Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignee-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="assignee-count">0 records</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== OFFICER REGISTRATION VIEW ==================== -->
+        <div class="view" id="view-officer-registration">
+            <div class="page-content">
+                <div class="settings-card">
+                    <h3 data-i18n="officer_registration.title">Officer Registration</h3>
+                    <p data-i18n="officer_registration.desc">Add and manage officers responsible for release approval.</p>
+
+                    <form onsubmit="handleAddOfficer(event)" style="margin-top: 1.5rem; display:flex; gap:0.75rem; align-items:flex-end; flex-wrap:wrap;">
+                        <div class="form-group" style="margin:0; flex: 1; min-width:260px;">
+                            <label for="officer-name" data-i18n="officer_registration.form.name">Officer Name</label>
+                            <input type="text" id="officer-name" required data-i18n="officer_registration.form.placeholder" placeholder="Enter officer name" />
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-i18n="officer_registration.form.submit">➕ Add Officer</button>
+                    </form>
+                </div>
+
+                <div class="data-table-wrapper" style="margin-top:1.25rem">
+                    <div class="table-header">
+                        <h3 data-i18n="officer_registration.list_title">Officer List</h3>
+                    </div>
+                    <div class="table-scroll" style="max-height:520px">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th data-i18n="officer_registration.col_name">Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="officer-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="table-footer">
+                        <span id="officer-count">0 records</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -679,12 +815,7 @@
                 <div class="form-group" style="text-align: left;">
                     <label>Select Approving Officer</label>
                     <select id="release-officer" class="form-control" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem;">
-                        <option value="Alice Smith">Alice Smith</option>
-                        <option value="Bob Jones">Bob Jones</option>
-                        <option value="Charlie Davis">Charlie Davis</option>
-                        <option value="Diana Prince">Diana Prince</option>
-                        <option value="Rina Hartono">Rina Hartono</option>
-                        <option value="Budi Setiawan">Budi Setiawan</option>
+                        <option value="">Select officer</option>
                     </select>
                 </div>
                 <input type="hidden" id="release-lc-id" />

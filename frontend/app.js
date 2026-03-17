@@ -39,7 +39,10 @@ function switchView(view) {
         'export': 'page.export.title',
         dashboard: 'page.dashboard.title',
         queue: 'page.queue.title',
+        'officer-release': 'page.officer_release.title',
         create: 'page.create.title',
+        'officer-registration': 'page.officer_registration.title',
+        'assignee-master': 'page.assignee_master.title',
         sla: 'page.sla.title',
         eventlog: 'page.eventlog.title',
     };
@@ -49,7 +52,10 @@ function switchView(view) {
         'export': 'page.export.breadcrumb',
         dashboard: 'page.dashboard.breadcrumb',
         queue: 'page.queue.breadcrumb',
+        'officer-release': 'page.officer_release.breadcrumb',
         create: 'page.create.breadcrumb',
+        'officer-registration': 'page.officer_registration.breadcrumb',
+        'assignee-master': 'page.assignee_master.breadcrumb',
         sla: 'page.sla.breadcrumb',
         eventlog: 'page.eventlog.breadcrumb',
     };
@@ -67,6 +73,10 @@ function renderAll() {
     renderFilteredView('Import');
     renderFilteredView('Export');
     renderQueue();
+    renderOfficerReleaseQueue();
+    renderAssigneeMaster();
+    renderOfficerMaster();
+    renderAssigneeOptions();
     renderSlaForm();
     renderEventLog();
     updateBadges();
@@ -382,7 +392,7 @@ function renderQueue() {
             r.urn.toLowerCase().includes(search) ||
             r.senderEmail.toLowerCase().includes(search) ||
             r.subject.toLowerCase().includes(search) ||
-            r.assignedTo.toLowerCase().includes(search)
+            (r.assignedTo || '').toLowerCase().includes(search)
         );
     }
 
@@ -409,6 +419,44 @@ function renderQueue() {
     document.getElementById('queue-count').textContent = `${t('queue.showing')} ${filtered.length} ${t('queue.of')} ${data.length} ${t('queue.records')}`;
 }
 
+function renderOfficerReleaseQueue() {
+    const data = getData();
+    const search = (document.getElementById('officer-release-search')?.value || '').toLowerCase();
+    const tbody = document.getElementById('officer-release-body');
+    const countEl = document.getElementById('officer-release-count');
+    if (!tbody || !countEl) return;
+
+    let releasable = data.filter(r => r.status === 'Checking Underlying' || r.status === 'Breached');
+
+    if (search) {
+        releasable = releasable.filter(r =>
+            r.urn.toLowerCase().includes(search) ||
+            r.senderEmail.toLowerCase().includes(search) ||
+            r.subject.toLowerCase().includes(search) ||
+            (r.assignedTo || '').toLowerCase().includes(search)
+        );
+    }
+
+    if (releasable.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">${t('officer_release.no_records')}</td></tr>`;
+    } else {
+        tbody.innerHTML = releasable.map((r, i) => `
+      <tr>
+        <td style="color:var(--text-muted)">${i + 1}</td>
+        <td><a class="urn-link" onclick="showLcDetails(${r.id})"><strong>${r.urn}</strong></a></td>
+        <td>${typeBadge(r.transactionType)}</td>
+        <td style="font-size:0.8rem">${r.senderEmail}</td>
+        <td style="font-size:0.8rem">${r.assignedTo}</td>
+        <td>${statusBadge(r.status)}</td>
+        <td class="elapsed-time">${formatElapsed(r)}</td>
+        <td><button class="action-btn success" onclick="promptRelease(${r.id})">${t('action.release')}</button></td>
+      </tr>
+    `).join('');
+    }
+
+    countEl.textContent = `${t('queue.showing')} ${releasable.length} ${t('queue.records')}`;
+}
+
 function updateBadges() {
     const data = getData();
     const importActive = data.filter(r => r.transactionType === 'Import' && r.status !== 'Released').length;
@@ -428,6 +476,66 @@ function renderSlaForm() {
     const maxEl = document.getElementById('sla-max');
     if (minEl) minEl.value = sla.slaMinMinutes;
     if (maxEl) maxEl.value = sla.slaMaxMinutes;
+}
+
+function renderAssigneeMaster() {
+    const body = document.getElementById('assignee-body');
+    const countEl = document.getElementById('assignee-count');
+    if (!body || !countEl) return;
+
+    const list = getAssignees();
+    if (list.length === 0) {
+        body.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">${t('assignee.empty')}</td></tr>`;
+    } else {
+        body.innerHTML = list.map((a, i) => `
+        <tr>
+            <td style="color:var(--text-muted)">${i + 1}</td>
+            <td>${a.name}</td>
+        </tr>
+        `).join('');
+    }
+
+    countEl.textContent = `${t('queue.showing')} ${list.length} ${t('queue.records')}`;
+}
+
+function renderOfficerMaster() {
+    const body = document.getElementById('officer-body');
+    const countEl = document.getElementById('officer-count');
+    if (!body || !countEl) return;
+
+    const list = getOfficers();
+    if (list.length === 0) {
+        body.innerHTML = `<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">${t('officer_registration.empty')}</td></tr>`;
+    } else {
+        body.innerHTML = list.map((a, i) => `
+        <tr>
+            <td style="color:var(--text-muted)">${i + 1}</td>
+            <td>${a.name}</td>
+        </tr>
+        `).join('');
+    }
+
+    countEl.textContent = `${t('queue.showing')} ${list.length} ${t('queue.records')}`;
+}
+
+function renderAssigneeOptions() {
+    const assigneeList = getAssignees();
+    const officerList = getOfficers();
+    const assignSelect = document.getElementById('create-assigned');
+    const officerSelect = document.getElementById('release-officer');
+
+    if (assignSelect) {
+        assignSelect.innerHTML = assigneeList.length === 0
+            ? `<option value="">${t('assignee.empty')}</option>`
+            : assigneeList.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+    }
+
+    if (officerSelect) {
+        officerSelect.innerHTML = officerList.length === 0
+            ? `<option value="">${t('officer_registration.empty')}</option>`
+            : `<option value="">${t('officer_release.select_officer')}</option>` +
+              officerList.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+    }
 }
 
 async function handleSaveSla() {
@@ -602,6 +710,11 @@ async function handleCreateOrder(event) {
     const subject = document.getElementById('create-subject').value;
     const assignedTo = document.getElementById('create-assigned').value;
 
+    if (!assignedTo) {
+        showToast('info', t('assignee.required'));
+        return;
+    }
+
     try {
         await createLCOrder({
             senderEmail,
@@ -618,6 +731,48 @@ async function handleCreateOrder(event) {
         switchView('queue');
     } catch (err) {
         showToast('info', err.message || 'Failed to create order');
+    }
+}
+
+async function handleCreateAssignee(event) {
+    event.preventDefault();
+    const nameEl = document.getElementById('assignee-name');
+    if (!nameEl) return;
+
+    const name = nameEl.value.trim();
+    if (!name) {
+        showToast('info', t('assignee.required'));
+        return;
+    }
+
+    try {
+        await createAssignee({ name });
+        nameEl.value = '';
+        renderAll();
+        showToast('success', t('toast.assignee_added'));
+    } catch (err) {
+        showToast('info', err.message || t('toast.assignee_add_failed'));
+    }
+}
+
+async function handleAddOfficer(event) {
+    event.preventDefault();
+    const nameEl = document.getElementById('officer-name');
+    if (!nameEl) return;
+
+    const name = nameEl.value.trim();
+    if (!name) {
+        showToast('info', t('officer_registration.required'));
+        return;
+    }
+
+    try {
+        await createOfficer({ name });
+        nameEl.value = '';
+        renderAll();
+        showToast('success', t('toast.officer_added'));
+    } catch (err) {
+        showToast('info', err.message || t('toast.officer_add_failed'));
     }
 }
 
@@ -854,6 +1009,9 @@ function startLiveTimers() {
         }
         if (currentView === 'queue') {
             renderQueue();
+        }
+        if (currentView === 'officer-release') {
+            renderOfficerReleaseQueue();
         }
         updateClock();
     }, 30000); // every 30 seconds

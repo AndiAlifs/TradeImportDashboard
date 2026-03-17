@@ -14,7 +14,9 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{cfg.AllowedOrigin},
+		AllowOriginFunc: func(origin string) bool {
+			return origin == "null" || origin == cfg.AllowedOrigin
+		},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
@@ -26,6 +28,11 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 
 	api := r.Group("/api")
 	{
+		api.GET("/assignees", h.ListAssignees)
+		api.POST("/assignees", h.CreateAssignee)
+		api.GET("/officers", h.ListOfficers)
+		api.POST("/officers", h.CreateOfficer)
+
 		api.POST("/lc", h.CreateLC)
 		api.GET("/lc", h.ListLCs)
 		api.GET("/lc/:id", h.GetLCByID)
