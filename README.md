@@ -41,3 +41,25 @@ The system utilizes a decoupled design philosophy, separating the tracking logic
 * Document storage and attachment viewing within the UI.
 * Complex role-based user authentication.
 * Data export capabilities (CSV/Excel).
+
+## Backend Starter (Go)
+
+A backend starter is available in the `backend` folder with Core CRUD endpoints:
+
+- `POST /api/lc`
+- `GET /api/lc`
+- `GET /api/lc/:id`
+- `PATCH /api/lc/:id/status`
+- `GET /api/events`
+- `GET /api/sla`
+- `PATCH /api/sla`
+
+Run locally:
+
+```bash
+cd backend
+go mod tidy
+go run ./cmd/server
+```
+
+By default the server runs on `http://localhost:8080`.
