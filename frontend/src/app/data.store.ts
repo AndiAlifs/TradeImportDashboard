@@ -1,24 +1,20 @@
-// ============================================================
-// Shila Dashboard - data.js
-// API-backed data store with local cache fallback
-// ============================================================
-
 const STORAGE_KEY = 'shila_lc_data';
 const SLA_KEY = 'shila_sla_config';
 const EVENT_LOG_KEY = 'shila_event_log';
 const ASSIGNEE_KEY = 'shila_assignee_master';
 const OFFICER_KEY = 'shila_officer_master';
-const DEFAULT_SLA = { slaMinMinutes: 90, slaMaxMinutes: 120 };
-const API_BASE = window.SHILA_API_BASE || 'http://localhost:8081/api';
 
-let lcCache = [];
-let slaCache = { ...DEFAULT_SLA };
-let eventCache = [];
-let assigneeCache = [];
-let officerCache = [];
+const DEFAULT_SLA = { slaMinMinutes: 90, slaMaxMinutes: 120 };
+const API_BASE = (window as any).SHILA_API_BASE || 'http://localhost:8080/api';
+
+let lcCache: any[] = [];
+let slaCache: any = { ...DEFAULT_SLA };
+let eventCache: any[] = [];
+let assigneeCache: any[] = [];
+let officerCache: any[] = [];
 let backendOnline = false;
 
-async function apiRequest(path, options = {}) {
+async function apiRequest(path: string, options: RequestInit = {}): Promise<any> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
@@ -32,7 +28,7 @@ async function apiRequest(path, options = {}) {
         message = err.error;
       }
     } catch (_ignored) {
-      // Ignore JSON parse errors and keep default message.
+      // Keep default message.
     }
     throw new Error(message);
   }
@@ -44,7 +40,7 @@ async function apiRequest(path, options = {}) {
   return response.json();
 }
 
-function loadLocalFallback() {
+function loadLocalFallback(): void {
   try {
     lcCache = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   } catch (_ignored) {
@@ -76,7 +72,7 @@ function loadLocalFallback() {
   }
 }
 
-function persistLocalCache() {
+function persistLocalCache(): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(lcCache));
   localStorage.setItem(SLA_KEY, JSON.stringify(slaCache));
   localStorage.setItem(EVENT_LOG_KEY, JSON.stringify(eventCache));
@@ -84,7 +80,7 @@ function persistLocalCache() {
   localStorage.setItem(OFFICER_KEY, JSON.stringify(officerCache));
 }
 
-async function refreshData() {
+export async function refreshData(): Promise<void> {
   const [lcResp, slaResp, eventResp, assigneeResp, officerResp] = await Promise.all([
     apiRequest('/lc?limit=500&offset=0'),
     apiRequest('/sla'),
@@ -102,7 +98,7 @@ async function refreshData() {
   persistLocalCache();
 }
 
-async function initDataStore() {
+export async function initDataStore(): Promise<void> {
   try {
     await refreshData();
   } catch (_err) {
@@ -111,24 +107,19 @@ async function initDataStore() {
   }
 }
 
-function isBackendOnline() {
+export function isBackendOnline(): boolean {
   return backendOnline;
 }
 
-function getData() {
+export function getData(): any[] {
   return lcCache;
 }
 
-function saveData(data) {
-  lcCache = Array.isArray(data) ? data : [];
-  persistLocalCache();
-}
-
-function getSlaConfig() {
+export function getSlaConfig(): any {
   return slaCache;
 }
 
-async function saveSlaConfig(config) {
+export async function saveSlaConfig(config: any): Promise<any> {
   const updated = await apiRequest('/sla', {
     method: 'PATCH',
     body: JSON.stringify(config),
@@ -138,23 +129,15 @@ async function saveSlaConfig(config) {
   return slaCache;
 }
 
-function getEventLog() {
+export function getEventLog(): any[] {
   return eventCache;
 }
 
-function addEventLog(entry) {
-  eventCache.unshift({
-    timestamp: new Date().toISOString(),
-    ...entry,
-  });
-  persistLocalCache();
-}
-
-function getAssignees() {
+export function getAssignees(): any[] {
   return assigneeCache;
 }
 
-async function createAssignee(payload) {
+export async function createAssignee(payload: any): Promise<any> {
   const created = await apiRequest('/assignees', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -163,11 +146,11 @@ async function createAssignee(payload) {
   return created;
 }
 
-function getOfficers() {
+export function getOfficers(): any[] {
   return officerCache;
 }
 
-async function createOfficer(payload) {
+export async function createOfficer(payload: any): Promise<any> {
   const created = await apiRequest('/officers', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -176,7 +159,7 @@ async function createOfficer(payload) {
   return created;
 }
 
-async function createLCOrder(payload) {
+export async function createLCOrder(payload: any): Promise<any> {
   const created = await apiRequest('/lc', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -185,7 +168,7 @@ async function createLCOrder(payload) {
   return created;
 }
 
-async function updateLCStatus(id, payload) {
+export async function updateLCStatus(id: number, payload: any): Promise<any> {
   const updated = await apiRequest(`/lc/${id}/status`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
@@ -194,11 +177,6 @@ async function updateLCStatus(id, payload) {
   return updated;
 }
 
-async function resetAllData() {
+export async function resetAllData(): Promise<void> {
   throw new Error('Reset API is not implemented yet.');
-}
-
-function clearEventLogLocalOnly() {
-  eventCache = [];
-  persistLocalCache();
 }
