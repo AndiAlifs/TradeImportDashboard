@@ -430,19 +430,27 @@ function renderSlaForm() {
     if (maxEl) maxEl.value = sla.slaMaxMinutes;
 }
 
-function handleSaveSla() {
+async function handleSaveSla() {
     const slaMin = parseInt(document.getElementById('sla-min').value) || 90;
     const slaMax = parseInt(document.getElementById('sla-max').value) || 120;
-    saveSlaConfig({ slaMinMinutes: slaMin, slaMaxMinutes: slaMax });
-    showToast('success', t('toast.sla_saved'));
-    renderAll();
+    try {
+        await saveSlaConfig({ slaMinMinutes: slaMin, slaMaxMinutes: slaMax });
+        showToast('success', t('toast.sla_saved'));
+        renderAll();
+    } catch (err) {
+        showToast('info', err.message || 'Failed to save SLA');
+    }
 }
 
-function handleResetSla() {
-    saveSlaConfig({ slaMinMinutes: 90, slaMaxMinutes: 120 });
-    renderSlaForm();
-    showToast('info', t('toast.sla_reset'));
-    renderAll();
+async function handleResetSla() {
+    try {
+        await saveSlaConfig({ slaMinMinutes: 90, slaMaxMinutes: 120 });
+        renderSlaForm();
+        showToast('info', t('toast.sla_reset'));
+        renderAll();
+    } catch (err) {
+        showToast('info', err.message || 'Failed to reset SLA');
+    }
 }
 
 // --------------- Event Log ---------------
@@ -471,9 +479,7 @@ function renderEventLog() {
 }
 
 function clearEventLog() {
-    localStorage.removeItem('shila_event_log');
-    renderEventLog();
-    showToast('info', t('toast.log_cleared'));
+    showToast('info', 'Event log clearing from backend is not available yet');
 }
 
 // --------------- Actions ---------------
@@ -507,7 +513,7 @@ function promptResolveException(id) {
     handleAction(id, 'resolve-exception', finalMins);
 }
 
-function handleAction(id, action, payload = null) {
+async function handleAction(id, action, payload = null) {
     const data = getData();
     const record = data.find(r => r.id === id);
     if (!record) return;
@@ -515,64 +521,52 @@ function handleAction(id, action, payload = null) {
     const prevStatus = record.status;
     let newStatus = '';
     let notes = '';
+    const requestBody = {
+        newStatus: '',
+        notes: '',
+        userId: record.assignedTo || 'system',
+    };
 
     switch (action) {
         case 'start-drafting':
-            record.status = 'Drafting';
-            record.draftingStartedAt = new Date().toISOString();
             newStatus = 'Drafting';
             notes = t('note.start_drafting');
             break;
         case 'start-checking':
-            record.status = 'Checking Underlying';
-            record.checkingStartedAt = new Date().toISOString();
             newStatus = 'Checking Underlying';
             notes = t('note.start_checking');
             break;
         case 'release':
-            record.status = 'Released';
-            record.releasedAt = new Date().toISOString();
             newStatus = 'Released';
             notes = t('note.release');
             break;
         case 'mark-exception':
-            record.previousStatus = record.status;
-            record.status = 'Exception';
-            record.exceptionStartedAt = new Date().toISOString();
-            record.exceptionReason = payload || '';
             newStatus = 'Exception';
             notes = t('note.mark_exception') + (payload ? `: ${payload}` : '');
+            requestBody.exceptionReason = payload || '';
             break;
         case 'resolve-exception':
-            if (record.exceptionStartedAt) {
-                const exceptionMins = payload !== null ? payload : Math.round((Date.now() - new Date(record.exceptionStartedAt)) / 60000);
-                record.exceptionTotalMinutes = (record.exceptionTotalMinutes || 0) + exceptionMins;
-            }
-            record.status = record.previousStatus || 'Drafting';
-            record.exceptionStartedAt = null;
-            record.exceptionReason = null;
-            newStatus = record.status;
+            newStatus = record.previousStatus || 'Drafting';
             notes = t('note.resolve_exception');
+            requestBody.exceptionMinutes = payload;
             break;
         default:
             return;
     }
 
-    saveData(data);
-    addEventLog({
-        urn: record.urn,
-        user: record.assignedTo,
-        action: action.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        from: prevStatus,
-        to: newStatus,
-        notes: notes,
-    });
+    requestBody.newStatus = newStatus;
+    requestBody.notes = notes;
 
-    showToast('success', `${record.urn} → ${newStatus}`);
-    renderAll();
+    try {
+        await updateLCStatus(id, requestBody);
+        showToast('success', `${record.urn} -> ${newStatus}`);
+        renderAll();
+    } catch (err) {
+        showToast('info', err.message || `Failed to update status from ${prevStatus}`);
+    }
 }
 
-function handleCreateOrder(event) {
+async function handleCreateOrder(event) {
     event.preventDefault(); // Prevent default form submission
 
     // Get input values
@@ -581,60 +575,35 @@ function handleCreateOrder(event) {
     const subject = document.getElementById('create-subject').value;
     const assignedTo = document.getElementById('create-assigned').value;
 
-    const data = getData();
+    try {
+        await createLCOrder({
+            senderEmail,
+            subject,
+            transactionType,
+            assignedTo,
+        });
 
-    // Generate URN: LC-YYYYMMDD-XXX
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-    const nextId = data.length > 0 ? Math.max(...data.map(d => d.id)) + 1 : 1;
-    const urn = `LC-${dateStr}-${String(nextId).padStart(3, '0')}`;
+        // Reset form
+        event.target.reset();
 
-    // Create new record
-    const newRecord = {
-        id: nextId,
-        urn: urn,
-        senderEmail: senderEmail,
-        subject: subject,
-        transactionType: transactionType,
-        assignedTo: assignedTo,
-        status: 'Received',
-        receivedAt: new Date().toISOString(),
-        draftingStartedAt: null,
-        checkingStartedAt: null,
-        releasedAt: null,
-        exceptionTotalMinutes: 0,
-        exceptionStartedAt: null,
-        exceptionReason: null,
-        previousStatus: null,
-    };
-
-    // Add to data and save
-    data.unshift(newRecord); // Add to the top of the queue
-    saveData(data);
-
-    // Log the event
-    addEventLog({
-        urn: urn,
-        user: assignedTo,
-        action: 'Create Order',
-        from: '—',
-        to: 'Received',
-        notes: `Manually created (${transactionType})`,
-    });
-
-    // Reset form
-    event.target.reset();
-
-    // Show success toast and redirect
-    showToast('success', t('toast.order_created'));
-    switchView('queue');
+        // Show success toast and redirect
+        showToast('success', t('toast.order_created'));
+        switchView('queue');
+    } catch (err) {
+        showToast('info', err.message || 'Failed to create order');
+    }
 }
 
-function handleReset() {
+async function handleReset() {
     if (!confirm(t('toast.confirm_reset'))) return;
-    resetAllData();
-    renderAll();
-    showToast('info', t('toast.data_reset'));
+    try {
+        await resetAllData();
+        await refreshData();
+        renderAll();
+        showToast('info', t('toast.data_reset'));
+    } catch (err) {
+        showToast('info', err.message || 'Reset is not available yet');
+    }
 }
 
 // --------------- HTML Builders ---------------
@@ -846,6 +815,9 @@ function updateClock() {
 function startLiveTimers() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
+        refreshData().catch(() => {
+            // Keep rendering from cache if backend is temporarily unreachable.
+        });
         // Update elapsed times in visible tables
         if (currentView === 'exec-dashboard') {
             renderExecDashboard();
@@ -864,7 +836,7 @@ function startLiveTimers() {
 }
 
 // --------------- Init ---------------
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Apply saved language on load
     applyStaticTranslations();
     updateLangButton();
@@ -873,7 +845,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('page-title').textContent = t('page.exec_dashboard.title');
     document.getElementById('page-breadcrumb').textContent = t('page.exec_dashboard.breadcrumb');
 
+    await initDataStore();
     renderAll();
+    if (!isBackendOnline()) {
+        showToast('info', 'Backend not reachable. Showing cached data.');
+    }
     updateClock();
     startLiveTimers();
 });
