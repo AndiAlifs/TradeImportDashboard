@@ -40,6 +40,15 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                 <span>{{ 'nav.import_dashboard' | translate }}</span>
             </div>
 
+            <div class="nav-item" routerLink="/import/all" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.all_lcs' | translate }}</span>
+            </div>
+
             <div class="nav-item" routerLink="/import/queue" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -76,6 +85,15 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                     </svg>
                 </span>
                 <span>{{ 'nav.export_dashboard' | translate }}</span>
+            </div>
+
+            <div class="nav-item" routerLink="/export/all" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.all_lcs' | translate }}</span>
             </div>
 
             <div class="nav-item" routerLink="/export/queue" routerLinkActive="active">
