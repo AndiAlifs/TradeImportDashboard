@@ -118,7 +118,7 @@ func (h *Handler) UpdateAssignee(c *gin.Context) {
 		assignee.IsActive = *req.IsActive
 	}
 
-	if err := h.db.Save(&assignee).Error; err != nil {
+	if err := h.db.Model(&assignee).Select("Name", "IsActive").Updates(assignee).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			c.JSON(http.StatusConflict, gin.H{"error": "assignee name already exists"})
 			return

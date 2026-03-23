@@ -118,7 +118,7 @@ func (h *Handler) UpdateOfficer(c *gin.Context) {
 		officer.IsActive = *req.IsActive
 	}
 
-	if err := h.db.Save(&officer).Error; err != nil {
+	if err := h.db.Model(&officer).Select("Name", "IsActive").Updates(officer).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
 			c.JSON(http.StatusConflict, gin.H{"error": "officer name already exists"})
 			return
