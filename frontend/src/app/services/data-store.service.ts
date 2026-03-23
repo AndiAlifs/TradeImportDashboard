@@ -17,7 +17,7 @@ const DEFAULT_SLA: SlaConfig = { slaMinMinutes: 90, slaMaxMinutes: 120 };
   providedIn: 'root'
 })
 export class DataStoreService {
-  private apiBase = (window as any).SHILA_API_BASE || 'http://localhost:8080/api';
+  private apiBase = (window as any).SHILA_API_BASE || 'http://localhost:8081/api';
 
   lcs = signal<any[]>([]);
   slaConfig = signal<SlaConfig>({ ...DEFAULT_SLA });
@@ -43,7 +43,7 @@ export class DataStoreService {
         if (err && err.error) {
           message = err.error;
         }
-      } catch (_ignored) {}
+      } catch (_ignored) { }
       throw new Error(message);
     }
 
@@ -83,7 +83,7 @@ export class DataStoreService {
       this.assignees.set(Array.isArray(assigneeResp?.data) ? assigneeResp.data : []);
       this.officers.set(Array.isArray(officerResp?.data) ? officerResp.data : []);
       this.isBackendOnline.set(true);
-      
+
       this.persistLocalCache();
     } catch (e) {
       console.warn("Backend might be offline. Using local cache.");

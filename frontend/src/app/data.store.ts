@@ -5,7 +5,7 @@ const ASSIGNEE_KEY = 'shila_assignee_master';
 const OFFICER_KEY = 'shila_officer_master';
 
 const DEFAULT_SLA = { slaMinMinutes: 90, slaMaxMinutes: 120 };
-const API_BASE = (window as any).SHILA_API_BASE || 'http://localhost:8080/api';
+const API_BASE = (window as any).SHILA_API_BASE || 'http://localhost:8081/api';
 
 let lcCache: any[] = [];
 let slaCache: any = { ...DEFAULT_SLA };

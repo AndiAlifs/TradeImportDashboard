@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"strings"
 
 	"trade-import-dashboard/backend/internal/config"
 	"trade-import-dashboard/backend/internal/handlers"
@@ -15,7 +16,15 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 	r.Use(gin.Logger(), gin.Recovery())
 	r.Use(cors.New(cors.Config{
 		AllowOriginFunc: func(origin string) bool {
-			return origin == "null" || origin == cfg.AllowedOrigin
+			if cfg.AllowedOrigin == "*" || origin == "null" {
+				return true
+			}
+			for _, allowed := range strings.Split(cfg.AllowedOrigin, ",") {
+				if strings.TrimSpace(allowed) == origin {
+					return true
+				}
+			}
+			return false
 		},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
