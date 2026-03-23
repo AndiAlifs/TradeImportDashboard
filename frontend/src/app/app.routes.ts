@@ -7,14 +7,17 @@ import { CreateOrderComponent } from './pages/create-order.component';
 import { MasterDataComponent } from './pages/master-data.component';
 import { SlaComponent } from './pages/sla.component';
 import { EventlogComponent } from './pages/eventlog.component';
+import { AllLcsComponent } from './pages/all-lcs.component';
 
 export const routes: Routes = [
     { path: '', component: ExecDashboardComponent },
     { path: 'import', component: OperationsComponent, data: { type: 'Import' } },
+    { path: 'import/all', component: AllLcsComponent, data: { type: 'Import' } },
     { path: 'import/queue', component: QueueComponent, data: { type: 'Import' } },
     { path: 'import/officer-release', component: OfficerReleaseComponent, data: { type: 'Import' } },
     { path: 'import/create', component: CreateOrderComponent, data: { type: 'Import' } },
     { path: 'export', component: OperationsComponent, data: { type: 'Export' } },
+    { path: 'export/all', component: AllLcsComponent, data: { type: 'Export' } },
     { path: 'export/queue', component: QueueComponent, data: { type: 'Export' } },
     { path: 'export/officer-release', component: OfficerReleaseComponent, data: { type: 'Export' } },
     { path: 'export/create', component: CreateOrderComponent, data: { type: 'Export' } },
