@@ -26,7 +26,7 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 			}
 			return false
 		},
-		AllowMethods:     []string{"GET", "POST", "PATCH", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowCredentials: true,
 	}))
@@ -39,8 +39,15 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 	{
 		api.GET("/assignees", h.ListAssignees)
 		api.POST("/assignees", h.CreateAssignee)
+		api.GET("/assignees/:id", h.GetAssigneeByID)
+		api.PUT("/assignees/:id", h.UpdateAssignee)
+		api.DELETE("/assignees/:id", h.DeleteAssignee)
+
 		api.GET("/officers", h.ListOfficers)
 		api.POST("/officers", h.CreateOfficer)
+		api.GET("/officers/:id", h.GetOfficerByID)
+		api.PUT("/officers/:id", h.UpdateOfficer)
+		api.DELETE("/officers/:id", h.DeleteOfficer)
 
 		api.POST("/lc", h.CreateLC)
 		api.GET("/lc", h.ListLCs)

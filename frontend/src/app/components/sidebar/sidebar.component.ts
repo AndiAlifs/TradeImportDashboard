@@ -29,27 +29,18 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                 <span>{{ 'nav.exec_dashboard' | translate }}</span>
             </div>
 
-            <div class="nav-section-label">{{ 'nav.operations' | translate }}</div>
+            <div class="nav-section-label">{{ 'nav.operations_import' | translate }}</div>
 
-            <div class="nav-item" routerLink="/import" routerLinkActive="active">
+            <div class="nav-item" routerLink="/import" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                 </span>
-                <span>{{ 'nav.import' | translate }}</span>
+                <span>{{ 'nav.import_dashboard' | translate }}</span>
             </div>
 
-            <div class="nav-item" routerLink="/export" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.export' | translate }}</span>
-            </div>
-
-            <div class="nav-item" routerLink="/queue" routerLinkActive="active">
+            <div class="nav-item" routerLink="/import/queue" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -58,7 +49,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                 <span>{{ 'nav.queue' | translate }}</span>
             </div>
 
-            <div class="nav-item" routerLink="/officer-release" routerLinkActive="active">
+            <div class="nav-item" routerLink="/import/officer-release" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -67,7 +58,45 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                 <span>{{ 'nav.officer_release' | translate }}</span>
             </div>
 
-            <div class="nav-item" routerLink="/create" routerLinkActive="active">
+            <div class="nav-item" routerLink="/import/create" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.create' | translate }}</span>
+            </div>
+
+            <div class="nav-section-label">{{ 'nav.operations_export' | translate }}</div>
+
+            <div class="nav-item" routerLink="/export" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.export_dashboard' | translate }}</span>
+            </div>
+
+            <div class="nav-item" routerLink="/export/queue" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.queue' | translate }}</span>
+            </div>
+
+            <div class="nav-item" routerLink="/export/officer-release" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.officer_release' | translate }}</span>
+            </div>
+
+            <div class="nav-item" routerLink="/export/create" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />

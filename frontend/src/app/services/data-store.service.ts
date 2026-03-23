@@ -97,12 +97,12 @@ export class DataStoreService {
   }
 
   async updateLCStatus(id: number, data: any): Promise<void> {
-    await this.apiRequest(`/lc/${id}/status`, { method: 'POST', body: JSON.stringify(data) });
+    await this.apiRequest(`/lc/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) });
     await this.refreshData();
   }
 
   async saveSlaConfig(config: SlaConfig): Promise<void> {
-    await this.apiRequest('/sla', { method: 'POST', body: JSON.stringify(config) });
+    await this.apiRequest('/sla', { method: 'PATCH', body: JSON.stringify(config) });
     await this.refreshData();
   }
 
@@ -113,6 +113,26 @@ export class DataStoreService {
 
   async createOfficer(data: { name: string }): Promise<void> {
     await this.apiRequest('/officers', { method: 'POST', body: JSON.stringify(data) });
+    await this.refreshData();
+  }
+
+  async updateAssignee(id: number, data: { name?: string, isActive?: boolean }): Promise<void> {
+    await this.apiRequest(`/assignees/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    await this.refreshData();
+  }
+
+  async deleteAssignee(id: number): Promise<void> {
+    await this.apiRequest(`/assignees/${id}`, { method: 'DELETE' });
+    await this.refreshData();
+  }
+
+  async updateOfficer(id: number, data: { name?: string, isActive?: boolean }): Promise<void> {
+    await this.apiRequest(`/officers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    await this.refreshData();
+  }
+
+  async deleteOfficer(id: number): Promise<void> {
+    await this.apiRequest(`/officers/${id}`, { method: 'DELETE' });
     await this.refreshData();
   }
 

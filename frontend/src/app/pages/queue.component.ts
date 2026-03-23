@@ -1,6 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
@@ -13,7 +14,7 @@ import { TranslationService } from '../services/translation.service';
     <div class="page-content">
       <div class="data-table-wrapper">
         <div class="table-header">
-          <h3>{{ 'queue.title' | translate }}</h3>
+          <h3>{{ 'queue.title' | translate }} ({{ transactionType() }})</h3>
           <div class="table-filters">
             <input type="text" class="search-input" [placeholder]="'queue.search' | translate"
               [(ngModel)]="searchTerm" (input)="onSearch()" />
@@ -146,13 +147,15 @@ import { TranslationService } from '../services/translation.service';
     </div>
   `
 })
-export class QueueComponent {
+export class QueueComponent implements OnInit {
   dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
+  private route = inject(ActivatedRoute);
 
   searchTerm = '';
   currentFilter = signal('all');
   selectedLc: any = null;
+  transactionType = signal<string>('Import');
 
   filters = [
     { label: 'All', value: 'all' },
@@ -166,8 +169,16 @@ export class QueueComponent {
 
   private searchSignal = signal('');
 
+  ngOnInit() {
+    this.route.data.subscribe(data => {
+      if (data['type']) {
+        this.transactionType.set(data['type']);
+      }
+    });
+  }
+
   filteredRecords = computed(() => {
-    let data = this.dataStore.lcs();
+    let data = this.dataStore.lcs().filter(r => r.transactionType === this.transactionType());
     const filter = this.currentFilter();
     const search = this.searchSignal().toLowerCase();
 

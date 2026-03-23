@@ -1,7 +1,7 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
@@ -13,16 +13,13 @@ import { TranslationService } from '../services/translation.service';
   template: `
     <div class="page-content">
       <div class="settings-card">
-        <h3>{{ 'create.title' | translate }}</h3>
+        <h3>{{ 'create.title' | translate }} ({{ transactionType() }})</h3>
         <p>{{ 'create.desc' | translate }}</p>
 
         <form (ngSubmit)="handleSubmit()" style="margin-top: 1.5rem;">
           <div class="form-group">
             <label for="create-type">{{ 'create.form.type' | translate }}</label>
-            <select id="create-type" [(ngModel)]="formData.transactionType" name="transactionType" required>
-              <option value="Import">Import</option>
-              <option value="Export">Export</option>
-            </select>
+            <input type="text" id="create-type" [value]="formData.transactionType" disabled style="background-color: var(--bg-hover)"/>
           </div>
           <div class="form-group">
             <label for="create-sender">{{ 'create.form.sender' | translate }}</label>
@@ -47,12 +44,15 @@ import { TranslationService } from '../services/translation.service';
     </div>
   `
 })
-export class CreateOrderComponent {
+export class CreateOrderComponent implements OnInit {
   private dataStore = inject(DataStoreService);
   private router = inject(Router);
   private ts = inject(TranslationService);
+  private route = inject(ActivatedRoute);
 
   assigneeList = computed(() => this.dataStore.assignees());
+
+  transactionType = signal<string>('Import');
 
   formData = {
     transactionType: 'Import',
@@ -61,6 +61,15 @@ export class CreateOrderComponent {
     assignedTo: '',
   };
   submitting = false;
+
+  ngOnInit() {
+    this.route.data.subscribe(data => {
+      if (data['type']) {
+        this.transactionType.set(data['type']);
+        this.formData.transactionType = data['type'];
+      }
+    });
+  }
 
   async handleSubmit() {
     if (this.submitting) return;
@@ -73,8 +82,8 @@ export class CreateOrderComponent {
         assignedTo: this.formData.assignedTo,
       });
       this.showToast('success', this.ts.translate('toast.order_created'));
-      this.formData = { transactionType: 'Import', senderEmail: '', subject: '', assignedTo: '' };
-      this.router.navigate(['/queue']);
+      this.formData = { transactionType: this.transactionType(), senderEmail: '', subject: '', assignedTo: '' };
+      this.router.navigate([`/${this.transactionType().toLowerCase()}/queue`]);
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to create order');
     } finally {

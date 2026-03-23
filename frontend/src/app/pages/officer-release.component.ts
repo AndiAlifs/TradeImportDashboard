@@ -1,6 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
@@ -13,7 +14,7 @@ import { TranslationService } from '../services/translation.service';
     <div class="page-content">
       <div class="data-table-wrapper">
         <div class="table-header">
-          <h3>{{ 'officer_release.title' | translate }}</h3>
+          <h3>{{ 'officer_release.title' | translate }} ({{ transactionType() }})</h3>
           <div class="table-filters">
             <input type="text" class="search-input" [placeholder]="'officer_release.search' | translate"
               [(ngModel)]="searchTerm" (input)="onSearch()" />
@@ -62,18 +63,28 @@ import { TranslationService } from '../services/translation.service';
     </div>
   `
 })
-export class OfficerReleaseComponent {
+export class OfficerReleaseComponent implements OnInit {
   dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
+  private route = inject(ActivatedRoute);
 
   searchTerm = '';
   officerSelections: Record<number, string> = {};
   private searchSignal = signal('');
+  transactionType = signal<string>('Import');
 
   officers = computed(() => this.dataStore.officers());
 
+  ngOnInit() {
+    this.route.data.subscribe(data => {
+      if (data['type']) {
+        this.transactionType.set(data['type']);
+      }
+    });
+  }
+
   private releasableLCs = computed(() =>
-    this.dataStore.lcs().filter(r => r.status === 'Checking Underlying')
+    this.dataStore.lcs().filter(r => r.status === 'Checking Underlying' && r.transactionType === this.transactionType())
   );
 
   filteredRecords = computed(() => {
