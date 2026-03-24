@@ -5,7 +5,7 @@
 
 The **L/C Processing Time Tracker** is an internal operational tool designed to measure and monitor the lifecycle of Letter of Credit (L/C) documents for both **Import** and **Export** trade finance operations. It provides visibility into the time spent at each critical stage—from the moment an order email arrives in the inbox to the final release of the L/C—with **dedicated views** for Import and Export workflows.
 
-The core value proposition is **operational transparency**: a lightweight system that automatically captures the intake, relies on a simple UI for manual stage transitions during the MVP, and provides clear, role-based dashboards to compare actual processing times against parameterized Service Level Agreements (SLAs). An **Executive Dashboard** offers senior management a unified overview of both Import and Export performance, complemented by **AI-generated summaries** that highlight trends, anomalies, and actionable insights.
+The core value proposition is **operational transparency**: a lightweight system with a simple UI for manual stage transitions in the current MVP, and a target state that includes automated intake. It provides clear, role-based dashboards to compare actual processing times against parameterized Service Level Agreements (SLAs). An **Executive Dashboard** offers senior management a unified overview of both Import and Export performance, currently complemented by a rule-based summary narrative, with **AI-generated summaries** planned.
 
 **MVP Goal:** Deliver a functional tracking system utilizing an automated ingestion workflow, a decoupled backend API, a streamlined web frontend for operations staff to log state changes, differentiated Import/Export views, an executive-level dashboard, and AI-powered performance summaries to identify SLA breaches and workflow bottlenecks.
 
@@ -13,14 +13,14 @@ The core value proposition is **operational transparency**: a lightweight system
 
 ## 2. Mission
 
-**Mission Statement:** Provide real-time visibility into **Import and Export** Trade Finance operations, enabling managers and executives to identify bottlenecks, compare cross-functional performance, and ensure customer L/C requests are processed well within defined SLAs—supported by AI-driven insights for strategic decision-making.
+**Mission Statement:** Provide real-time visibility into **Import and Export** Trade Finance operations, enabling managers and executives to identify bottlenecks, compare cross-functional performance, and ensure customer L/C requests are processed well within defined SLAs—supported by data-driven insights now and AI-driven insights as the next step.
 
 ### Core Principles
 
 1. **Automated Intake** — The SLA timer must start the absolute second an email hits the inbox, removing human delay from the initial measurement.
 2. **Frictionless Tracking** — For the MVP, manual stage transitions (button clicks) must be instantaneous and require zero data entry.
 3. **Decoupled Design** — The tracking logic must remain independent of the core Trade Finance system so that future API pull-integrations can replace the manual MVP buttons without rewriting the architecture.
-4. **Data-Driven Insights** — The dashboard should immediately highlight where the process is slowing down.
+4. **Data-Driven Insights** — The dashboard should immediately highlight where the process is slowing down, with optional AI-assisted narrative insights in future iterations.
 
 ---
 
@@ -40,7 +40,7 @@ The core value proposition is **operational transparency**: a lightweight system
 
 **3. The Executive / Senior Manager**
 - **Role:** Oversees the entire Trade Finance function, covering both Import and Export operations.
-- **Goals:** Gain a holistic view of operational performance across both Import and Export, quickly understand key trends, SLA breach rates, and throughput via an AI-generated executive summary.
+- **Goals:** Gain a holistic view of operational performance across both Import and Export, quickly understand key trends, SLA breach rates, and throughput via an executive summary (rule-based now, AI-generated in the target state).
 - **Pain Points:** Information is siloed between Import and Export teams; requires manual consolidation of reports to assess overall health; no concise, at-a-glance narrative of operational status.
 
 ---
