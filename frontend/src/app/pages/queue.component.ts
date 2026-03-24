@@ -66,8 +66,14 @@ import { TranslationService } from '../services/translation.service';
                       <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Checking Underlying'">
-                      <button class="action-btn success" (click)="handleAction(r, 'release')">{{ 'action.release' | translate }}</button>
-                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                      <div style="display:flex;flex-direction:column;gap:4px">
+                        <select class="search-input" style="width:160px;padding:0.35rem 0.5rem;font-size:0.78rem" [(ngModel)]="officerSelections[r.id]">
+                          <option value="" disabled>{{ 'officer_release.select_officer' | translate }}</option>
+                          <option *ngFor="let o of officers()" [value]="o.name">{{ o.name }}</option>
+                        </select>
+                        <button class="action-btn success" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                      </div>
                     </ng-container>
                     <span *ngSwitchCase="'Released'" class="action-btn completed">{{ 'action.completed' | translate }}</span>
                     <ng-container *ngSwitchCase="'Breached'">
@@ -156,6 +162,9 @@ export class QueueComponent implements OnInit {
   currentFilter = signal('all');
   selectedLc: any = null;
   transactionType = signal<string>('Import');
+  officerSelections: Record<number, string> = {};
+
+  officers = computed(() => this.dataStore.officers());
 
   filters = [
     { label: 'All', value: 'all' },
@@ -221,6 +230,7 @@ export class QueueComponent implements OnInit {
         newStatus = 'Released';
         payload.notes = this.ts.translate('note.release');
         break;
+
       default:
         return;
     }
@@ -230,6 +240,26 @@ export class QueueComponent implements OnInit {
       this.showToast('success', `${r.urn} → ${newStatus}`);
     } catch (e: any) {
       this.showToast('info', e.message || 'Action failed');
+    }
+  }
+
+  async handleRelease(r: any) {
+    const officerName = this.officerSelections[r.id];
+    if (!officerName) {
+      this.showToast('info', this.ts.translate('officer_release.select_officer'));
+      return;
+    }
+    try {
+      await this.dataStore.updateLCStatus(r.id, {
+        newStatus: 'Released',
+        approvedBy: officerName,
+        userId: r.assignedTo,
+        notes: `${this.ts.translate('note.release')} (by ${officerName})`,
+      });
+      delete this.officerSelections[r.id];
+      this.showToast('success', `${r.urn} → Released (by ${officerName})`);
+    } catch (e: any) {
+      this.showToast('info', e.message || 'Release failed');
     }
   }
 

@@ -47,11 +47,15 @@ The core value proposition is **operational transparency**: a lightweight system
 
 ## 4. MVP Scope
 
+### Implementation Status Note (Repository Snapshot - 2026-03-24)
+
+This PRD remains relevant as the target direction. The checklist below is updated to reflect what is currently implemented in this repository versus planned items.
+
 ### In Scope
 
 **Core Functionality**
-- [x] Automated email inbox monitoring and parsing
-- [x] Unique Reference Number (URN) generation upon email receipt
+- [ ] Automated email inbox monitoring and parsing
+- [x] Unique Reference Number (URN) generation upon order creation
 - [x] Master table tracking L/C correlation and receipt timestamp
 - [x] Web UI for operations to manually trigger stage transitions (`Start Drafting`, `Start Checking Underlying`, `Release`)
 - [x] Parameterized SLA configuration (e.g., default 90-120 minutes)
@@ -63,16 +67,16 @@ The core value proposition is **operational transparency**: a lightweight system
 - [x] Mobile-responsive UI with hamburger menu toggle
 
 **Import / Export Differentiation**
-- [ ] Transaction type field (`Import` or `Export`) on every L/C record
-- [ ] Dedicated **Import View** — filtered queue and analytics showing only Import L/Cs
-- [ ] Dedicated **Export View** — filtered queue and analytics showing only Export L/Cs
-- [ ] Ability to tag transaction type during manual order creation and automated ingestion (parsed from email subject/body or configurable rule)
+- [x] Transaction type field (`Import` or `Export`) on every L/C record
+- [x] Dedicated **Import View** — filtered queue and analytics showing only Import L/Cs
+- [x] Dedicated **Export View** — filtered queue and analytics showing only Export L/Cs
+- [ ] Ability to tag transaction type during manual order creation and automated ingestion (manual creation is implemented; automated ingestion is not yet implemented in this repository)
 - [ ] Separate SLA parameters configurable per transaction type (Import vs. Export may have different SLA targets)
 
 **Executive Dashboard**
-- [ ] Unified **Dashboard View** accessible to executives / senior managers
-- [ ] Side-by-side or tabbed comparison of Import vs. Export performance metrics (throughput, average processing time, SLA breach rate)
-- [ ] Key Performance Indicators (KPIs): total processed today, SLA compliance %, average cycle time, breach count — broken down by Import and Export
+- [x] Unified **Dashboard View** accessible to executives / senior managers
+- [x] Side-by-side or tabbed comparison of Import vs. Export performance metrics (throughput, average processing time, SLA breach rate)
+- [x] Key Performance Indicators (KPIs): total processed today, SLA compliance %, average cycle time, breach count — broken down by Import and Export
 - [ ] Trend charts (daily/weekly) for processing volume and SLA compliance across both streams
 - [ ] **AI-Powered Summary** — an auto-generated natural-language narrative summarizing:
   - Overall operational health for the selected period
@@ -81,10 +85,12 @@ The core value proposition is **operational transparency**: a lightweight system
   - Anomaly detection (e.g., unusual spike in processing time)
   - Actionable recommendations (e.g., "Export Drafting stage averaged 20% longer than last week — consider reviewing staffing")
 
+   Note: A rule-based executive summary card is currently implemented in the frontend, but no backend LLM integration is present yet.
+
 **Technical**
-- [x] n8n workflow for email ingestion and API webhook triggering
-- [x] C# .NET Core (or Golang) REST API backend
-- [x] SQL Server or PostgreSQL database
+- [ ] n8n workflow for email ingestion and API webhook triggering
+- [x] Golang REST API backend
+- [x] Relational database integration (MySQL in current implementation)
 - [x] Angular frontend for the UI buttons and dashboard
 - [ ] LLM integration service for AI summary generation (e.g., Google Gemini API or OpenAI API via backend proxy)
 
@@ -165,6 +171,8 @@ The core value proposition is **operational transparency**: a lightweight system
 ## 6. Core Architecture & Patterns
 
 ### High-Level Architecture
+
+The diagram below represents the target architecture. In this repository snapshot, n8n/email ingestion and backend LLM integration are planned but not yet implemented.
 
 ```text
 ┌────────────────┐      IMAP / Graph API     ┌─────────────────────┐

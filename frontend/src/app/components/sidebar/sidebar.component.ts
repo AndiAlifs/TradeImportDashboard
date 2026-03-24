@@ -58,15 +58,6 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                 <span>{{ 'nav.queue' | translate }}</span>
             </div>
 
-            <div class="nav-item" routerLink="/import/officer-release" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.officer_release' | translate }}</span>
-            </div>
-
             <div class="nav-item" routerLink="/import/create" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -103,15 +94,6 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
                     </svg>
                 </span>
                 <span>{{ 'nav.queue' | translate }}</span>
-            </div>
-
-            <div class="nav-item" routerLink="/export/officer-release" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.officer_release' | translate }}</span>
             </div>
 
             <div class="nav-item" routerLink="/export/create" routerLinkActive="active">

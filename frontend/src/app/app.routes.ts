@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { ExecDashboardComponent } from './pages/exec-dashboard.component';
 import { OperationsComponent } from './pages/operations.component';
 import { QueueComponent } from './pages/queue.component';
-import { OfficerReleaseComponent } from './pages/officer-release.component';
 import { CreateOrderComponent } from './pages/create-order.component';
 import { MasterDataComponent } from './pages/master-data.component';
 import { SlaComponent } from './pages/sla.component';
