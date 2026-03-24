@@ -17,6 +17,10 @@ type createAssigneeRequest struct {
 }
 
 func (h *Handler) ListAssignees(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+		return
+	}
+
 	var records []models.Assignee
 	if err := h.db.Where("is_active = ?", true).Order("name asc").Find(&records).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -27,6 +31,10 @@ func (h *Handler) ListAssignees(c *gin.Context) {
 }
 
 func (h *Handler) CreateAssignee(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer); !ok {
+		return
+	}
+
 	var req createAssigneeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -57,6 +65,10 @@ func (h *Handler) CreateAssignee(c *gin.Context) {
 }
 
 func (h *Handler) GetAssigneeByID(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -83,6 +95,10 @@ type updateAssigneeRequest struct {
 }
 
 func (h *Handler) UpdateAssignee(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -131,6 +147,10 @@ func (h *Handler) UpdateAssignee(c *gin.Context) {
 }
 
 func (h *Handler) DeleteAssignee(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {

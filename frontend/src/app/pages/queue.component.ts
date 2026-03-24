@@ -58,29 +58,29 @@ import { TranslationService } from '../services/translation.service';
                 <td>
                   <ng-container [ngSwitch]="r.status">
                     <ng-container *ngSwitchCase="'Received'">
-                      <button class="action-btn primary" (click)="handleAction(r, 'start-drafting')">{{ 'action.start_drafting' | translate }}</button>
-                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                      <button class="action-btn primary" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-drafting')">{{ 'action.start_drafting' | translate }}</button>
+                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Drafting'">
-                      <button class="action-btn warning" (click)="handleAction(r, 'start-checking')">{{ 'action.start_checking' | translate }}</button>
-                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                      <button class="action-btn warning" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-checking')">{{ 'action.start_checking' | translate }}</button>
+                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Checking Underlying'">
                       <div style="display:flex;flex-direction:column;gap:4px">
-                        <select class="search-input" style="width:160px;padding:0.35rem 0.5rem;font-size:0.78rem" [(ngModel)]="officerSelections[r.id]">
+                        <select class="search-input" style="width:160px;padding:0.35rem 0.5rem;font-size:0.78rem" [(ngModel)]="officerSelections[r.id]" [disabled]="!canRelease()">
                           <option value="" disabled>{{ 'officer_release.select_officer' | translate }}</option>
                           <option *ngFor="let o of officers()" [value]="o.name">{{ o.name }}</option>
                         </select>
-                        <button class="action-btn success" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
-                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                        <button class="action-btn success" [disabled]="!canRelease()" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
                       </div>
                     </ng-container>
                     <span *ngSwitchCase="'Released'" class="action-btn completed">{{ 'action.completed' | translate }}</span>
                     <ng-container *ngSwitchCase="'Breached'">
-                      <button class="action-btn primary" (click)="handleAction(r, 'start-drafting')">{{ 'action.resume' | translate }}</button>
+                      <button class="action-btn primary" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-drafting')">{{ 'action.resume' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Exception'">
-                      <button class="action-btn dark" (click)="promptResolveException(r)">{{ 'action.resolve_exception' | translate }}</button>
+                      <button class="action-btn dark" [disabled]="!canUpdate()" (click)="promptResolveException(r)">{{ 'action.resolve_exception' | translate }}</button>
                     </ng-container>
                   </ng-container>
                 </td>
@@ -165,6 +165,8 @@ export class QueueComponent implements OnInit {
   officerSelections: Record<number, string> = {};
 
   officers = computed(() => this.dataStore.officers());
+  canUpdate = computed(() => this.dataStore.canAccessAction('update_status', this.transactionType()));
+  canRelease = computed(() => this.dataStore.canAccessAction('release_lc', this.transactionType()));
 
   filters = [
     { label: 'All', value: 'all' },
@@ -214,6 +216,11 @@ export class QueueComponent implements OnInit {
   }
 
   async handleAction(r: any, action: string) {
+    if (!this.canUpdate()) {
+      this.showToast('info', 'Forbidden: current role cannot update status on this queue');
+      return;
+    }
+
     let newStatus = '';
     const payload: any = { userId: r.assignedTo };
 
@@ -244,6 +251,11 @@ export class QueueComponent implements OnInit {
   }
 
   async handleRelease(r: any) {
+    if (!this.canRelease()) {
+      this.showToast('info', 'Forbidden: current role cannot release L/C');
+      return;
+    }
+
     const officerName = this.officerSelections[r.id];
     if (!officerName) {
       this.showToast('info', this.ts.translate('officer_release.select_officer'));
@@ -264,6 +276,11 @@ export class QueueComponent implements OnInit {
   }
 
   async promptMarkException(r: any) {
+    if (!this.canUpdate()) {
+      this.showToast('info', 'Forbidden: current role cannot mark exception');
+      return;
+    }
+
     const reason = prompt(this.ts.translate('prompt.mark_exception'), '');
     if (reason === null) return;
     try {
@@ -280,6 +297,11 @@ export class QueueComponent implements OnInit {
   }
 
   async promptResolveException(r: any) {
+    if (!this.canUpdate()) {
+      this.showToast('info', 'Forbidden: current role cannot resolve exception');
+      return;
+    }
+
     if (!r.exceptionStartedAt) return;
     const autoMins = Math.round((Date.now() - new Date(r.exceptionStartedAt).getTime()) / 60000);
     const promptMsg = this.ts.translate('prompt.resolve_exception').replace('{0}', String(autoMins));

@@ -34,9 +34,18 @@ type updateStatusRequest struct {
 var errInvalidTransition = errors.New("invalid status transition")
 
 func (h *Handler) CreateLC(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
 	var req createLCRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !actor.CanAccessTransaction(req.TransactionType) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
 		return
 	}
 
@@ -65,7 +74,7 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		event := models.Event{
 			LCID:       lc.ID,
 			URN:        lc.URN,
-			UserID:     fallbackUser(req.AssignedTo),
+			UserID:     fallbackUser(actor.User),
 			Action:     "Create Order",
 			FromStatus: "-",
 			ToStatus:   models.StatusReceived,
@@ -82,8 +91,17 @@ func (h *Handler) CreateLC(c *gin.Context) {
 }
 
 func (h *Handler) ListLCs(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
 	status := c.Query("status")
 	transactionType := c.Query("transactionType")
+	if transactionType != "" && !actor.CanAccessTransaction(transactionType) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
+		return
+	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	if limit <= 0 || limit > 500 {
@@ -97,7 +115,11 @@ func (h *Handler) ListLCs(c *gin.Context) {
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
-	if transactionType != "" {
+	if actor.Scope == ScopeImport {
+		query = query.Where("transaction_type = ?", ScopeImport)
+	} else if actor.Scope == ScopeExport {
+		query = query.Where("transaction_type = ?", ScopeExport)
+	} else if transactionType != "" {
 		query = query.Where("transaction_type = ?", transactionType)
 	}
 
@@ -117,6 +139,11 @@ func (h *Handler) ListLCs(c *gin.Context) {
 }
 
 func (h *Handler) GetLCByID(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
 	id, err := parseUintID(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -132,11 +159,20 @@ func (h *Handler) GetLCByID(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if !actor.CanAccessTransaction(lc.TransactionType) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
+		return
+	}
 
 	c.JSON(http.StatusOK, lc)
 }
 
 func (h *Handler) UpdateLCStatus(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
 	id, err := parseUintID(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -154,6 +190,10 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported newStatus"})
 		return
 	}
+	if !CanUpdateStatus(actor, req.NewStatus) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: status update is not allowed for this role"})
+		return
+	}
 
 	var updated models.LC
 	now := time.Now().UTC()
@@ -161,6 +201,9 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		var lc models.LC
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lc, "id = ?", id).Error; err != nil {
 			return err
+		}
+		if !actor.CanAccessTransaction(lc.TransactionType) {
+			return errors.New("forbidden: transaction type is out of scope")
 		}
 		if !isValidTransition(lc.Status, req.NewStatus) {
 			return fmt.Errorf("%w: %s -> %s", errInvalidTransition, lc.Status, req.NewStatus)
@@ -176,7 +219,7 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		event := models.Event{
 			LCID:       lc.ID,
 			URN:        lc.URN,
-			UserID:     fallbackUser(req.UserID),
+			UserID:     fallbackUser(actor.User),
 			Action:     action,
 			FromStatus: fromStatus,
 			ToStatus:   lc.Status,
@@ -195,6 +238,10 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		}
 		if errors.Is(err, errInvalidTransition) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.HasPrefix(err.Error(), "forbidden:") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -120,6 +120,33 @@ body {
   border-radius: 4px;
 }
 
+.mock-role-card {
+  margin: 0.25rem 0.5rem 0.75rem;
+  padding: 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.mock-role-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #cbd5e1;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.mock-role-select {
+  width: 100%;
+  background: #111827;
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  padding: 0.45rem 0.55rem;
+}
+
 .nav-section-label {
   font-size: 0.65rem;
   text-transform: uppercase;

@@ -7,20 +7,21 @@ import { MasterDataComponent } from './pages/master-data.component';
 import { SlaComponent } from './pages/sla.component';
 import { EventlogComponent } from './pages/eventlog.component';
 import { AllLcsComponent } from './pages/all-lcs.component';
+import { mockRbacGuard } from './guards/mock-rbac.guard';
 
 export const routes: Routes = [
-    { path: '', component: ExecDashboardComponent },
-    { path: 'import', component: OperationsComponent, data: { type: 'Import' } },
-    { path: 'import/all', component: AllLcsComponent, data: { type: 'Import' } },
-    { path: 'import/queue', component: QueueComponent, data: { type: 'Import' } },
-    { path: 'import/create', component: CreateOrderComponent, data: { type: 'Import' } },
-    { path: 'export', component: OperationsComponent, data: { type: 'Export' } },
-    { path: 'export/all', component: AllLcsComponent, data: { type: 'Export' } },
-    { path: 'export/queue', component: QueueComponent, data: { type: 'Export' } },
-    { path: 'export/create', component: CreateOrderComponent, data: { type: 'Export' } },
-    { path: 'assignee-master', component: MasterDataComponent, data: { type: 'assignee' } },
-    { path: 'officer-registration', component: MasterDataComponent, data: { type: 'officer' } },
-    { path: 'sla', component: SlaComponent },
-    { path: 'eventlog', component: EventlogComponent },
+    { path: '', component: ExecDashboardComponent, canActivate: [mockRbacGuard] },
+    { path: 'import', component: OperationsComponent, canActivate: [mockRbacGuard], data: { type: 'Import' } },
+    { path: 'import/all', component: AllLcsComponent, canActivate: [mockRbacGuard], data: { type: 'Import' } },
+    { path: 'import/queue', component: QueueComponent, canActivate: [mockRbacGuard], data: { type: 'Import' } },
+    { path: 'import/create', component: CreateOrderComponent, canActivate: [mockRbacGuard], data: { type: 'Import' } },
+    { path: 'export', component: OperationsComponent, canActivate: [mockRbacGuard], data: { type: 'Export' } },
+    { path: 'export/all', component: AllLcsComponent, canActivate: [mockRbacGuard], data: { type: 'Export' } },
+    { path: 'export/queue', component: QueueComponent, canActivate: [mockRbacGuard], data: { type: 'Export' } },
+    { path: 'export/create', component: CreateOrderComponent, canActivate: [mockRbacGuard], data: { type: 'Export' } },
+    { path: 'assignee-master', component: MasterDataComponent, canActivate: [mockRbacGuard], data: { type: 'assignee' } },
+    { path: 'officer-registration', component: MasterDataComponent, canActivate: [mockRbacGuard], data: { type: 'officer' } },
+    { path: 'sla', component: SlaComponent, canActivate: [mockRbacGuard] },
+    { path: 'eventlog', component: EventlogComponent, canActivate: [mockRbacGuard] },
     { path: '**', redirectTo: '' }
 ];

@@ -22,10 +22,13 @@ import { DataStoreService } from '../../services/data-store.service';
         </div>
       </div>
       <div class="top-bar-actions">
+        <div style="font-size:0.75rem;color:var(--text-secondary);padding:0.35rem 0.6rem;border-radius:8px;background:var(--bg-hover,#f1f5f9)">
+          Mock: {{ dataStore.getRoleLabel() }}
+        </div>
         <button class="lang-toggle-btn" (click)="toggleLang()" title="Switch Language">
             {{ 'lang.label' | translate }}
         </button>
-        <button class="reset-btn" (click)="handleReset()" title="Reset all data and regenerate">
+        <button class="reset-btn" (click)="handleReset()" title="Reset all data and regenerate" [disabled]="!dataStore.canAccessAction('reset_data')">
             {{ 'topbar.reset' | translate }}
         </button>
         <div style="font-size:0.8rem;color:var(--text-muted)">{{ clock }}</div>
@@ -102,6 +105,10 @@ export class TopbarComponent implements OnInit, OnDestroy {
   }
 
   async handleReset() {
+    if (!this.dataStore.canAccessAction('reset_data')) {
+      alert('Forbidden: current role cannot reset data');
+      return;
+    }
     if (!confirm(this.translationService.translate('toast.confirm_reset'))) return;
     try {
       await this.dataStore.resetAllData();

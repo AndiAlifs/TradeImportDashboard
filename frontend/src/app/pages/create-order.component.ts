@@ -37,7 +37,7 @@ import { TranslationService } from '../services/translation.service';
             </select>
           </div>
           <div class="form-actions" style="margin-top: 2rem;">
-            <button type="submit" class="btn btn-primary" [disabled]="submitting">{{ 'create.form.submit' | translate }}</button>
+            <button type="submit" class="btn btn-primary" [disabled]="submitting || !canCreate()">{{ 'create.form.submit' | translate }}</button>
           </div>
         </form>
       </div>
@@ -51,6 +51,7 @@ export class CreateOrderComponent implements OnInit {
   private route = inject(ActivatedRoute);
 
   assigneeList = computed(() => this.dataStore.assignees());
+  canCreate = computed(() => this.dataStore.canAccessAction('create_lc', this.transactionType()));
 
   transactionType = signal<string>('Import');
 
@@ -72,6 +73,10 @@ export class CreateOrderComponent implements OnInit {
   }
 
   async handleSubmit() {
+    if (!this.canCreate()) {
+      this.showToast('info', 'Forbidden: current role cannot create this transaction type');
+      return;
+    }
     if (this.submitting) return;
     this.submitting = true;
     try {

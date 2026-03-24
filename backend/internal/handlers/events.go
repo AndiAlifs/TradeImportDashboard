@@ -10,6 +10,10 @@ import (
 )
 
 func (h *Handler) ListEvents(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+		return
+	}
+
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "100"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	urn := c.Query("urn")

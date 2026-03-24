@@ -13,7 +13,7 @@ import { TranslationService } from '../services/translation.service';
       <div class="data-table-wrapper">
         <div class="table-header">
           <h3>{{ 'eventlog.title' | translate }}</h3>
-          <button class="filter-btn" (click)="clearLog()">{{ 'eventlog.clear' | translate }}</button>
+          <button class="filter-btn" (click)="clearLog()" [disabled]="!canClearLog()">{{ 'eventlog.clear' | translate }}</button>
         </div>
         <div class="table-scroll" style="max-height:600px">
           <table class="data-table">
@@ -56,6 +56,7 @@ export class EventlogComponent {
   private ts = inject(TranslationService);
 
   events = computed(() => this.dataStore.events());
+  canClearLog = computed(() => this.dataStore.canAccessAction('reset_data'));
 
   formatDateTime(iso: string): string {
     if (!iso) return '—';
@@ -68,6 +69,10 @@ export class EventlogComponent {
   }
 
   clearLog() {
+    if (!this.canClearLog()) {
+      this.showToast('info', 'Forbidden: current role cannot clear logs');
+      return;
+    }
     localStorage.removeItem('shila_event_log');
     this.showToast('info', this.ts.translate('toast.log_cleared'));
     // Refresh to pick up the cleared state

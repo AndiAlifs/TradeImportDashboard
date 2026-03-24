@@ -27,7 +27,7 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 			return false
 		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Mock-Role", "X-Mock-Scope", "X-Mock-User"},
 		AllowCredentials: true,
 	}))
 
@@ -36,6 +36,10 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 	})
 
 	api := r.Group("/api")
+	api.Use(func(c *gin.Context) {
+		handlers.SetActorContext(c)
+		c.Next()
+	})
 	{
 		api.GET("/assignees", h.ListAssignees)
 		api.POST("/assignees", h.CreateAssignee)

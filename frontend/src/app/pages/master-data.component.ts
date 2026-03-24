@@ -23,7 +23,7 @@ import { TranslationService } from '../services/translation.service';
             <input type="text" id="master-name" [(ngModel)]="newName" name="name" required [placeholder]="namePlaceholder | translate" />
           </div>
           <div class="form-actions">
-            <button type="submit" class="btn btn-primary" [disabled]="submitting">{{ submitLabel | translate }}</button>
+            <button type="submit" class="btn btn-primary" [disabled]="submitting || !canManage()">{{ submitLabel | translate }}</button>
           </div>
         </form>
       </div>
@@ -57,11 +57,11 @@ import { TranslationService } from '../services/translation.service';
               </td>
               <td style="text-align: center;">
                 <ng-container *ngIf="editingId !== item.id">
-                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer;" (click)="startEdit(item)" title="Edit">✏️</button>
-                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer; color: #ef4444;" (click)="handleDelete(item)" title="Delete">🗑️</button>
+                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer;" [disabled]="!canManage()" (click)="startEdit(item)" title="Edit">✏️</button>
+                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer; color: #ef4444;" [disabled]="!canManage()" (click)="handleDelete(item)" title="Delete">🗑️</button>
                 </ng-container>
                 <ng-container *ngIf="editingId === item.id">
-                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer; color: #10b981;" (click)="saveEdit(item)" title="Save">💾</button>
+                  <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer; color: #10b981;" [disabled]="!canManage()" (click)="saveEdit(item)" title="Save">💾</button>
                   <button class="btn btn-icon" style="padding: 0.25rem 0.5rem; font-size: 0.875rem; background: transparent; border: none; cursor: pointer;" (click)="cancelEdit()" title="Cancel">❌</button>
                 </ng-container>
               </td>
@@ -116,7 +116,18 @@ export class MasterDataComponent implements OnInit {
 
   items = computed(() => this.dataType === 'assignee' ? this.dataStore.assignees() : this.dataStore.officers());
 
+  canManage = computed(() => {
+    if (this.dataType === 'assignee') {
+      return this.dataStore.canAccessAction('manage_assignee');
+    }
+    return this.dataStore.canAccessAction('manage_officer');
+  });
+
   async handleAdd() {
+    if (!this.canManage()) {
+      this.showToast('info', 'Forbidden: current role cannot manage this master data');
+      return;
+    }
     if (this.submitting || !this.newName.trim()) return;
     this.submitting = true;
     try {
@@ -140,6 +151,7 @@ export class MasterDataComponent implements OnInit {
   editName = '';
 
   startEdit(item: any) {
+    if (!this.canManage()) return;
     this.editingId = item.id;
     this.editName = item.name;
   }
@@ -150,6 +162,10 @@ export class MasterDataComponent implements OnInit {
   }
 
   async saveEdit(item: any) {
+    if (!this.canManage()) {
+      this.showToast('info', 'Forbidden: current role cannot update this master data');
+      return;
+    }
     if (!this.editName.trim()) return;
     try {
       if (this.dataType === 'assignee') {
@@ -166,6 +182,10 @@ export class MasterDataComponent implements OnInit {
   }
 
   async handleDelete(item: any) {
+    if (!this.canManage()) {
+      this.showToast('info', 'Forbidden: current role cannot delete this master data');
+      return;
+    }
     if (!confirm(`Are you sure you want to delete ${item.name}?`)) return;
     try {
       if (this.dataType === 'assignee') {

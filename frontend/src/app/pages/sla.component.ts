@@ -26,8 +26,8 @@ import { TranslationService } from '../services/translation.service';
         </div>
 
         <div class="form-actions">
-          <button class="btn btn-primary" (click)="handleSave()" [disabled]="saving">{{ 'sla.save' | translate }}</button>
-          <button class="btn btn-secondary" (click)="handleReset()">{{ 'sla.reset_default' | translate }}</button>
+          <button class="btn btn-primary" (click)="handleSave()" [disabled]="saving || !canManageSla()">{{ 'sla.save' | translate }}</button>
+          <button class="btn btn-secondary" (click)="handleReset()" [disabled]="!canManageSla()">{{ 'sla.reset_default' | translate }}</button>
         </div>
       </div>
 
@@ -35,7 +35,7 @@ import { TranslationService } from '../services/translation.service';
         <h3>{{ 'sla.data_title' | translate }}</h3>
         <p>{{ 'sla.data_desc' | translate }}</p>
         <div class="form-actions">
-          <button class="btn btn-danger" (click)="handleResetAll()">{{ 'sla.reset_all' | translate }}</button>
+          <button class="btn btn-danger" (click)="handleResetAll()" [disabled]="!canManageSla()">{{ 'sla.reset_all' | translate }}</button>
         </div>
       </div>
     </div>
@@ -48,6 +48,7 @@ export class SlaComponent {
   slaMin = 90;
   slaMax = 120;
   saving = false;
+  canManageSla = computed(() => this.dataStore.canAccessAction('manage_sla'));
 
   constructor() {
     const current = this.dataStore.slaConfig();
@@ -56,6 +57,10 @@ export class SlaComponent {
   }
 
   async handleSave() {
+    if (!this.canManageSla()) {
+      this.showToast('info', 'Forbidden: current role cannot update SLA');
+      return;
+    }
     this.saving = true;
     try {
       await this.dataStore.saveSlaConfig({ slaMinMinutes: this.slaMin, slaMaxMinutes: this.slaMax });
@@ -68,6 +73,10 @@ export class SlaComponent {
   }
 
   handleReset() {
+    if (!this.canManageSla()) {
+      this.showToast('info', 'Forbidden: current role cannot reset SLA');
+      return;
+    }
     this.slaMin = 90;
     this.slaMax = 120;
     this.dataStore.saveSlaConfig({ slaMinMinutes: 90, slaMaxMinutes: 120 }).then(() => {
@@ -76,6 +85,10 @@ export class SlaComponent {
   }
 
   async handleResetAll() {
+    if (!this.canManageSla()) {
+      this.showToast('info', 'Forbidden: current role cannot reset data');
+      return;
+    }
     if (!confirm(this.ts.translate('toast.confirm_reset'))) return;
     try {
       await this.dataStore.resetAllData();

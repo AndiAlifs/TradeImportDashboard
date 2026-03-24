@@ -17,6 +17,10 @@ type createOfficerRequest struct {
 }
 
 func (h *Handler) ListOfficers(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+		return
+	}
+
 	var records []models.Officer
 	if err := h.db.Where("is_active = ?", true).Order("name asc").Find(&records).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -27,6 +31,10 @@ func (h *Handler) ListOfficers(c *gin.Context) {
 }
 
 func (h *Handler) CreateOfficer(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+		return
+	}
+
 	var req createOfficerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -57,6 +65,10 @@ func (h *Handler) CreateOfficer(c *gin.Context) {
 }
 
 func (h *Handler) GetOfficerByID(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -83,6 +95,10 @@ type updateOfficerRequest struct {
 }
 
 func (h *Handler) UpdateOfficer(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
@@ -131,6 +147,10 @@ func (h *Handler) UpdateOfficer(c *gin.Context) {
 }
 
 func (h *Handler) DeleteOfficer(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
