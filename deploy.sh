@@ -84,7 +84,10 @@ fi
 
 echo "==> Building frontend"
 cd "${SCRIPT_DIR}/frontend"
-npm ci
+if ! npm ci; then
+  echo "==> npm ci failed (lock file out of sync). Falling back to npm install."
+  npm install
+fi
 npm run build -- --configuration production
 
 FRONT_BUILD_DIR="${SCRIPT_DIR}/frontend/dist/shila-dashboard/browser"
