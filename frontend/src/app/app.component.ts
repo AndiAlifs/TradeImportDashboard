@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
@@ -25,7 +25,7 @@ import { TranslatePipe } from './pipes/translate.pipe';
   `,
   styleUrls: ['./app.component.css']
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   dataStore = inject(DataStoreService);
 
   ngOnInit() {
@@ -33,7 +33,13 @@ export class AppComponent implements OnInit {
       if (!this.dataStore.isBackendOnline()) {
         this.showToast('info', 'Backend not reachable. Showing cached data.');
       }
+
+      this.dataStore.startRealtimeSync();
     });
+  }
+
+  ngOnDestroy() {
+    this.dataStore.stopRealtimeSync();
   }
 
   closeSidebar() {

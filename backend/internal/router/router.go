@@ -59,6 +59,7 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 		api.PATCH("/lc/:id/status", h.UpdateLCStatus)
 
 		api.GET("/events", h.ListEvents)
+		api.GET("/events/stream", h.StreamLCUpdates)
 
 		api.GET("/sla", h.GetSLA)
 		api.PATCH("/sla", h.UpdateSLA)

@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"trade-import-dashboard/backend/internal/models"
 
@@ -43,4 +46,45 @@ func (h *Handler) ListEvents(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": events, "total": total})
+}
+
+func (h *Handler) StreamLCUpdates(c *gin.Context) {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+		return
+	}
+
+	flusher, ok := c.Writer.(http.Flusher)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "streaming is not supported"})
+		return
+	}
+
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("X-Accel-Buffering", "no")
+
+	updates := h.broadcaster.Subscribe()
+	defer h.broadcaster.Unsubscribe(updates)
+
+	keepAliveTicker := time.NewTicker(25 * time.Second)
+	defer keepAliveTicker.Stop()
+
+	ctx := c.Request.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case evt := <-updates:
+			payload, err := json.Marshal(evt)
+			if err != nil {
+				continue
+			}
+			_, _ = fmt.Fprintf(c.Writer, "event: lc_update\ndata: %s\n\n", payload)
+			flusher.Flush()
+		case <-keepAliveTicker.C:
+			_, _ = fmt.Fprint(c.Writer, ": keep-alive\n\n")
+			flusher.Flush()
+		}
+	}
 }

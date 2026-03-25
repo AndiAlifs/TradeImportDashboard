@@ -34,7 +34,8 @@ func main() {
 		log.Fatalf("db seed defaults: %v", err)
 	}
 
-	h := handlers.New(db)
+	broadcaster := handlers.NewLCUpdateBroadcaster(16)
+	h := handlers.New(db, broadcaster)
 	r := router.New(cfg, h)
 
 	srv := &http.Server{

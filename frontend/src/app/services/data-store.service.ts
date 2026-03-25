@@ -5,6 +5,16 @@ export interface SlaConfig {
   slaMaxMinutes: number;
 }
 
+interface LCUpdateStreamEvent {
+  lcId: number;
+  urn: string;
+  transactionType: string;
+  fromStatus: string;
+  toStatus: string;
+  updatedBy: string;
+  occurredAt: string;
+}
+
 const STORAGE_KEY = 'shila_lc_data';
 const SLA_KEY = 'shila_sla_config';
 const EVENT_LOG_KEY = 'shila_event_log';
@@ -49,6 +59,10 @@ function parseStoredRole(raw: string | null): MockRole {
 })
 export class DataStoreService {
   private apiBase = (window as any).SHILA_API_BASE || 'http://localhost:8081/api';
+  private stream: EventSource | null = null;
+  private reconnectTimer: number | null = null;
+  private refreshTimer: number | null = null;
+  private realtimeStopped = true;
   readonly roleOptions = ROLE_OPTIONS;
 
   lcs = signal<any[]>([]);
@@ -61,6 +75,18 @@ export class DataStoreService {
 
   constructor() {
     this.loadLocalFallback();
+  }
+
+  startRealtimeSync(): void {
+    this.realtimeStopped = false;
+    this.connectRealtimeStream();
+  }
+
+  stopRealtimeSync(): void {
+    this.realtimeStopped = true;
+    this.clearReconnectTimer();
+    this.clearRefreshTimer();
+    this.closeRealtimeStream();
   }
 
   get currentRoleOption(): RoleOption {
@@ -206,6 +232,82 @@ export class DataStoreService {
     return response.json();
   }
 
+  private connectRealtimeStream(): void {
+    if (this.realtimeStopped || this.stream) {
+      return;
+    }
+
+    const streamUrl = `${this.apiBase}/events/stream`;
+    const stream = new EventSource(streamUrl);
+
+    stream.addEventListener('lc_update', (rawEvent) => {
+      const event = rawEvent as MessageEvent<string>;
+      this.onRealtimeUpdate(event.data);
+    });
+
+    stream.onerror = () => {
+      this.closeRealtimeStream();
+      this.scheduleReconnect();
+    };
+
+    this.stream = stream;
+  }
+
+  private closeRealtimeStream(): void {
+    if (!this.stream) return;
+    this.stream.close();
+    this.stream = null;
+  }
+
+  private scheduleReconnect(): void {
+    if (this.realtimeStopped || this.reconnectTimer !== null) {
+      return;
+    }
+
+    this.reconnectTimer = window.setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connectRealtimeStream();
+    }, 3000);
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer === null) return;
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+  }
+
+  private clearRefreshTimer(): void {
+    if (this.refreshTimer === null) return;
+    clearTimeout(this.refreshTimer);
+    this.refreshTimer = null;
+  }
+
+  private onRealtimeUpdate(rawData: string): void {
+    let payload: LCUpdateStreamEvent;
+    try {
+      payload = JSON.parse(rawData) as LCUpdateStreamEvent;
+    } catch {
+      return;
+    }
+
+    if (!this.canAccessTransaction(payload.transactionType)) {
+      return;
+    }
+
+    this.scheduleSilentRefresh();
+  }
+
+  private scheduleSilentRefresh(): void {
+    if (this.refreshTimer !== null) {
+      return;
+    }
+
+    this.refreshTimer = window.setTimeout(async () => {
+      this.refreshTimer = null;
+      await this.refreshData();
+    }, 500);
+  }
+
   private loadLocalFallback(): void {
     try { this.lcs.set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); } catch { this.lcs.set([]); }
     try { this.slaConfig.set(JSON.parse(localStorage.getItem(SLA_KEY) || JSON.stringify(DEFAULT_SLA))); } catch { this.slaConfig.set({ ...DEFAULT_SLA }); }
@@ -257,8 +359,13 @@ export class DataStoreService {
   }
 
   async updateLCStatus(id: number, data: any): Promise<void> {
-    await this.apiRequest(`/lc/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) });
-    await this.refreshData();
+    try {
+      await this.apiRequest(`/lc/${id}/status`, { method: 'PATCH', body: JSON.stringify(data) });
+      await this.refreshData();
+    } catch (error) {
+      await this.refreshData();
+      throw error;
+    }
   }
 
   async saveSlaConfig(config: SlaConfig): Promise<void> {

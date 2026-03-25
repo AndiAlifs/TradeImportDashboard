@@ -59,6 +59,12 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		ReceivedAt:            now,
 		ExceptionTotalMinutes: 0,
 	}
+	broadcastEvent := LCUpdateEvent{
+		FromStatus: "-",
+		ToStatus:   models.StatusReceived,
+		UpdatedBy:  fallbackUser(actor.User),
+		OccurredAt: now,
+	}
 
 	if err := h.db.Transaction(func(tx *gorm.DB) error {
 		urn, err := nextURN(tx, now)
@@ -81,11 +87,16 @@ func (h *Handler) CreateLC(c *gin.Context) {
 			Notes:      fmt.Sprintf("Manually created (%s)", req.TransactionType),
 			OccurredAt: now,
 		}
+		broadcastEvent.LCID = lc.ID
+		broadcastEvent.URN = lc.URN
+		broadcastEvent.TransactionType = lc.TransactionType
 		return tx.Create(&event).Error
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.broadcaster.Publish(broadcastEvent)
 
 	c.JSON(http.StatusCreated, lc)
 }
@@ -196,6 +207,7 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 	}
 
 	var updated models.LC
+	var broadcastEvent LCUpdateEvent
 	now := time.Now().UTC()
 	if err := h.db.Transaction(func(tx *gorm.DB) error {
 		var lc models.LC
@@ -229,6 +241,15 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		if err := tx.Create(&event).Error; err != nil {
 			return err
 		}
+		broadcastEvent = LCUpdateEvent{
+			LCID:            lc.ID,
+			URN:             lc.URN,
+			TransactionType: lc.TransactionType,
+			FromStatus:      fromStatus,
+			ToStatus:        lc.Status,
+			UpdatedBy:       fallbackUser(actor.User),
+			OccurredAt:      now,
+		}
 		updated = lc
 		return nil
 	}); err != nil {
@@ -247,6 +268,8 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.broadcaster.Publish(broadcastEvent)
 
 	c.JSON(http.StatusOK, updated)
 }
