@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
+import { StageDuration, computeAverageStageDurations, findLongestStage } from '../utils/stage-duration';
 
 @Component({
   selector: 'app-exec-dashboard',
@@ -55,12 +56,67 @@ import { TranslationService } from '../services/translation.service';
               <div class="comparison-bars">
                 <div class="comparison-bar-row">
                   <span class="comp-type-label import-label">{{ 'exec.import_label' | translate }}</span>
-                  <div class="bar-track"><div class="bar-fill purple" [style.width.%]="barPct(stage.importVal)">{{ stage.importVal }} min</div></div>
+                  <div class="bar-track"><div class="bar-fill purple" [style.width.%]="barPctByStage(stage.importVal, stage.stageMax)">{{ stage.importVal }} min</div></div>
                 </div>
                 <div class="comparison-bar-row">
                   <span class="comp-type-label export-label">{{ 'exec.export_label' | translate }}</span>
-                  <div class="bar-track"><div class="bar-fill teal" [style.width.%]="barPct(stage.exportVal)">{{ stage.exportVal }} min</div></div>
+                  <div class="bar-track"><div class="bar-fill teal" [style.width.%]="barPctByStage(stage.exportVal, stage.stageMax)">{{ stage.exportVal }} min</div></div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bottleneck-panel">
+            <div class="bottleneck-title">{{ 'exec.bottleneck_title' | translate }}</div>
+            <div class="insight-chip-grid">
+              <div class="insight-chip">
+                <div class="insight-chip-label">{{ 'exec.insight_import_top' | translate }}</div>
+                <div class="insight-chip-value" *ngIf="importBottleneckStage(); else noImportTop">
+                  {{ importBottleneckStage()!.labelKey | translate }} · {{ importBottleneckStage()!.minutes }}m
+                </div>
+                <ng-template #noImportTop>
+                  <div class="insight-chip-empty">{{ 'exec.bottleneck_empty' | translate }}</div>
+                </ng-template>
+                <div class="insight-metric" *ngIf="importTopGap() > 0">
+                  <div class="insight-metric-row">
+                    <span>{{ 'exec.insight_gap_next' | translate }}</span>
+                    <strong>{{ importTopGap() }}m</strong>
+                  </div>
+                  <div class="insight-delta-track">
+                    <div class="insight-delta-fill" [style.width.%]="gapPct(importTopGap(), maxTopGap())"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="insight-chip">
+                <div class="insight-chip-label">{{ 'exec.insight_export_top' | translate }}</div>
+                <div class="insight-chip-value" *ngIf="exportBottleneckStage(); else noExportTop">
+                  {{ exportBottleneckStage()!.labelKey | translate }} · {{ exportBottleneckStage()!.minutes }}m
+                </div>
+                <ng-template #noExportTop>
+                  <div class="insight-chip-empty">{{ 'exec.bottleneck_empty' | translate }}</div>
+                </ng-template>
+                <div class="insight-metric" *ngIf="exportTopGap() > 0">
+                  <div class="insight-metric-row">
+                    <span>{{ 'exec.insight_gap_next' | translate }}</span>
+                    <strong>{{ exportTopGap() }}m</strong>
+                  </div>
+                  <div class="insight-delta-track">
+                    <div class="insight-delta-fill" [style.width.%]="gapPct(exportTopGap(), maxTopGap())"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="insight-chip span-2" *ngIf="crossBottleneckDelta() as delta">
+                <div class="insight-chip-label">{{ 'exec.insight_cross_delta' | translate }}</div>
+                <div class="insight-metric-row">
+                  <span class="insight-chip-value">{{ delta.leadingType | translate }}</span>
+                  <strong class="insight-chip-value">{{ delta.minutes }}m</strong>
+                </div>
+                <div class="insight-delta-track">
+                  <div class="insight-delta-fill strong" [style.width.%]="gapPct(delta.minutes, maxCrossDelta())"></div>
+                </div>
+                <div class="insight-stage-tag" *ngIf="delta.stageLabelKey">{{ delta.stageLabelKey | translate }}</div>
               </div>
             </div>
           </div>
@@ -159,15 +215,52 @@ export class ExecDashboardComponent {
 
   recentEvents = computed(() => this.dataStore.events().slice(0, 8));
 
+  importStageAverages = computed(() => computeAverageStageDurations(this.importData()));
+  exportStageAverages = computed(() => computeAverageStageDurations(this.exportData()));
+
+  importBottleneckStage = computed(() => findLongestStage(this.importStageAverages()));
+  exportBottleneckStage = computed(() => findLongestStage(this.exportStageAverages()));
+
   comparisonStages = computed(() => {
-    const imp = this.computeStageAvgs(this.importData());
-    const exp = this.computeStageAvgs(this.exportData());
+    const imp = this.mapStagesForComparison(this.importStageAverages());
+    const exp = this.mapStagesForComparison(this.exportStageAverages());
+    const stageMax = (a: number, b: number) => Math.max(1, a, b);
     return [
-      { label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox },
-      { label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting },
-      { label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking },
-      { label: 'chart.total', importVal: imp.total, exportVal: exp.total },
+      { label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox, stageMax: stageMax(imp.inbox, exp.inbox) },
+      { label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting, stageMax: stageMax(imp.drafting, exp.drafting) },
+      { label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking, stageMax: stageMax(imp.checking, exp.checking) },
+      { label: 'chart.total', importVal: imp.total, exportVal: exp.total, stageMax: stageMax(imp.total, exp.total) },
     ];
+  });
+
+  importTopGap = computed(() => this.topGap(this.importStageAverages()));
+  exportTopGap = computed(() => this.topGap(this.exportStageAverages()));
+  maxTopGap = computed(() => Math.max(1, this.importTopGap(), this.exportTopGap()));
+  maxCrossDelta = computed(() => {
+    const importTop = this.importBottleneckStage()?.minutes || 0;
+    const exportTop = this.exportBottleneckStage()?.minutes || 0;
+    return Math.max(1, importTop, exportTop);
+  });
+
+  crossBottleneckDelta = computed(() => {
+    const importTop = this.importBottleneckStage();
+    const exportTop = this.exportBottleneckStage();
+    if (!importTop && !exportTop) return null;
+    if (!importTop) {
+      return { leadingType: 'exec.export_label', minutes: exportTop!.minutes, stageLabelKey: exportTop!.labelKey };
+    }
+    if (!exportTop) {
+      return { leadingType: 'exec.import_label', minutes: importTop.minutes, stageLabelKey: importTop.labelKey };
+    }
+    if (importTop.minutes === exportTop.minutes) {
+      return { leadingType: 'exec.bottleneck_balanced', minutes: 0, stageLabelKey: importTop.labelKey };
+    }
+    const exportLeads = exportTop.minutes > importTop.minutes;
+    return {
+      leadingType: exportLeads ? 'exec.export_label' : 'exec.import_label',
+      minutes: Math.abs(exportTop.minutes - importTop.minutes),
+      stageLabelKey: exportLeads ? exportTop.labelKey : importTop.labelKey,
+    };
   });
 
   aiSummary = computed(() => {
@@ -185,13 +278,13 @@ export class ExecDashboardComponent {
 
     const slaTarget = `${sla.slaMinMinutes}–${sla.slaMaxMinutes} min`;
 
-    const importBottleneck = this.findBottleneck(this.importData());
-    const exportBottleneck = this.findBottleneck(this.exportData());
-    const importBottleneckText = importBottleneck.avg > 0
-      ? `Primary bottleneck: ${importBottleneck.name} (avg ${importBottleneck.avg} min).`
+    const importBottleneck = this.importBottleneckStage();
+    const exportBottleneck = this.exportBottleneckStage();
+    const importBottleneckText = importBottleneck
+      ? `Primary bottleneck: ${this.stageName(importBottleneck.labelKey)} (avg ${importBottleneck.minutes} min).`
       : 'Insufficient data for bottleneck analysis.';
-    const exportBottleneckText = exportBottleneck.avg > 0
-      ? `Primary bottleneck: ${exportBottleneck.name} (avg ${exportBottleneck.avg} min).`
+    const exportBottleneckText = exportBottleneck
+      ? `Primary bottleneck: ${this.stageName(exportBottleneck.labelKey)} (avg ${exportBottleneck.minutes} min).`
       : 'Insufficient data for bottleneck analysis.';
 
     const impVol = this.importData().length;
@@ -203,7 +296,8 @@ export class ExecDashboardComponent {
     let recommendation = volumeInsight;
     if (totalBreaches > 0) {
       const focusType = this.importBreachCount() >= this.exportBreachCount() ? 'Import' : 'Export';
-      const focusStage = focusType === 'Import' ? importBottleneck.name : exportBottleneck.name;
+      const focus = focusType === 'Import' ? importBottleneck : exportBottleneck;
+      const focusStage = focus ? this.stageName(focus.labelKey) : this.ts.translate('exec.bottleneck_empty');
       recommendation += ` Focus on reducing ${focusType} ${focusStage} times to improve overall SLA compliance.`;
     } else {
       recommendation += ' All operations within target — maintain current performance.';
@@ -214,6 +308,16 @@ export class ExecDashboardComponent {
 
   barPct(value: number): number {
     return Math.min(100, Math.max(5, (Math.abs(value) / 180) * 100));
+  }
+
+  barPctByStage(value: number, stageMax: number): number {
+    if (stageMax <= 0) return 0;
+    return Math.min(100, Math.max(5, (Math.abs(value) / stageMax) * 100));
+  }
+
+  gapPct(value: number, maxValue: number): number {
+    if (maxValue <= 0 || value <= 0) return 0;
+    return Math.min(100, Math.max(3, (Math.abs(value) / maxValue) * 100));
   }
 
   formatTime(iso: string): string {
@@ -241,31 +345,26 @@ export class ExecDashboardComponent {
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
   }
 
-  private computeStageAvgs(records: any[]) {
-    const inbox: number[] = [], drafting: number[] = [], checking: number[] = [], total: number[] = [];
-    records.forEach(r => {
-      if (r.draftingStartedAt) inbox.push((new Date(r.draftingStartedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
-      if (r.draftingStartedAt && r.checkingStartedAt) drafting.push((new Date(r.checkingStartedAt).getTime() - new Date(r.draftingStartedAt).getTime()) / 60000);
-      if (r.checkingStartedAt && r.releasedAt) checking.push((new Date(r.releasedAt).getTime() - new Date(r.checkingStartedAt).getTime()) / 60000);
-      if (r.releasedAt) total.push((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
+  private mapStagesForComparison(stages: StageDuration[]) {
+    const byKey: Record<string, number> = {};
+    stages.forEach((stage) => {
+      byKey[stage.key] = stage.minutes;
     });
-    const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-    return { inbox: avg(inbox), drafting: avg(drafting), checking: avg(checking), total: avg(total) };
+    return {
+      inbox: byKey['inbox'] || 0,
+      drafting: byKey['drafting'] || 0,
+      checking: byKey['checking'] || 0,
+      total: (byKey['inbox'] || 0) + (byKey['drafting'] || 0) + (byKey['checking'] || 0) + (byKey['exception'] || 0),
+    };
   }
 
-  private findBottleneck(records: any[]) {
-    const inbox: number[] = [], drafting: number[] = [], checking: number[] = [];
-    records.forEach(r => {
-      if (r.draftingStartedAt) inbox.push((new Date(r.draftingStartedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
-      if (r.draftingStartedAt && r.checkingStartedAt) drafting.push((new Date(r.checkingStartedAt).getTime() - new Date(r.draftingStartedAt).getTime()) / 60000);
-      if (r.checkingStartedAt && r.releasedAt) checking.push((new Date(r.releasedAt).getTime() - new Date(r.checkingStartedAt).getTime()) / 60000);
-    });
-    const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
-    const stages = [
-      { name: 'Inbox Wait', avg: avg(inbox) },
-      { name: 'Drafting', avg: avg(drafting) },
-      { name: 'Checking Underlying', avg: avg(checking) },
-    ];
-    return stages.sort((a, b) => b.avg - a.avg)[0];
+  private topGap(stages: StageDuration[]): number {
+    if (stages.length < 2) return 0;
+    const sorted = [...stages].sort((a, b) => b.minutes - a.minutes);
+    return Math.max(0, sorted[0].minutes - sorted[1].minutes);
+  }
+
+  private stageName(labelKey: string): string {
+    return this.ts.translate(labelKey);
   }
 }

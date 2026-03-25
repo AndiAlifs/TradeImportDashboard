@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
+import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
 
 @Component({
   selector: 'app-all-lcs',
@@ -113,6 +114,52 @@ import { TranslationService } from '../services/translation.service';
                   <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stage-duration-card" *ngIf="selectedLc">
+              <div class="stage-duration-header">
+                <h4>{{ 'timeline.stage_duration' | translate }}</h4>
+                <span *ngIf="getLcBottleneck(selectedLc) as bottleneck" class="stage-duration-pill">
+                  {{ 'timeline.longest_stage' | translate }}: {{ bottleneck.labelKey | translate }} ({{ formatMinutesLabel(bottleneck.minutes) }})
+                </span>
+              </div>
+
+              <div *ngIf="getLcStageDurations(selectedLc).length === 0" class="stage-duration-empty">
+                {{ 'timeline.no_stage_duration' | translate }}
+              </div>
+
+              <div class="stage-share-wrap" *ngIf="getLcStageDurations(selectedLc).length > 0">
+                <div class="stage-share-title">{{ 'timeline.stage_share' | translate }}</div>
+                <div class="stage-share-bar">
+                  <div
+                    *ngFor="let segment of getStageShareSegments(selectedLc)"
+                    class="stage-share-segment"
+                    [ngClass]="segment.className"
+                    [style.width.%]="segment.percent"
+                    [title]="(segment.labelKey | translate) + ' ' + formatPercent(segment.percent) + ' (' + formatMinutesLabel(segment.minutes) + ')'">
+                  </div>
+                </div>
+                <div class="stage-share-legend">
+                  <span class="stage-share-item" *ngFor="let segment of getStageShareSegments(selectedLc)">
+                    <span class="stage-share-dot" [ngClass]="segment.className"></span>
+                    <span>{{ segment.labelKey | translate }}</span>
+                    <strong>{{ formatPercent(segment.percent) }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div class="stage-duration-list" *ngIf="getLcStageDurations(selectedLc).length > 0">
+                <div class="stage-duration-row" *ngFor="let stage of getLcStageDurations(selectedLc)">
+                  <div class="stage-duration-label">
+                    {{ stage.labelKey | translate }}
+                    <span *ngIf="stage.isActive" class="stage-live-tag">{{ 'timeline.live' | translate }}</span>
+                  </div>
+                  <div class="stage-duration-track">
+                    <div class="stage-duration-fill" [class.longest]="stage.isLongest" [style.width.%]="stageWidth(stage.minutes, selectedLc)"></div>
+                  </div>
+                  <div class="stage-duration-value">{{ formatMinutesLabel(stage.minutes) }}</div>
                 </div>
               </div>
             </div>
@@ -233,5 +280,50 @@ export class AllLcsComponent implements OnInit {
       total = Math.round((Date.now() - new Date(r.receivedAt).getTime()) / 60000);
     }
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
+  }
+
+  getLcStageDurations(r: any): StageDuration[] {
+    return computeLcStageDurations(r);
+  }
+
+  getLcBottleneck(r: any): StageDuration | null {
+    return findLongestStage(this.getLcStageDurations(r));
+  }
+
+  stageWidth(minutes: number, r: any): number {
+    const stages = this.getLcStageDurations(r);
+    const maxMinutes = stages.reduce((max, stage) => Math.max(max, stage.minutes), 0);
+    if (maxMinutes <= 0) return 0;
+    return Math.max(8, Math.round((minutes / maxMinutes) * 100));
+  }
+
+  formatMinutesLabel(minutes: number): string {
+    return formatMinutesLabel(minutes);
+  }
+
+  getStageShareSegments(r: any): Array<{ labelKey: string; percent: number; className: string; minutes: number }> {
+    const stages = this.getLcStageDurations(r);
+    const total = stages.reduce((sum, stage) => sum + stage.minutes, 0);
+    if (total <= 0) return [];
+    return stages.map((stage) => ({
+      labelKey: stage.labelKey,
+      percent: Math.round((stage.minutes / total) * 1000) / 10,
+      className: this.stageShareClass(stage.key),
+      minutes: stage.minutes,
+    }));
+  }
+
+  formatPercent(value: number): string {
+    return `${value.toFixed(1)}%`;
+  }
+
+  private stageShareClass(key: StageDuration['key']): string {
+    const map: Record<StageDuration['key'], string> = {
+      inbox: 'stage-share-inbox',
+      drafting: 'stage-share-drafting',
+      checking: 'stage-share-checking',
+      exception: 'stage-share-exception',
+    };
+    return map[key];
   }
 }
