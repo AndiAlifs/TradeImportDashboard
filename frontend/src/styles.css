@@ -782,7 +782,8 @@ body {
 }
 
 /* ---------- Toast ---------- */
-.toast-container {
+.toast-container,
+#toast-container {
   position: fixed;
   top: 1.5rem;
   right: 1.5rem;

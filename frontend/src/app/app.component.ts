@@ -21,7 +21,7 @@ import { TranslatePipe } from './pipes/translate.pipe';
       </div>
     </main>
 
-    <div id="toast-container"></div>
+    <div id="toast-container" class="toast-container"></div>
   `,
   styleUrls: ['./app.component.css']
 })
