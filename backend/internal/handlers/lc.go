@@ -16,6 +16,7 @@ import (
 )
 
 type createLCRequest struct {
+	URN             string `json:"urn" binding:"required,max=32"`
 	SenderEmail     string `json:"senderEmail" binding:"required,email"`
 	Subject         string `json:"subject" binding:"required"`
 	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
@@ -48,9 +49,15 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
 		return
 	}
+	req.URN = strings.TrimSpace(req.URN)
+	if req.URN == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "urn is required"})
+		return
+	}
 
 	now := time.Now().UTC()
 	lc := models.LC{
+		URN:                   req.URN,
 		SenderEmail:           req.SenderEmail,
 		Subject:               req.Subject,
 		TransactionType:       req.TransactionType,
@@ -67,12 +74,6 @@ func (h *Handler) CreateLC(c *gin.Context) {
 	}
 
 	if err := h.db.Transaction(func(tx *gorm.DB) error {
-		urn, err := nextURN(tx, now)
-		if err != nil {
-			return err
-		}
-		lc.URN = urn
-
 		if err := tx.Create(&lc).Error; err != nil {
 			return err
 		}
@@ -92,6 +93,10 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		broadcastEvent.TransactionType = lc.TransactionType
 		return tx.Create(&event).Error
 	}); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") && strings.Contains(strings.ToLower(err.Error()), "urn") {
+			c.JSON(http.StatusConflict, gin.H{"error": "urn already exists"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -306,19 +311,6 @@ func isValidTransition(fromStatus, toStatus string) bool {
 		},
 	}
 	return allowed[fromStatus][toStatus]
-}
-
-func nextURN(tx *gorm.DB, now time.Time) (string, error) {
-	dateStr := now.Format("20060102")
-	prefix := "LC-" + dateStr + "-"
-
-	var count int64
-	if err := tx.Model(&models.LC{}).Where("urn LIKE ?", prefix+"%").Count(&count).Error; err != nil {
-		return "", err
-	}
-
-	seq := count + 1
-	return fmt.Sprintf("LC-%s-%03d", dateStr, seq), nil
 }
 
 func parseUintID(raw string) (uint64, error) {

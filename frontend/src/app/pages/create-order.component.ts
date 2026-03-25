@@ -22,6 +22,10 @@ import { TranslationService } from '../services/translation.service';
             <input type="text" id="create-type" [value]="formData.transactionType" disabled style="background-color: var(--bg-hover)"/>
           </div>
           <div class="form-group">
+            <label for="create-urn">{{ 'create.form.urn' | translate }}</label>
+            <input type="text" id="create-urn" [(ngModel)]="formData.urn" name="urn" required placeholder="LC-20260325-001" />
+          </div>
+          <div class="form-group">
             <label for="create-sender">{{ 'create.form.sender' | translate }}</label>
             <input type="email" id="create-sender" [(ngModel)]="formData.senderEmail" name="senderEmail" required placeholder="exporter@client.com" />
           </div>
@@ -57,6 +61,7 @@ export class CreateOrderComponent implements OnInit {
 
   formData = {
     transactionType: 'Import',
+    urn: '',
     senderEmail: '',
     subject: '',
     assignedTo: '',
@@ -82,12 +87,13 @@ export class CreateOrderComponent implements OnInit {
     try {
       await this.dataStore.createLCOrder({
         transactionType: this.formData.transactionType,
+        urn: this.formData.urn,
         senderEmail: this.formData.senderEmail,
         subject: this.formData.subject,
         assignedTo: this.formData.assignedTo,
       });
       this.showToast('success', this.ts.translate('toast.order_created'));
-      this.formData = { transactionType: this.transactionType(), senderEmail: '', subject: '', assignedTo: '' };
+      this.formData = { transactionType: this.transactionType(), urn: '', senderEmail: '', subject: '', assignedTo: '' };
       this.router.navigate([`/${this.transactionType().toLowerCase()}/queue`]);
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to create order');
