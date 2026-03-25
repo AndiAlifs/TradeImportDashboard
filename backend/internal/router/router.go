@@ -63,6 +63,7 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 
 		api.GET("/sla", h.GetSLA)
 		api.PATCH("/sla", h.UpdateSLA)
+		api.POST("/reset", h.ResetData)
 	}
 
 	return r
