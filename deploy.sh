@@ -14,6 +14,7 @@ APP_PORT="${APP_PORT:-8081}"
 APP_BASE_DIR="${APP_BASE_DIR:-/var/www}"
 APP_DIR="${APP_BASE_DIR}/${APP_NAME}"
 BACKEND_SERVICE_NAME="${BACKEND_SERVICE_NAME:-${APP_NAME}}"
+SKIP_NGINX_CONFIG="${SKIP_NGINX_CONFIG:-0}"
 
 # Optional DB vars for first-time env file creation only.
 DB_HOST="${DB_HOST:-127.0.0.1}"
@@ -45,8 +46,10 @@ require_cmd() {
 require_cmd rsync
 require_cmd go
 require_cmd npm
-require_cmd nginx
 require_cmd systemctl
+if [[ "${SKIP_NGINX_CONFIG}" != "1" ]]; then
+  require_cmd nginx
+fi
 
 echo "==> Deploying ${APP_NAME} to ${APP_DIR}"
 echo "==> Using domain: ${DOMAIN}"
@@ -135,8 +138,11 @@ Environment=GIN_MODE=release
 WantedBy=multi-user.target
 EOF
 
-echo "==> Writing Nginx site: /etc/nginx/sites-available/${APP_NAME}"
-${SUDO} tee "/etc/nginx/sites-available/${APP_NAME}" >/dev/null <<EOF
+if [[ "${SKIP_NGINX_CONFIG}" == "1" ]]; then
+  echo "==> Skipping Nginx config rewrite (SKIP_NGINX_CONFIG=1)"
+else
+  echo "==> Writing Nginx site: /etc/nginx/sites-available/${APP_NAME}"
+  ${SUDO} tee "/etc/nginx/sites-available/${APP_NAME}" >/dev/null <<EOF
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -159,15 +165,15 @@ server {
 }
 EOF
 
-if [[ ! -L "/etc/nginx/sites-enabled/${APP_NAME}" ]]; then
-  ${SUDO} ln -s "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/${APP_NAME}"
-fi
+  if [[ ! -L "/etc/nginx/sites-enabled/${APP_NAME}" ]]; then
+    ${SUDO} ln -s "/etc/nginx/sites-available/${APP_NAME}" "/etc/nginx/sites-enabled/${APP_NAME}"
+  fi
 
-CERT_FULLCHAIN="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
-CERT_PRIVKEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
-if [[ -f "${CERT_FULLCHAIN}" && -f "${CERT_PRIVKEY}" ]]; then
-  echo "==> SSL certificate found. Enabling HTTPS server block."
-  ${SUDO} tee "/etc/nginx/sites-available/${APP_NAME}" >/dev/null <<EOF
+  CERT_FULLCHAIN="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+  CERT_PRIVKEY="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+  if [[ -f "${CERT_FULLCHAIN}" && -f "${CERT_PRIVKEY}" ]]; then
+    echo "==> SSL certificate found. Enabling HTTPS server block."
+    ${SUDO} tee "/etc/nginx/sites-available/${APP_NAME}" >/dev/null <<EOF
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -198,6 +204,7 @@ server {
     }
 }
 EOF
+  fi
 fi
 
 echo "==> Setting ownership and permissions"
@@ -210,8 +217,12 @@ echo "==> Reloading services"
 ${SUDO} systemctl daemon-reload
 ${SUDO} systemctl enable "${BACKEND_SERVICE_NAME}"
 ${SUDO} systemctl restart "${BACKEND_SERVICE_NAME}"
-${SUDO} nginx -t
-${SUDO} systemctl reload nginx
+if [[ "${SKIP_NGINX_CONFIG}" == "1" ]]; then
+  echo "==> Skipping Nginx reload (SKIP_NGINX_CONFIG=1)"
+else
+  ${SUDO} nginx -t
+  ${SUDO} systemctl reload nginx
+fi
 
 echo "==> Deployment completed"
 echo "Backend service status:"

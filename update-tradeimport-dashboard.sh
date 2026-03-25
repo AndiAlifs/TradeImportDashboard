@@ -24,7 +24,7 @@ echo "==> Pulling latest changes"
 git pull
 
 echo "==> Running deployment"
-DOMAIN="${DOMAIN}" bash deploy.sh
+SKIP_NGINX_CONFIG=1 DOMAIN="${DOMAIN}" bash deploy.sh
 
 echo "==> Checking backend service"
 sudo systemctl status "${SERVICE_NAME}" --no-pager -l | sed -n '1,20p'
