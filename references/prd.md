@@ -3,218 +3,205 @@
 
 ## 1. Executive Summary
 
-The **L/C Processing Time Tracker** is an internal operational tool designed to measure and monitor the lifecycle of Letter of Credit (L/C) documents for both **Import** and **Export** trade finance operations. It provides visibility into the time spent at each critical stage—from the moment an order email arrives in the inbox to the final release of the L/C—with **dedicated views** for Import and Export workflows.
+The L/C Processing Time Tracker is an internal tool for monitoring the lifecycle of Import and Export Letter of Credit records, with clear visibility into stage timing, SLA performance, and operational bottlenecks.
 
-The core value proposition is **operational transparency**: a lightweight system with a simple UI for manual stage transitions in the current MVP, and a target state that includes automated intake. It provides clear, role-based dashboards to compare actual processing times against parameterized Service Level Agreements (SLAs). An **Executive Dashboard** offers senior management a unified overview of both Import and Export performance, currently complemented by a rule-based summary narrative, with **AI-generated summaries** planned.
+This document is updated to match the current repository implementation across frontend and backend. The system today is a manual intake and manual transition workflow with role-scoped access, real-time update streaming, and rule-based executive narrative insights. Automated email ingestion and backend LLM summary generation remain target-state items.
 
-**MVP Goal:** Deliver a functional tracking system utilizing an automated ingestion workflow, a decoupled backend API, a streamlined web frontend for operations staff to log state changes, differentiated Import/Export views, an executive-level dashboard, and AI-powered performance summaries to identify SLA breaches and workflow bottlenecks.
+## 2. Current Product Mission
 
----
+Provide operational transparency for Trade Finance processing by:
 
-## 2. Mission
+1. Capturing end-to-end lifecycle timestamps per L/C record.
+2. Enabling quick status transitions for operations users.
+3. Tracking SLA compliance and breach risk in Import and Export streams.
+4. Providing management and executive visibility into throughput, delays, and bottleneck stages.
 
-**Mission Statement:** Provide real-time visibility into **Import and Export** Trade Finance operations, enabling managers and executives to identify bottlenecks, compare cross-functional performance, and ensure customer L/C requests are processed well within defined SLAs—supported by data-driven insights now and AI-driven insights as the next step.
+## 3. Target Users and Access Model
 
-### Core Principles
+### Personas
 
-1. **Automated Intake** — The SLA timer must start the absolute second an email hits the inbox, removing human delay from the initial measurement.
-2. **Frictionless Tracking** — For the MVP, manual stage transitions (button clicks) must be instantaneous and require zero data entry.
-3. **Decoupled Design** — The tracking logic must remain independent of the core Trade Finance system so that future API pull-integrations can replace the manual MVP buttons without rewriting the architecture.
-4. **Data-Driven Insights** — The dashboard should immediately highlight where the process is slowing down, with optional AI-assisted narrative insights in future iterations.
+1. Operations Staff/Officer (Import or Export scope): creates and processes L/Cs in assigned stream.
+2. Executive: consumes dashboards, event logs, and configuration views.
+3. Super Admin: full access across all views, configuration, and reset actions.
 
----
+### Implemented Role Model (Mock RBAC)
 
-## 3. Target Users
+Frontend role selector and backend request headers simulate role-based access using:
 
-### Primary Personas
+- Roles: super_admin, executive, import_officer, import_staff, export_officer, export_staff.
+- Scope: All, Import, Export.
+- Headers: X-Mock-Role, X-Mock-Scope, X-Mock-User.
 
-**1. The Operations Officer (Processor)**
-- **Role:** Handles the drafting, checking, and releasing of the L/C.
-- **Goals:** Quickly indicate when they start and finish a stage without slowing down their actual work.
-- **Pain Points:** Being blamed for slow processing when the delay might be due to sitting in the inbox or waiting on underlying document checks.
+## 4. Scope and Status (As Built)
 
-**2. The Operations Manager**
-- **Role:** Monitors daily throughput and SLA compliance for their respective area (Import or Export).
-- **Goals:** See average processing times, adjust SLA parameters, and identify which specific stages (Drafting vs. Checking) are causing delays within their operational stream.
-- **Pain Points:** Lack of visibility into individual lifecycle stages; only knowing when an L/C started and finished, but not where it got stuck.
+### Implemented
 
-**3. The Executive / Senior Manager**
-- **Role:** Oversees the entire Trade Finance function, covering both Import and Export operations.
-- **Goals:** Gain a holistic view of operational performance across both Import and Export, quickly understand key trends, SLA breach rates, and throughput via an executive summary (rule-based now, AI-generated in the target state).
-- **Pain Points:** Information is siloed between Import and Export teams; requires manual consolidation of reports to assess overall health; no concise, at-a-glance narrative of operational status.
+#### Core Workflow
 
----
+- Manual L/C creation with required fields: URN, sender email, subject, transaction type, assignee.
+- Lifecycle statuses: Received, Drafting, Checking Underlying, Released, Breached, Exception.
+- Status transition controls in queue view:
+  - Start Drafting
+  - Start Checking Underlying
+  - Release (officer-level restriction)
+  - Mark Exception
+  - Resolve Exception (with exception minutes adjustment)
+- Event log entries created for create and status transitions.
+- Approved-by officer support on release.
 
-## 4. MVP Scope
+#### SLA and Timing
 
-### Implementation Status Note (Repository Snapshot - 2026-03-24)
+- Global SLA configuration (single min/max pair, default 90/120 minutes).
+- SLA indicators for in-progress and released records.
+- Exception minutes deducted from elapsed SLA calculation.
+- Breach detection in operational and executive dashboards.
 
-This PRD remains relevant as the target direction. The checklist below is updated to reflect what is currently implemented in this repository versus planned items.
+#### Import/Export Differentiation
 
-### In Scope
+- Transaction type stored per L/C.
+- Separate import/export routes and views:
+  - dashboard
+  - all L/Cs list
+  - queue
+  - create order
+- Scope-aware filtering enforced in backend for non-All roles.
 
-**Core Functionality**
-- [ ] Automated email inbox monitoring and parsing
-- [x] Unique Reference Number (URN) generation upon order creation
-- [x] Master table tracking L/C correlation and receipt timestamp
-- [x] Web UI for operations to manually trigger stage transitions (`Start Drafting`, `Start Checking Underlying`, `Release`)
-- [x] Parameterized SLA configuration (e.g., default 90-120 minutes)
-- [x] Analytics dashboard showing average stage duration and highlighting SLA breaches
-- [x] Event log tracking exact user, state, and timestamp
-- [x] Status exceptions to pause the SLA timer and log exception reasons
-- [x] Manual order creation via UI form
-- [x] Multi-language support (English/Indonesian toggle)
-- [x] Mobile-responsive UI with hamburger menu toggle
+#### Dashboards and Insights
 
-**Import / Export Differentiation**
-- [x] Transaction type field (`Import` or `Export`) on every L/C record
-- [x] Dedicated **Import View** — filtered queue and analytics showing only Import L/Cs
-- [x] Dedicated **Export View** — filtered queue and analytics showing only Export L/Cs
-- [ ] Ability to tag transaction type during manual order creation and automated ingestion (manual creation is implemented; automated ingestion is not yet implemented in this repository)
-- [ ] Separate SLA parameters configurable per transaction type (Import vs. Export may have different SLA targets)
+- Import/Export operations dashboards with KPI cards:
+  - active
+  - completed
+  - breaches
+  - average time
+- Executive dashboard with combined Import vs Export KPIs.
+- Stage comparison bars across streams.
+- Bottleneck focus panel using stage-duration calculations.
+- Narrative summary card labeled AI Generated, but generated with deterministic frontend rules (no model call).
 
-**Executive Dashboard**
-- [x] Unified **Dashboard View** accessible to executives / senior managers
-- [x] Side-by-side or tabbed comparison of Import vs. Export performance metrics (throughput, average processing time, SLA breach rate)
-- [x] Key Performance Indicators (KPIs): total processed today, SLA compliance %, average cycle time, breach count — broken down by Import and Export
-- [ ] Trend charts (daily/weekly) for processing volume and SLA compliance across both streams
-- [ ] **AI-Powered Summary** — an auto-generated natural-language narrative summarizing:
-  - Overall operational health for the selected period
-  - Notable SLA breaches and their root stages
-  - Comparative performance between Import and Export
-  - Anomaly detection (e.g., unusual spike in processing time)
-  - Actionable recommendations (e.g., "Export Drafting stage averaged 20% longer than last week — consider reviewing staffing")
+#### Real-Time Updates
 
-   Note: A rule-based executive summary card is currently implemented in the frontend, but no backend LLM integration is present yet.
+- Server-sent events endpoint for LC updates.
+- Frontend subscribes and triggers silent refresh on relevant updates.
 
-**Technical**
-- [ ] n8n workflow for email ingestion and API webhook triggering
-- [x] Golang REST API backend
-- [x] Relational database integration (MySQL in current implementation)
-- [x] Angular frontend for the UI buttons and dashboard
-- [ ] LLM integration service for AI summary generation (e.g., Google Gemini API or OpenAI API via backend proxy)
+#### Platform and UX
 
-### Out of Scope
+- Angular standalone-component frontend.
+- Go (Gin + GORM) backend with MySQL.
+- English/Indonesian language toggle.
+- Responsive layout with sidebar toggle/hamburger behavior.
 
-**Deferred to Phase 2 (Future)**
-- [ ] Direct API pull integration from the core Trade Finance system
-- [ ] Integration with future in-house AI PoCs (e.g., L/C Discrepancy Checker acting as an automated system user)
-- [ ] Document storage/attachment viewing in the UI
-- [ ] Complex user authentication (basic internal role-based access only for MVP)
-- [ ] Data export (CSV/Excel)
-- [ ] Granular role-based dashboard permissions (e.g., restricting Import view to Import team only)
-- [ ] AI-driven predictive SLA breach alerts (real-time push notifications)
+### Not Yet Implemented (Target State)
 
----
+- Automated email inbox ingestion/parsing.
+- n8n or equivalent ingestion orchestration.
+- Backend LLM integration for true AI summaries.
+- Separate SLA configuration by transaction type.
+- Trend charts for daily/weekly longitudinal analysis.
 
-## 5. User Stories
+## 5. Functional Requirements
 
-### Primary User Stories
+### FR-1 L/C Record Management
 
-1. **As a system, I want to monitor the incoming order email inbox, so that the SLA timer begins immediately upon receipt.**
-   - Example: Email arrives at 08:00 AM; system generates URN `LC-20260311-001` and logs `Status: Received`.
+1. System shall allow manual creation of an L/C record with required metadata.
+2. URN shall be unique.
+3. System shall store timestamps for lifecycle milestones.
 
-2. **As an operations officer, I want to click a "Start Drafting" button for a specific URN, so that the system records the exact time I began work.**
-   - Example: User clicks button; system logs `Status: Drafting` at 08:15 AM.
+### FR-2 Status Lifecycle Control
 
-3. **As an operations officer, I want to click a "Start Checking Underlying" button, so that the drafting phase is marked complete and the checking phase begins.**
-   - Example: User finishes the draft and clicks the button; system calculates Drafting took 45 minutes.
+1. System shall enforce valid transition paths between statuses.
+2. System shall record an event log entry for each transition.
+3. Release action shall be restricted to officer roles (or super admin).
 
-4. **As an operations officer, I want to click "Release", so that the overall lifecycle is marked as complete.**
-   - Example: User releases the L/C; system stops the overall SLA timer.
+### FR-3 Exception Handling
 
-5. **As an admin, I want to set the global SLA parameters, so that the dashboard reflects our current operational targets.**
-   - Example: Set SLA Min to 90 mins and Max to 120 mins.
+1. User shall be able to set status to Exception with optional reason.
+2. User shall be able to resolve exception and provide effective exception minutes.
+3. Exception time shall reduce SLA elapsed time in dashboard calculations.
 
-6. **As a manager, I want to view a dashboard of all active and completed L/Cs today, so that I can see which ones have breached the 120-minute SLA.**
-   - Example: Dashboard flags `LC-20260311-002` in red because it has been in the "Checking Underlying" stage for 95 minutes.
+### FR-4 SLA Management
 
-7. **As an operations officer, I want to mark an L/C with an 'Exception' status and provide a detailed reason, so that uncontrollable delays do not negatively impact the SLA timer.**
-   - Example: Waiting for underlying checking documents, pausing the SLA clock.
+1. System shall support configurable global SLA min/max values.
+2. System shall classify records as OK, warning, or breach using configured thresholds.
+3. SLA configuration updates shall be access controlled.
 
-8. **As an operations officer, I want to manually create a new L/C order through a form in the UI, so that I can process requests that circumvent the automated email ingestion system.**
-   - Example: Filling out sender, subject, and assignee on the "Create Order" page.
+### FR-5 Role and Scope Authorization
 
-9. **As a user, I want to toggle between English and Indonesian languages, so that I can interact with the system in my preferred language.**
-   - Example: Clicking the "EN/ID" button translates all core UI text dynamically.
+1. System shall gate routes and API actions by role.
+2. Import-scoped users shall be blocked from Export records and actions, and vice versa.
+3. Executive shall have read-heavy access to overview, logs, and SLA/admin views per current policy.
 
-10. **As a user on a mobile device, I want to use a hamburger menu to access the navigation, so that the screen real estate is optimized for my display.**
-     - Example: Viewing the dashboard on a phone, clicking the menu icon to switch to the Queue view.
+### FR-6 Executive Visibility
 
-### Import / Export Differentiation Stories
+1. System shall present combined Import/Export KPI performance.
+2. System shall present stage-duration comparison and bottleneck indicators.
+3. System shall present a summary narrative of current performance (rule-based in current build).
 
-11. **As an operations officer, I want each L/C to be tagged as either Import or Export, so that the data is properly categorized from the moment of intake.**
-    - Example: An email with subject containing "Import L/C" is automatically tagged as `Import`; an officer manually creating an order selects `Export` from a dropdown.
+### FR-7 Real-Time Refresh
 
-12. **As an import operations officer, I want to access a dedicated Import View showing only Import L/Cs, so that I can focus on my relevant workload without noise from Export transactions.**
-    - Example: Navigating to the "Import" section shows a filtered queue and analytics dashboard scoped to Import L/Cs only.
+1. Backend shall publish LC update events for subscribers.
+2. Frontend shall refresh data when subscribed update events are received.
 
-13. **As an export operations officer, I want to access a dedicated Export View showing only Export L/Cs, so that I can manage export workflows independently.**
-    - Example: Navigating to the "Export" section shows a filtered queue and analytics dashboard scoped to Export L/Cs only.
+## 6. API Surface (Current)
 
-14. **As an admin, I want to configure separate SLA parameters for Import and Export transactions, so that each stream is measured against its own operational targets.**
-    - Example: Import SLA is set to 90–120 minutes; Export SLA is set to 60–90 minutes.
+### Health
 
-### Executive Dashboard Stories
+- GET /health
 
-15. **As an executive, I want to view a unified Dashboard that shows both Import and Export performance side by side, so that I can assess overall Trade Finance operational health at a glance.**
-    - Example: Dashboard displays two KPI cards—Import shows 95% SLA compliance, Export shows 88% SLA compliance—with trend sparklines.
+### L/C
 
-16. **As an executive, I want to see an AI-generated summary of today's (or this week's) performance, so that I can quickly understand key trends and issues without reading through individual records.**
-    - Example: The AI summary reads: *"Today's Import processing averaged 82 minutes (within SLA). Export had 3 SLA breaches—all stuck at the Checking Underlying stage. Recommendation: Review Export checking workload distribution."*
+- POST /api/lc
+- GET /api/lc
+- GET /api/lc/:id
+- PATCH /api/lc/:id/status
 
-17. **As an executive, I want the AI summary to highlight anomalies and provide actionable recommendations, so that I can make informed decisions about resource allocation and process improvements.**
-    - Example: AI flags: *"Export volume spiked 40% compared to last week's average. Consider temporary staffing reallocation from Import (which is trending 15% below average volume)."*
+### Events
 
----
+- GET /api/events
+- GET /api/events/stream
 
-## 6. Core Architecture & Patterns
+### Master Data
 
-### High-Level Architecture
+- GET /api/assignees
+- POST /api/assignees
+- GET /api/assignees/:id
+- PUT /api/assignees/:id
+- DELETE /api/assignees/:id
+- GET /api/officers
+- POST /api/officers
+- GET /api/officers/:id
+- PUT /api/officers/:id
+- DELETE /api/officers/:id
 
-The diagram below represents the target architecture. In this repository snapshot, n8n/email ingestion and backend LLM integration are planned but not yet implemented.
+### SLA and Utility
 
-```text
-┌────────────────┐      IMAP / Graph API     ┌─────────────────────┐
-│                │ ◄───────────────────────► │                     │
-│  Email Server  │                           │    n8n Workflow     │
-│ (L/C Inbox)    │                           │  (Ingestion + Tag)  │
-└────────────────┘                           └──────────┬──────────┘
-                                                        │ HTTP POST (Webhook)
-                                                        │ + Import/Export tag
-                                                        ▼
-┌─────────────────────┐      HTTP/JSON       ┌─────────────────────┐
-│                     │ ◄──────────────────► │                     │
-│ Angular + Tailwind  │                      │ .NET Core / Go API  │
-│    (Frontend UI)    │                      │     (Backend)       │
-│                     │                      │                     │
-│ ┌─────────────────┐ │                      └──────────┬──────────┘
-│ │  Import View    │ │                                 │ EF Core / GORM
-│ │  Export View    │ │                                 ▼
-│ │  Exec Dashboard │ │                      ┌─────────────────────┐
-│ └─────────────────┘ │                      │                     │
-└─────────────────────┘                      │  SQL Server / PSQL  │
-                                             │     (Database)      │
-       ┌──────────────────┐                  └─────────────────────┘
-       │   LLM Service    │
-       │ (AI Summary Gen) │◄──── Backend calls LLM API to generate
-       │ Gemini / OpenAI  │      executive summary on demand
-       └──────────────────┘
-```
+- GET /api/sla
+- PATCH /api/sla
+- POST /api/reset
 
-### View Architecture
+## 7. Non-Functional Requirements
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│                     Navigation Bar                      │
-├──────────┬──────────┬──────────────┬────────────────────┤
-│  Import  │  Export  │  Dashboard   │  Settings / Admin  │
-│  View    │  View    │  (Executive) │                    │
-├──────────┴──────────┴──────────────┴────────────────────┤
-│                                                         │
-│  Import View:     Filtered queue + analytics (Import)   │
-│  Export View:     Filtered queue + analytics (Export)    │
-│  Dashboard View:  Combined KPIs + Trends + AI Summary   │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+1. Backend must support concurrent status updates safely (transaction + row locking).
+2. Frontend should remain usable when backend is unavailable by using cached local state.
+3. Real-time stream must not block normal API operations.
+4. UI should be usable on desktop and mobile form factors.
+
+## 8. Gap-to-Target Roadmap
+
+### Phase A (Next)
+
+1. Introduce automated email intake pipeline and URN auto-generation policy.
+2. Add per-transaction SLA profiles.
+3. Add trend charts for volume/compliance over time.
+
+### Phase B
+
+1. Replace mock RBAC with real authentication and server-issued identity claims.
+2. Integrate backend LLM summarization with explainable prompts and guardrails.
+3. Add export/reporting and audit-focused access policies.
+
+## 9. Assumptions and Notes
+
+1. This PRD reflects repository behavior as of 2026-03-26.
+2. Current "AI summary" is a rule-based frontend narrative, not an external LLM output.
+3. Current SLA configuration is global, not Import/Export-specific.
+4. Automated inbox monitoring is not present in this codebase.
