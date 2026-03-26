@@ -192,7 +192,7 @@ func seedLCs(db *gorm.DB) error {
 	for i, plan := range plans {
 		seq := baseSeq + i
 
-		receivedAt := now.Add(-time.Duration(rng.Intn(7*24*60)+60) * time.Minute) // random within last 7 days
+		receivedAt := now.Add(-time.Duration(rng.Intn(91)+30) * time.Minute) // random between 30 and 120 minutes ago
 		draftingAt := receivedAt.Add(time.Duration(rng.Intn(15)+5) * time.Minute)
 		checkingAt := draftingAt.Add(time.Duration(rng.Intn(20)+10) * time.Minute)
 
