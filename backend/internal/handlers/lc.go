@@ -218,6 +218,27 @@ func (h *Handler) GetLCByID(c *gin.Context) {
 	c.JSON(http.StatusOK, lc)
 }
 
+func (h *Handler) GetLCExceptions(c *gin.Context) {
+	_, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
+	id, err := parseUintID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var exceptions []models.LCException
+	if err := h.db.Where("lc_id = ?", id).Order("started_at desc").Find(&exceptions).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, exceptions)
+}
+
 func (h *Handler) UpdateLCStatus(c *gin.Context) {
 	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
 	if !ok {
@@ -266,6 +287,38 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 
 		if err := tx.Save(&lc).Error; err != nil {
 			return err
+		}
+
+		if fromStatus != models.StatusException && req.NewStatus == models.StatusException {
+			reason := strings.TrimSpace(req.ExceptionReason)
+			exc := models.LCException{
+				LCID:      lc.ID,
+				Reason:    reason,
+				StartedAt: now,
+			}
+			if err := tx.Create(&exc).Error; err != nil {
+				return err
+			}
+		} else if fromStatus == models.StatusException && req.NewStatus != models.StatusException {
+			var exc models.LCException
+			if err := tx.Where("lc_id = ? AND resolved_at IS NULL", lc.ID).Order("started_at desc").First(&exc).Error; err == nil {
+				deltaMin := 0
+				if req.ExceptionMinutes != nil && *req.ExceptionMinutes >= 0 {
+					deltaMin = *req.ExceptionMinutes
+				} else {
+					deltaMin = int(now.Sub(exc.StartedAt).Minutes())
+				}
+				resolvedTo := req.NewStatus
+				resolvedBy := req.UserID
+
+				exc.ResolvedAt = &now
+				exc.ResolutionMinutes = &deltaMin
+				exc.ResolvedToStatus = &resolvedTo
+				exc.ResolvedBy = &resolvedBy
+				if err := tx.Save(&exc).Error; err != nil {
+					return err
+				}
+			}
 		}
 
 		event := models.Event{

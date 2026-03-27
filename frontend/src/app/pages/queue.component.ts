@@ -197,6 +197,66 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 </div>
               </div>
             </div>
+
+            <div class="stage-duration-card" *ngIf="exceptionHistory.length > 0" style="margin-top: 1rem;">
+              <div class="stage-duration-header">
+                <h4 style="margin:0;font-size:0.9rem;color:var(--text-primary)">Exception History</h4>
+              </div>
+              <div class="table-scroll" style="max-height: 200px">
+                <table class="data-table" style="font-size:0.75rem;margin-top:0.5rem">
+                  <thead>
+                    <tr>
+                      <th style="padding:0.4rem">Started At</th>
+                      <th style="padding:0.4rem">Reason</th>
+                      <th style="padding:0.4rem">Resolved At</th>
+                      <th style="padding:0.4rem">Duration (m)</th>
+                      <th style="padding:0.4rem">Returned To</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let ex of exceptionHistory">
+                      <td style="padding:0.4rem;white-space:nowrap">{{ formatDateTime(ex.startedAt) }}</td>
+                      <td style="padding:0.4rem">{{ ex.reason }}</td>
+                      <td style="padding:0.4rem;white-space:nowrap">{{ ex.resolvedAt ? formatDateTime(ex.resolvedAt) : '—' }}</td>
+                      <td style="padding:0.4rem">{{ ex.resolutionMinutes != null ? ex.resolutionMinutes : '—' }}</td>
+                      <td style="padding:0.4rem">{{ ex.resolvedToStatus || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Resolve Exception Modal -->
+      <div class="modal-overlay" [class.active]="!!resolvingExceptionLc" (click)="resolvingExceptionLc = null">
+        <div class="modal-container form-card" *ngIf="resolvingExceptionLc" (click)="$event.stopPropagation()" style="max-width: 400px;">
+          <div class="modal-header">
+            <div>
+              <h3 style="margin:0;font-size:1rem">{{ 'action.resolve_exception' | translate }}</h3>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">{{ resolvingExceptionLc.urn }}</div>
+            </div>
+            <button class="modal-close" (click)="resolvingExceptionLc = null">×</button>
+          </div>
+          <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">{{ 'queue.col_elapsed' | translate }} (Minutes)</label>
+              <input type="number" class="search-input" style="width:100%" [(ngModel)]="resolutionMinutes" min="0" />
+            </div>
+            <div>
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Return to Status</label>
+              <select class="search-input" style="width:100%" [(ngModel)]="resolutionNextStatus">
+                <option value="Drafting">Drafting</option>
+                <option value="Checking Underlying">Checking Underlying</option>
+                <option value="Received">Received</option>
+              </select>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="resolvingExceptionLc = null">Cancel</button>
+              <button class="action-btn success" (click)="submitResolveException()">Submit</button>
+            </div>
           </div>
         </div>
       </div>
@@ -216,6 +276,11 @@ export class QueueComponent implements OnInit {
   selectedLc: any = null;
   transactionType = signal<string>('Import');
   officerSelections: Record<number, string> = {};
+
+  resolvingExceptionLc: any = null;
+  resolutionMinutes: number = 0;
+  resolutionNextStatus: string = '';
+  exceptionHistory: any[] = [];
 
   officers = computed(() => this.dataStore.officers());
   canUpdate = computed(() => this.dataStore.canAccessAction('update_status', this.transactionType()));
@@ -474,28 +539,32 @@ export class QueueComponent implements OnInit {
 
     if (!r.exceptionStartedAt) return;
     const autoMins = Math.round((Date.now() - new Date(r.exceptionStartedAt).getTime()) / 60000);
-    const promptMsg = this.ts.translate('prompt.resolve_exception').replace('{0}', String(autoMins));
-    const userInput = prompt(promptMsg, String(autoMins));
-    if (userInput === null) return;
-    const parsedMins = parseInt(userInput, 10);
-    const finalMins = isNaN(parsedMins) ? autoMins : parsedMins;
+    this.resolutionMinutes = autoMins;
+    this.resolutionNextStatus = r.previousStatus || 'Drafting';
+    this.resolvingExceptionLc = r;
+  }
 
-    const prevStatus = r.previousStatus || 'Drafting';
+  async submitResolveException() {
+    if (!this.resolvingExceptionLc) return;
+    const r = this.resolvingExceptionLc;
     try {
       await this.dataStore.updateLCStatus(r.id, {
-        newStatus: prevStatus,
-        exceptionMinutes: finalMins,
+        newStatus: this.resolutionNextStatus,
+        exceptionMinutes: this.resolutionMinutes,
         userId: r.assignedTo,
         notes: this.ts.translate('note.resolve_exception'),
       });
-      this.showToast('success', `${r.urn} → ${prevStatus}`);
+      this.showToast('success', `${r.urn} → ${this.resolutionNextStatus}`);
+      this.resolvingExceptionLc = null;
     } catch (e: any) {
       this.showToast('info', e.message || 'Action failed');
     }
   }
 
-  showLcDetails(r: any) {
+  async showLcDetails(r: any) {
     this.selectedLc = r;
+    this.exceptionHistory = [];
+    this.exceptionHistory = await this.dataStore.getLCExceptions(r.id);
   }
 
   formatTime(iso: string): string {

@@ -597,6 +597,15 @@ export class DataStoreService {
     }
   }
 
+  async getLCExceptions(id: number): Promise<any[]> {
+    try {
+      const resp = await this.apiRequest(`/lc/${id}/exceptions`);
+      return Array.isArray(resp) ? resp : [];
+    } catch {
+      return [];
+    }
+  }
+
   async saveSlaConfig(config: SlaConfig): Promise<void> {
     await this.apiRequest('/sla', { method: 'PATCH', body: JSON.stringify(config) });
     await this.refreshData();
