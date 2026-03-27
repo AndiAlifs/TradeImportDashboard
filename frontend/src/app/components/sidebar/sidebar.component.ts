@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslatePipe } from '../../pipes/translate.pipe';
 import { DataStoreService, MockRole } from '../../services/data-store.service';
+import { TranslationService } from '../../services/translation.service';
 
 @Component({
   selector: 'app-sidebar',
@@ -50,15 +51,6 @@ import { DataStoreService, MockRole } from '../../services/data-store.service';
                 <span>{{ 'nav.import_dashboard' | translate }}</span>
             </div>
 
-            <div class="nav-item" *ngIf="dataStore.canAccessMenu('import')" routerLink="/import/all" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.all_lcs' | translate }}</span>
-            </div>
-
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('import')" routerLink="/import/queue" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -66,6 +58,16 @@ import { DataStoreService, MockRole } from '../../services/data-store.service';
                     </svg>
                 </span>
                 <span>{{ 'nav.queue' | translate }}</span>
+            </div>
+
+            <div class="nav-item" *ngIf="dataStore.canAccessMenu('import')" routerLink="/import/all" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.all_lcs' | translate }}</span>
+                <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('import')" routerLink="/import/create" routerLinkActive="active">
@@ -95,6 +97,7 @@ import { DataStoreService, MockRole } from '../../services/data-store.service';
                     </svg>
                 </span>
                 <span>{{ 'nav.all_lcs' | translate }}</span>
+                <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/queue" routerLinkActive="active">
@@ -167,6 +170,7 @@ import { DataStoreService, MockRole } from '../../services/data-store.service';
 export class SidebarComponent {
     dataStore = inject(DataStoreService);
     private router = inject(Router);
+    private ts = inject(TranslationService);
 
     async onRoleChange(role: MockRole) {
         this.dataStore.setMockRole(role);
@@ -174,5 +178,16 @@ export class SidebarComponent {
         if (!this.dataStore.canAccessPath(this.router.url)) {
             this.router.navigateByUrl(this.dataStore.defaultRouteForRole());
         }
+    }
+
+    allLcsRangeBadge(): string {
+        const range = this.dataStore.operationsDateRange();
+        if (range.preset === 'today') return this.ts.translate('date.today');
+        if (range.preset === 'yesterday') return this.ts.translate('date.yesterday');
+        if (range.preset === 'last7days') return '7D';
+        if (range.preset === 'last14days') return '14D';
+        if (range.preset === 'last1month') return '1M';
+        if (range.fromDate && range.toDate) return this.ts.translate('date.custom');
+        return this.ts.translate('date.today');
     }
 }

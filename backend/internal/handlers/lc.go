@@ -21,6 +21,7 @@ type createLCRequest struct {
 	Subject         string `json:"subject" binding:"required"`
 	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
 	AssignedTo      string `json:"assignedTo"`
+	ReceivedAt      string `json:"receivedAt" binding:"required"`
 }
 
 type updateStatusRequest struct {
@@ -55,6 +56,12 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		return
 	}
 
+	receivedAt, err := parseClientReceivedAt(req.ReceivedAt)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	now := time.Now().UTC()
 	lc := models.LC{
 		URN:                   req.URN,
@@ -63,7 +70,7 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		TransactionType:       req.TransactionType,
 		AssignedTo:            req.AssignedTo,
 		Status:                models.StatusReceived,
-		ReceivedAt:            now,
+		ReceivedAt:            receivedAt,
 		ExceptionTotalMinutes: 0,
 	}
 	broadcastEvent := LCUpdateEvent{
@@ -106,6 +113,23 @@ func (h *Handler) CreateLC(c *gin.Context) {
 	c.JSON(http.StatusCreated, lc)
 }
 
+func parseClientReceivedAt(raw string) (time.Time, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return time.Time{}, errors.New("receivedAt is required")
+	}
+
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		parsed, err = time.Parse(time.RFC3339, value)
+	}
+	if err != nil {
+		return time.Time{}, errors.New("receivedAt must be a valid RFC3339 timestamp")
+	}
+
+	return parsed.UTC(), nil
+}
+
 func (h *Handler) ListLCs(c *gin.Context) {
 	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
 	if !ok {
@@ -128,6 +152,17 @@ func (h *Handler) ListLCs(c *gin.Context) {
 	}
 
 	query := h.db.Model(&models.LC{})
+	rangeQuery, err := parseDateRangeQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if rangeQuery.From != nil {
+		query = query.Where("received_at >= ?", *rangeQuery.From)
+	}
+	if rangeQuery.To != nil {
+		query = query.Where("received_at <= ?", *rangeQuery.To)
+	}
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}

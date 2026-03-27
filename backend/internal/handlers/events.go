@@ -29,6 +29,17 @@ func (h *Handler) ListEvents(c *gin.Context) {
 	}
 
 	query := h.db.Model(&models.Event{})
+	rangeQuery, err := parseDateRangeQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if rangeQuery.From != nil {
+		query = query.Where("occurred_at >= ?", *rangeQuery.From)
+	}
+	if rangeQuery.To != nil {
+		query = query.Where("occurred_at <= ?", *rangeQuery.To)
+	}
 	if urn != "" {
 		query = query.Where("urn = ?", urn)
 	}

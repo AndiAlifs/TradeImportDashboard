@@ -12,6 +12,26 @@ import { TranslationService } from '../services/translation.service';
   template: `
     <div class="page-content">
 
+      <div class="date-range-toolbar">
+        <div class="date-range-presets">
+          <button
+            type="button"
+            class="range-pill"
+            *ngFor="let preset of presets"
+            [class.active]="isPresetActive(preset.value)"
+            (click)="usePreset(preset.value)">
+            {{ preset.labelKey | translate }}
+          </button>
+        </div>
+        <div class="date-range-custom">
+          <input type="date" [value]="customFrom" (change)="customFrom = $any($event.target).value" />
+          <span>{{ 'date.to' | translate }}</span>
+          <input type="date" [value]="customTo" (change)="customTo = $any($event.target).value" />
+          <button type="button" class="range-apply-btn" (click)="applyCustomRange()">{{ 'date.apply' | translate }}</button>
+        </div>
+        <div class="date-range-caption">{{ 'date.server_time' | translate }} · {{ selectedRangeLabel() }}</div>
+      </div>
+
       <!-- KPI Cards -->
       <div class="kpi-grid">
         <div class="kpi-card accent">
@@ -181,9 +201,22 @@ export class OperationsComponent implements OnInit {
 
   type: 'Import' | 'Export' = 'Import';
   selectedLc: any = null;
+  readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
+    { value: 'today', labelKey: 'date.today' },
+    { value: 'yesterday', labelKey: 'date.yesterday' },
+    { value: 'last7days', labelKey: 'date.last_7_days' },
+    { value: 'last14days', labelKey: 'date.last_14_days' },
+    { value: 'last1month', labelKey: 'date.last_month' },
+  ];
+  customFrom = '';
+  customTo = '';
+  range = computed(() => this.dataStore.operationsDateRange());
 
   ngOnInit() {
     this.type = this.route.snapshot.data['type'] || 'Import';
+    this.dataStore.setActiveDashboardContext('operations');
+    this.syncInputsFromRange();
+    void this.dataStore.refreshData({ transactionType: this.type });
   }
 
   filteredData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === this.type));
@@ -273,5 +306,90 @@ export class OperationsComponent implements OnInit {
       total = Math.round((Date.now() - new Date(r.receivedAt).getTime()) / 60000);
     }
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
+  }
+
+  usePreset(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): void {
+    const bounds = this.presetDateBounds(preset);
+    this.customFrom = bounds.from;
+    this.customTo = bounds.to;
+    void this.dataStore.setPresetDateRange('operations', preset, false).then(() => this.dataStore.refreshData({ transactionType: this.type }));
+  }
+
+  applyCustomRange(): void {
+    if (!this.customFrom || !this.customTo) return;
+    void this.dataStore.setCustomDateRange('operations', this.customFrom, this.customTo, false)
+      .then(() => this.dataStore.refreshData({ transactionType: this.type }));
+  }
+
+  isPresetActive(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): boolean {
+    return this.range().preset === preset;
+  }
+
+  selectedRangeLabel(): string {
+    const selectedRange = this.range();
+    if (selectedRange.preset === 'custom') {
+      if (!selectedRange.fromDate || !selectedRange.toDate) {
+        return this.ts.translate('date.custom');
+      }
+      return `${selectedRange.fromDate} ${this.ts.translate('date.to')} ${selectedRange.toDate}`;
+    }
+    if (selectedRange.preset === 'yesterday') return this.ts.translate('date.yesterday');
+    if (selectedRange.preset === 'last7days') return this.ts.translate('date.last_7_days');
+    if (selectedRange.preset === 'last14days') return this.ts.translate('date.last_14_days');
+    if (selectedRange.preset === 'last1month') return this.ts.translate('date.last_month');
+    return this.ts.translate('date.today');
+  }
+
+  private syncInputsFromRange(): void {
+    const selectedRange = this.range();
+    if (selectedRange.preset === 'custom') {
+      this.customFrom = selectedRange.fromDate;
+      this.customTo = selectedRange.toDate;
+      return;
+    }
+    const bounds = this.presetDateBounds(selectedRange.preset);
+    this.customFrom = bounds.from;
+    this.customTo = bounds.to;
+  }
+
+  private presetDateBounds(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): { from: string; to: string } {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (preset === 'today') {
+      const day = this.toDateInputValue(startOfToday);
+      return { from: day, to: day };
+    }
+
+    if (preset === 'yesterday') {
+      const yesterday = new Date(startOfToday);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const day = this.toDateInputValue(yesterday);
+      return { from: day, to: day };
+    }
+
+    if (preset === 'last7days') {
+      const from = new Date(startOfToday);
+      from.setDate(from.getDate() - 6);
+      return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+    }
+
+    if (preset === 'last14days') {
+      const from = new Date(startOfToday);
+      from.setDate(from.getDate() - 13);
+      return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+    }
+
+    const from = new Date(startOfToday);
+    from.setMonth(from.getMonth() - 1);
+    from.setDate(from.getDate() + 1);
+    return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+  }
+
+  private toDateInputValue(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

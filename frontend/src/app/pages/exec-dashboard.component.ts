@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
@@ -11,6 +11,26 @@ import { StageDuration, computeAverageStageDurations, findLongestStage } from '.
   imports: [CommonModule, TranslatePipe],
   template: `
     <div class="page-content">
+
+      <div class="date-range-toolbar">
+        <div class="date-range-presets">
+          <button
+            type="button"
+            class="range-pill"
+            *ngFor="let preset of presets"
+            [class.active]="isPresetActive(preset.value)"
+            (click)="usePreset(preset.value)">
+            {{ preset.labelKey | translate }}
+          </button>
+        </div>
+        <div class="date-range-custom">
+          <input type="date" [value]="customFrom" (change)="customFrom = $any($event.target).value" />
+          <span>{{ 'date.to' | translate }}</span>
+          <input type="date" [value]="customTo" (change)="customTo = $any($event.target).value" />
+          <button type="button" class="range-apply-btn" (click)="applyCustomRange()">{{ 'date.apply' | translate }}</button>
+        </div>
+        <div class="date-range-caption">{{ 'date.server_time' | translate }} · {{ selectedRangeLabel() }}</div>
+      </div>
 
       <!-- Executive KPI Cards -->
       <div class="kpi-grid exec-kpi-grid">
@@ -181,9 +201,21 @@ import { StageDuration, computeAverageStageDurations, findLongestStage } from '.
     </div>
   `
 })
-export class ExecDashboardComponent {
+export class ExecDashboardComponent implements OnInit {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
+
+  readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
+    { value: 'today', labelKey: 'date.today' },
+    { value: 'yesterday', labelKey: 'date.yesterday' },
+    { value: 'last7days', labelKey: 'date.last_7_days' },
+    { value: 'last14days', labelKey: 'date.last_14_days' },
+    { value: 'last1month', labelKey: 'date.last_month' },
+  ];
+  customFrom = '';
+  customTo = '';
+
+  range = computed(() => this.dataStore.executiveDateRange());
 
   private importData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Import'));
   private exportData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Export'));
@@ -366,5 +398,95 @@ export class ExecDashboardComponent {
 
   private stageName(labelKey: string): string {
     return this.ts.translate(labelKey);
+  }
+
+  ngOnInit(): void {
+    this.dataStore.setActiveDashboardContext('executive');
+    this.syncInputsFromRange();
+    void this.dataStore.refreshData();
+  }
+
+  usePreset(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): void {
+    const bounds = this.presetDateBounds(preset);
+    this.customFrom = bounds.from;
+    this.customTo = bounds.to;
+    void this.dataStore.setPresetDateRange('executive', preset);
+  }
+
+  applyCustomRange(): void {
+    if (!this.customFrom || !this.customTo) return;
+    void this.dataStore.setCustomDateRange('executive', this.customFrom, this.customTo);
+  }
+
+  isPresetActive(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): boolean {
+    return this.range().preset === preset;
+  }
+
+  selectedRangeLabel(): string {
+    const selectedRange = this.range();
+    if (selectedRange.preset === 'custom') {
+      if (!selectedRange.fromDate || !selectedRange.toDate) {
+        return this.ts.translate('date.custom');
+      }
+      return `${selectedRange.fromDate} ${this.ts.translate('date.to')} ${selectedRange.toDate}`;
+    }
+    if (selectedRange.preset === 'yesterday') return this.ts.translate('date.yesterday');
+    if (selectedRange.preset === 'last7days') return this.ts.translate('date.last_7_days');
+    if (selectedRange.preset === 'last14days') return this.ts.translate('date.last_14_days');
+    if (selectedRange.preset === 'last1month') return this.ts.translate('date.last_month');
+    return this.ts.translate('date.today');
+  }
+
+  private syncInputsFromRange(): void {
+    const selectedRange = this.range();
+    if (selectedRange.preset === 'custom') {
+      this.customFrom = selectedRange.fromDate;
+      this.customTo = selectedRange.toDate;
+      return;
+    }
+    const bounds = this.presetDateBounds(selectedRange.preset);
+    this.customFrom = bounds.from;
+    this.customTo = bounds.to;
+  }
+
+  private presetDateBounds(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): { from: string; to: string } {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (preset === 'today') {
+      const day = this.toDateInputValue(startOfToday);
+      return { from: day, to: day };
+    }
+
+    if (preset === 'yesterday') {
+      const yesterday = new Date(startOfToday);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const day = this.toDateInputValue(yesterday);
+      return { from: day, to: day };
+    }
+
+    if (preset === 'last7days') {
+      const from = new Date(startOfToday);
+      from.setDate(from.getDate() - 6);
+      return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+    }
+
+    if (preset === 'last14days') {
+      const from = new Date(startOfToday);
+      from.setDate(from.getDate() - 13);
+      return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+    }
+
+    const from = new Date(startOfToday);
+    from.setMonth(from.getMonth() - 1);
+    from.setDate(from.getDate() + 1);
+    return { from: this.toDateInputValue(from), to: this.toDateInputValue(startOfToday) };
+  }
+
+  private toDateInputValue(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 }

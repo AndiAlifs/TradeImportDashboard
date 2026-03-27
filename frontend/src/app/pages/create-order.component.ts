@@ -6,6 +6,15 @@ import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
 
+type CreateOrderFormData = {
+  transactionType: string;
+  urn: string;
+  senderEmail: string;
+  subject: string;
+  assignedTo: string;
+  receivedAt: string;
+};
+
 @Component({
   selector: 'app-create-order',
   standalone: true,
@@ -34,6 +43,10 @@ import { TranslationService } from '../services/translation.service';
             <input type="text" id="create-subject" [(ngModel)]="formData.subject" name="subject" required placeholder="L/C Application – PO#1234" />
           </div>
           <div class="form-group">
+            <label for="create-received-at">{{ 'create.form.received_at' | translate }}</label>
+            <input type="datetime-local" id="create-received-at" [(ngModel)]="formData.receivedAt" name="receivedAt" required />
+          </div>
+          <div class="form-group">
             <label for="create-assigned">{{ 'create.form.assigned' | translate }}</label>
             <select id="create-assigned" [(ngModel)]="formData.assignedTo" name="assignedTo" required>
               <option value="" disabled *ngIf="assigneeList().length === 0">{{ 'create.form.assigned_loading' | translate }}</option>
@@ -59,16 +72,18 @@ export class CreateOrderComponent implements OnInit {
 
   transactionType = signal<string>('Import');
 
-  formData = {
+  formData: CreateOrderFormData = {
     transactionType: 'Import',
     urn: '',
     senderEmail: '',
     subject: '',
     assignedTo: '',
+    receivedAt: '',
   };
   submitting = false;
 
   ngOnInit() {
+    this.formData.receivedAt = this.nowForDateTimeLocal();
     this.route.data.subscribe(data => {
       if (data['type']) {
         this.transactionType.set(data['type']);
@@ -91,9 +106,17 @@ export class CreateOrderComponent implements OnInit {
         senderEmail: this.formData.senderEmail,
         subject: this.formData.subject,
         assignedTo: this.formData.assignedTo,
+        receivedAt: this.toIsoOrThrow(this.formData.receivedAt),
       });
       this.showToast('success', this.ts.translate('toast.order_created'));
-      this.formData = { transactionType: this.transactionType(), urn: '', senderEmail: '', subject: '', assignedTo: '' };
+      this.formData = {
+        transactionType: this.transactionType(),
+        urn: '',
+        senderEmail: '',
+        subject: '',
+        assignedTo: '',
+        receivedAt: this.nowForDateTimeLocal(),
+      };
       this.router.navigate([`/${this.transactionType().toLowerCase()}/queue`]);
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to create order');
@@ -110,5 +133,23 @@ export class CreateOrderComponent implements OnInit {
     toast.innerHTML = `<div class="toast-icon">${type === 'success' ? '✓' : 'ℹ'}</div><span>${message}</span>`;
     container.appendChild(toast);
     setTimeout(() => { toast.classList.add('leaving'); setTimeout(() => toast.remove(), 300); }, 3000);
+  }
+
+  private nowForDateTimeLocal(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  private toIsoOrThrow(localDateTime: string): string {
+    const parsed = new Date(localDateTime);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error(this.ts.translate('create.form.received_at_invalid'));
+    }
+    return parsed.toISOString();
   }
 }

@@ -30,33 +30,29 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <tr>
                 <th>{{ 'queue.col_num' | translate }}</th>
                 <th>{{ 'queue.col_urn' | translate }}</th>
-                <th>Type</th>
-                <th>{{ 'queue.col_sender' | translate }}</th>
                 <th>{{ 'queue.col_subject' | translate }}</th>
                 <th>{{ 'queue.col_assigned' | translate }}</th>
                 <th>{{ 'queue.col_status' | translate }}</th>
-                <th>{{ 'queue.col_received' | translate }}</th>
+                <th>{{ 'queue.col_start_date' | translate }}</th>
                 <th>{{ 'queue.col_elapsed' | translate }}</th>
-                <th>{{ 'queue.col_sla' | translate }}</th>
+                <th>{{ 'queue.col_time_left_sla' | translate }}</th>
                 <th>{{ 'queue.col_released_by' | translate }}</th>
                 <th>{{ 'queue.col_action' | translate }}</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngIf="filteredRecords().length === 0">
-                <td colspan="12" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
+                <td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
               </tr>
               <tr *ngFor="let r of filteredRecords(); let i = index">
                 <td style="color:var(--text-muted)">{{ i + 1 }}</td>
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                <td><span class="type-badge" [ngClass]="r.transactionType === 'Import' ? 'import' : 'export'">{{ r.transactionType }}</span></td>
-                <td style="font-size:0.8rem">{{ r.senderEmail }}</td>
                 <td style="font-size:0.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
                 <td style="font-size:0.8rem">{{ r.assignedTo }}</td>
                 <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
-                <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatTime(r.receivedAt) }}</td>
+                <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatStartDate(r.receivedAt) }}</td>
                 <td class="elapsed-time">{{ formatElapsed(r) }}</td>
-                <td [innerHTML]="slaIndicatorHtml(r)"></td>
+                <td class="elapsed-time" [style.color]="timeLeftColor(r)">{{ formatTimeLeftToSla(r) }}</td>
                 <td style="font-size:0.8rem">{{ r.approvedBy || '—' }}</td>
                 <td>
                   <ng-container [ngSwitch]="r.status">
@@ -383,6 +379,11 @@ export class QueueComponent implements OnInit {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
 
+  formatStartDate(iso: string): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
   formatDateTime(iso: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -394,23 +395,21 @@ export class QueueComponent implements OnInit {
     return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
 
+  formatTimeLeftToSla(r: any): string {
+    const remaining = this.getRemainingSlaMinutes(r);
+    if (remaining >= 0) {
+      return `${this.formatMinutesCompact(remaining)} ${this.ts.translate('queue.time_left')}`;
+    }
+    return `${this.ts.translate('queue.time_breached_by')} ${this.formatMinutesCompact(Math.abs(remaining))}`;
+  }
+
+  timeLeftColor(r: any): string {
+    return this.getRemainingSlaMinutes(r) >= 0 ? 'var(--text-secondary)' : 'var(--danger,#dc2626)';
+  }
+
   statusClass(status: string): string {
     const map: any = { 'Received': 'received', 'Drafting': 'drafting', 'Checking Underlying': 'checking', 'Released': 'released', 'Breached': 'breached', 'Exception': 'exception' };
     return map[status] || 'received';
-  }
-
-  slaIndicatorHtml(r: any): string {
-    const sla = this.dataStore.slaConfig();
-    if (r.status === 'Released' && r.releasedAt) {
-      const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
-      if (total <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${total}m</span>`;
-      if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
-      return `<span class="sla-indicator red">✗ ${total}m</span>`;
-    }
-    const elapsed = this.getElapsedMinutes(r);
-    if (elapsed <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
-    if (elapsed <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
-    return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
   }
 
   private getElapsedMinutes(r: any): number {
@@ -423,6 +422,15 @@ export class QueueComponent implements OnInit {
       total = Math.round((Date.now() - new Date(r.receivedAt).getTime()) / 60000);
     }
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
+  }
+
+  private getRemainingSlaMinutes(r: any): number {
+    return this.dataStore.slaConfig().slaMaxMinutes - this.getElapsedMinutes(r);
+  }
+
+  private formatMinutesCompact(minutes: number): string {
+    if (minutes < 60) return `${minutes}m`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 
   getLcStageDurations(r: any): StageDuration[] {

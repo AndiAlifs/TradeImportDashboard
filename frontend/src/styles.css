@@ -284,6 +284,97 @@ body {
   padding: 1.5rem 2rem 2rem;
 }
 
+.date-range-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.date-range-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.range-pill {
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.range-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.date-range-custom {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.date-range-custom input[type='date'] {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.36rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: #ffffff;
+}
+
+.range-apply-btn {
+  border: 1px solid var(--accent);
+  background: #eef2ff;
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 0.37rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.date-range-caption {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.range-state-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.55rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.range-menu-badge {
+  background: rgba(99, 102, 241, 0.24) !important;
+  color: #c7d2fe !important;
+}
+
+.nav-item.active .range-menu-badge {
+  background: rgba(255, 255, 255, 0.26) !important;
+  color: #ffffff !important;
+}
+
 /* ---------- KPI Cards ---------- */
 .kpi-grid {
   display: grid;

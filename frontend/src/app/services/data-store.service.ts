@@ -5,6 +5,15 @@ export interface SlaConfig {
   slaMaxMinutes: number;
 }
 
+export interface CreateLCOrderRequest {
+  transactionType: string;
+  urn: string;
+  senderEmail: string;
+  subject: string;
+  assignedTo: string;
+  receivedAt: string;
+}
+
 interface LCUpdateStreamEvent {
   lcId: number;
   urn: string;
@@ -21,6 +30,8 @@ const EVENT_LOG_KEY = 'shila_event_log';
 const ASSIGNEE_KEY = 'shila_assignee_master';
 const OFFICER_KEY = 'shila_officer_master';
 const MOCK_ROLE_KEY = 'shila_mock_role';
+const EXEC_DASHBOARD_RANGE_KEY = 'shila_exec_date_range';
+const OPS_DASHBOARD_RANGE_KEY = 'shila_ops_date_range';
 
 const DEFAULT_SLA: SlaConfig = { slaMinMinutes: 90, slaMaxMinutes: 120 };
 
@@ -36,6 +47,15 @@ export interface RoleOption {
   value: MockRole;
   label: string;
   scope: 'All' | 'Import' | 'Export';
+}
+
+export type DateRangePreset = 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month' | 'custom';
+export type DashboardContext = 'executive' | 'operations';
+
+export interface DashboardDateRange {
+  preset: DateRangePreset;
+  fromDate: string;
+  toDate: string;
 }
 
 const ROLE_OPTIONS: RoleOption[] = [
@@ -72,6 +92,9 @@ export class DataStoreService {
   officers = signal<any[]>([]);
   isBackendOnline = signal<boolean>(false);
   currentRole = signal<MockRole>(parseStoredRole(localStorage.getItem(MOCK_ROLE_KEY)));
+  executiveDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(EXEC_DASHBOARD_RANGE_KEY));
+  operationsDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(OPS_DASHBOARD_RANGE_KEY));
+  activeDashboardContext = signal<DashboardContext>('executive');
 
   constructor() {
     this.loadLocalFallback();
@@ -116,6 +139,30 @@ export class DataStoreService {
         return '/export';
       default:
         return '/';
+    }
+  }
+
+  setActiveDashboardContext(context: DashboardContext): void {
+    this.activeDashboardContext.set(context);
+  }
+
+  getDateRange(context: DashboardContext): DashboardDateRange {
+    return context === 'executive' ? this.executiveDateRange() : this.operationsDateRange();
+  }
+
+  async setPresetDateRange(context: DashboardContext, preset: Exclude<DateRangePreset, 'custom'>, autoRefresh = true): Promise<void> {
+    const nextRange: DashboardDateRange = { preset, fromDate: '', toDate: '' };
+    this.storeDateRange(context, nextRange);
+    if (autoRefresh && this.activeDashboardContext() === context) {
+      await this.refreshData();
+    }
+  }
+
+  async setCustomDateRange(context: DashboardContext, fromDate: string, toDate: string, autoRefresh = true): Promise<void> {
+    const nextRange: DashboardDateRange = { preset: 'custom', fromDate, toDate };
+    this.storeDateRange(context, nextRange);
+    if (autoRefresh && this.activeDashboardContext() === context) {
+      await this.refreshData();
     }
   }
 
@@ -316,6 +363,111 @@ export class DataStoreService {
     try { this.officers.set(JSON.parse(localStorage.getItem(OFFICER_KEY) || '[]')); } catch { this.officers.set([]); }
   }
 
+  private loadDashboardDateRange(storageKey: string): DashboardDateRange {
+    try {
+      const raw = JSON.parse(localStorage.getItem(storageKey) || 'null') as Partial<DashboardDateRange> | null;
+      if (!raw || !raw.preset) {
+        return { preset: 'today', fromDate: '', toDate: '' };
+      }
+      if (raw.preset === 'custom' && raw.fromDate && raw.toDate) {
+        return { preset: 'custom', fromDate: raw.fromDate, toDate: raw.toDate };
+      }
+      if (
+        raw.preset === 'today'
+        || raw.preset === 'yesterday'
+        || raw.preset === 'last7days'
+        || raw.preset === 'last14days'
+        || raw.preset === 'last1month'
+      ) {
+        return { preset: raw.preset, fromDate: '', toDate: '' };
+      }
+    } catch {
+      // fall through to default
+    }
+    return { preset: 'today', fromDate: '', toDate: '' };
+  }
+
+  private storeDateRange(context: DashboardContext, nextRange: DashboardDateRange): void {
+    if (context === 'executive') {
+      this.executiveDateRange.set(nextRange);
+      localStorage.setItem(EXEC_DASHBOARD_RANGE_KEY, JSON.stringify(nextRange));
+      return;
+    }
+    this.operationsDateRange.set(nextRange);
+    localStorage.setItem(OPS_DASHBOARD_RANGE_KEY, JSON.stringify(nextRange));
+  }
+
+  private buildDateQuery(context: DashboardContext): string {
+    const range = this.getDateRange(context);
+    const params = new URLSearchParams();
+
+    if (range.preset === 'custom') {
+      params.set('fromDate', range.fromDate);
+      params.set('toDate', range.toDate);
+      return params.toString();
+    }
+
+    params.set('preset', range.preset);
+    return params.toString();
+  }
+
+  private getRangeBounds(range: DashboardDateRange): { from: Date; to: Date } | null {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
+    if (range.preset === 'today') {
+      const end = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+      return { from: startOfToday, to: end };
+    }
+    if (range.preset === 'yesterday') {
+      const from = new Date(startOfToday.getTime() - 24 * 60 * 60 * 1000);
+      const to = new Date(startOfToday.getTime() - 1);
+      return { from, to };
+    }
+    if (range.preset === 'last7days') {
+      const from = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const to = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+      return { from, to };
+    }
+    if (range.preset === 'last14days') {
+      const from = new Date(startOfToday.getTime() - 13 * 24 * 60 * 60 * 1000);
+      const to = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+      return { from, to };
+    }
+    if (range.preset === 'last1month') {
+      const from = new Date(startOfToday);
+      from.setMonth(from.getMonth() - 1);
+      from.setDate(from.getDate() + 1);
+      const to = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+      return { from, to };
+    }
+
+    if (!range.fromDate || !range.toDate) {
+      return null;
+    }
+    const from = new Date(`${range.fromDate}T00:00:00`);
+    const to = new Date(`${range.toDate}T23:59:59.999`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from.getTime() > to.getTime()) {
+      return null;
+    }
+    return { from, to };
+  }
+
+  private isWithinRange(iso: string | undefined, range: DashboardDateRange): boolean {
+    if (!iso) return false;
+    const bounds = this.getRangeBounds(range);
+    if (!bounds) return true;
+    const ts = new Date(iso).getTime();
+    if (Number.isNaN(ts)) return false;
+    return ts >= bounds.from.getTime() && ts <= bounds.to.getTime();
+  }
+
+  private applyRangeFilterToCache(context: DashboardContext): void {
+    const range = this.getDateRange(context);
+    this.lcs.set(this.lcs().filter((record) => this.isWithinRange(record?.receivedAt, range)));
+    this.events.set(this.events().filter((event) => this.isWithinRange(event?.timestamp, range)));
+  }
+
   private persistLocalCache(): void {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this.lcs()));
     localStorage.setItem(SLA_KEY, JSON.stringify(this.slaConfig()));
@@ -324,12 +476,28 @@ export class DataStoreService {
     localStorage.setItem(OFFICER_KEY, JSON.stringify(this.officers()));
   }
 
-  async refreshData(): Promise<void> {
+  async refreshData(options: { transactionType?: 'Import' | 'Export' } = {}): Promise<void> {
     try {
+      const context = this.activeDashboardContext();
+      const dateQuery = this.buildDateQuery(context);
+      const lcParams = new URLSearchParams('limit=500&offset=0');
+      const eventParams = new URLSearchParams('limit=500&offset=0');
+
+      if (options.transactionType) {
+        lcParams.set('transactionType', options.transactionType);
+      }
+      if (dateQuery) {
+        const parsed = new URLSearchParams(dateQuery);
+        parsed.forEach((value, key) => {
+          lcParams.set(key, value);
+          eventParams.set(key, value);
+        });
+      }
+
       const [lcResp, slaResp, eventResp, assigneeResp, officerResp] = await Promise.allSettled([
-        this.apiRequest('/lc?limit=500&offset=0'),
+        this.apiRequest(`/lc?${lcParams.toString()}`),
         this.apiRequest('/sla'),
-        this.apiRequest('/events?limit=500&offset=0'),
+        this.apiRequest(`/events?${eventParams.toString()}`),
         this.apiRequest('/assignees'),
         this.apiRequest('/officers'),
       ]);
@@ -350,10 +518,11 @@ export class DataStoreService {
     } catch (e) {
       console.warn("Backend might be offline. Using local cache.");
       this.isBackendOnline.set(false);
+      this.applyRangeFilterToCache(this.activeDashboardContext());
     }
   }
 
-  async createLCOrder(data: any): Promise<void> {
+  async createLCOrder(data: CreateLCOrderRequest): Promise<void> {
     await this.apiRequest('/lc', { method: 'POST', body: JSON.stringify(data) });
     await this.refreshData();
   }
