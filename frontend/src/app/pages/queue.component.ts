@@ -133,7 +133,13 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <div class="timeline-content">
                   <div class="timeline-title">{{ 'timeline.exception' | translate }}</div>
                   <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
-                  <div class="timeline-desc">{{ selectedLc.status === 'Exception' ? (selectedLc.exceptionReason || ('timeline.desc.exception_active' | translate)) : ('timeline.desc.exception_resolved' | translate) }}{{ selectedLc.status !== 'Exception' && selectedLc.exceptionTotalMinutes ? ' (' + selectedLc.exceptionTotalMinutes + ' min total)' : '' }}</div>
+                  <div class="timeline-desc">
+                    {{ selectedLc.exceptionReason || ('timeline.desc.exception_active' | translate) }}
+                    <ng-container *ngIf="selectedLc.status !== 'Exception'">
+                      <br/>
+                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}{{ selectedLc.exceptionTotalMinutes ? ' (' + selectedLc.exceptionTotalMinutes + ' min total)' : '' }}</span>
+                    </ng-container>
+                  </div>
                 </div>
               </div>
               <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">

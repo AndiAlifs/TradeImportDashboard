@@ -418,8 +418,11 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 		}
 	}
 
-	if req.NewStatus != models.StatusException && lc.ExceptionStartedAt != nil {
-		deltaMin := int(now.Sub(*lc.ExceptionStartedAt).Minutes())
+	if req.NewStatus != models.StatusException && wasException {
+		deltaMin := 0
+		if lc.ExceptionStartedAt != nil {
+			deltaMin = int(now.Sub(*lc.ExceptionStartedAt).Minutes())
+		}
 		if req.ExceptionMinutes != nil && *req.ExceptionMinutes >= 0 {
 			deltaMin = *req.ExceptionMinutes
 		}
@@ -427,12 +430,8 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 			deltaMin = 0
 		}
 		lc.ExceptionTotalMinutes += deltaMin
-		lc.ExceptionStartedAt = nil
-		lc.ExceptionReason = nil
 		lc.PreviousStatus = nil
-		if wasException {
-			action = "Resolve Exception"
-		}
+		action = "Resolve Exception"
 	}
 
 	return action, notes
