@@ -1,147 +1,160 @@
 # L/C Processing Time Tracker
-# Product Requirements Document
+# Product Requirements Document (As Built)
 
-## 1. Executive Summary
+## 1. Document Control
 
-The L/C Processing Time Tracker is an internal tool for monitoring the lifecycle of Import and Export Letter of Credit records, with clear visibility into stage timing, SLA performance, and operational bottlenecks.
+- Version: 2.0 (rewrite)
+- Last updated: 2026-03-27
+- Scope: current implementation in this repository
+- Purpose: define implemented behavior and separate roadmap-only capabilities
 
-This document is updated to match the current repository implementation across frontend and backend. The system today is a manual intake and manual transition workflow with role-scoped access, real-time update streaming, and rule-based executive narrative insights. Automated email ingestion and backend LLM summary generation remain target-state items.
+## 2. Executive Summary
 
-## 2. Current Product Mission
+The L/C Processing Time Tracker is an internal Trade Finance operations system for tracking Import and Export L/C processing performance. The product provides lifecycle visibility, SLA monitoring, role-scoped execution, and real-time updates for operational and executive users.
 
-Provide operational transparency for Trade Finance processing by:
+The current product is a manual-intake workflow. Automated inbox ingestion and backend LLM-generated summaries are target-state capabilities and are not implemented in this codebase.
 
-1. Capturing end-to-end lifecycle timestamps per L/C record.
-2. Enabling quick status transitions for operations users.
-3. Tracking SLA compliance and breach risk in Import and Export streams.
-4. Providing management and executive visibility into throughput, delays, and bottleneck stages.
+## 3. Product Mission
 
-## 3. Target Users and Access Model
+The product exists to improve operational control and management visibility by:
 
-### Personas
+1. Capturing lifecycle timestamps for every L/C order.
+2. Enabling low-friction status progression by operations users.
+3. Measuring SLA adherence and identifying breaches early.
+4. Comparing Import and Export processing performance to expose bottlenecks.
 
-1. Operations Staff/Officer (Import or Export scope): creates and processes L/Cs in assigned stream.
-2. Executive: consumes dashboards, event logs, and configuration views.
-3. Super Admin: full access across all views, configuration, and reset actions.
+## 4. Users and Access Model
 
-### Implemented Role Model (Mock RBAC)
+### 4.1 Personas
 
-Frontend role selector and backend request headers simulate role-based access using:
+1. Operations Staff (Import or Export): create and process records within assigned transaction scope.
+2. Operations Officer (Import or Export): same as staff plus release capability and master-data access.
+3. Executive: read-heavy visibility across streams, event log access, SLA configuration access.
+4. Super Admin: full access including data reset.
 
-- Roles: super_admin, executive, import_officer, import_staff, export_officer, export_staff.
-- Scope: All, Import, Export.
-- Headers: X-Mock-Role, X-Mock-Scope, X-Mock-User.
+### 4.2 Implemented RBAC Model
 
-## 4. Scope and Status (As Built)
+RBAC is currently mock-based, enforced by both frontend route/menu rules and backend authorization checks.
 
-### Implemented
+- Roles: super_admin, executive, import_officer, import_staff, export_officer, export_staff
+- Scope: All, Import, Export
+- Request headers: X-Mock-Role, X-Mock-Scope, X-Mock-User
 
-#### Core Workflow
+## 5. Current Scope (Implemented)
 
-- Manual L/C creation with required fields: URN, sender email, subject, transaction type, assignee.
-- Lifecycle statuses: Received, Drafting, Checking Underlying, Released, Breached, Exception.
-- Status transition controls in queue view:
-  - Start Drafting
-  - Start Checking Underlying
-  - Release (officer-level restriction)
-  - Mark Exception
-  - Resolve Exception (with exception minutes adjustment)
-- Event log entries created for create and status transitions.
-- Approved-by officer support on release.
+### 5.1 L/C Intake and Lifecycle
 
-#### SLA and Timing
+1. Manual creation is supported via UI and API.
+2. Required creation payload includes: urn, senderEmail, subject, transactionType, receivedAt.
+3. URN must be unique.
+4. Initial status is Received.
+5. Supported statuses: Received, Drafting, Checking Underlying, Released, Exception, Breached.
+6. Supported queue actions:
+- Start Drafting
+- Start Checking Underlying
+- Release (officer or super admin only)
+- Mark Exception
+- Resolve Exception
 
-- Global SLA configuration (single min/max pair, default 90/120 minutes).
-- SLA indicators for in-progress and released records.
-- Exception minutes deducted from elapsed SLA calculation.
-- Breach detection in operational and executive dashboards.
+### 5.2 Event Capture and Auditability
 
-#### Import/Export Differentiation
+1. Every create/status transition writes an event record.
+2. Event details include: LC ID, URN, action, user ID, fromStatus, toStatus, notes, occurredAt.
+3. Event log is accessible for executive and super admin roles.
 
-- Transaction type stored per L/C.
-- Separate import/export routes and views:
-  - dashboard
-  - all L/Cs list
-  - queue
-  - create order
-- Scope-aware filtering enforced in backend for non-All roles.
+### 5.3 SLA and Timing
 
-#### Dashboards and Insights
+1. A single global SLA configuration is implemented: slaMinMinutes and slaMaxMinutes (default 90 and 120).
+2. Effective elapsed time uses lifecycle timestamps with exception-minute deductions.
+3. Exception state supports reason capture and accumulated exception minutes.
+4. Breach/compliance indicators appear in operations and executive views.
 
-- Import/Export operations dashboards with KPI cards:
-  - active
-  - completed
-  - breaches
-  - average time
-- Executive dashboard with combined Import vs Export KPIs.
-- Stage comparison bars across streams.
-- Bottleneck focus panel using stage-duration calculations.
-- Narrative summary card labeled AI Generated, but generated with deterministic frontend rules (no model call).
+### 5.4 Import and Export Stream Separation
 
-#### Real-Time Updates
+1. Each L/C has transactionType = Import or Export.
+2. Import and Export have separate route entry points and operational views.
+3. Backend scope enforcement prevents cross-stream access for scoped users.
 
-- Server-sent events endpoint for LC updates.
-- Frontend subscribes and triggers silent refresh on relevant updates.
+### 5.5 Dashboards and Analytics
 
-#### Platform and UX
+1. Operations pages show per-stream KPIs: active, completed, breaches, average time.
+2. Executive dashboard shows combined cross-stream KPIs.
+3. Stage-duration analytics are implemented for:
+- Inbox
+- Drafting
+- Checking Underlying
+- Exception
+4. Bottleneck panel identifies longest stage per stream and stream deltas.
+5. Narrative summary card is deterministic rule-based logic (frontend computed), not an LLM call.
 
-- Angular standalone-component frontend.
-- Go (Gin + GORM) backend with MySQL.
-- English/Indonesian language toggle.
-- Responsive layout with sidebar toggle/hamburger behavior.
+### 5.6 Real-Time Update Behavior
 
-### Not Yet Implemented (Target State)
+1. Backend exposes SSE stream for L/C updates.
+2. Frontend subscribes and refreshes data on incoming events.
+3. Streaming is non-blocking and tolerant of slow subscribers.
 
-- Automated email inbox ingestion/parsing.
-- n8n or equivalent ingestion orchestration.
-- Backend LLM integration for true AI summaries.
-- Separate SLA configuration by transaction type.
-- Trend charts for daily/weekly longitudinal analysis.
+### 5.7 Platform and UX
 
-## 5. Functional Requirements
+1. Frontend: Angular standalone components.
+2. Backend: Go (Gin + GORM).
+3. Database: MySQL.
+4. i18n: English and Indonesian.
+5. Local fallback: frontend uses localStorage when backend connectivity is unavailable.
+
+## 6. Current vs Target State
+
+| Capability | Current State | Target State |
+| --- | --- | --- |
+| Intake source | Manual create form/API | Automated email ingestion with parser/orchestration |
+| URN generation | Provided by client/user | Generated by ingestion pipeline and policy |
+| SLA configuration | Single global min/max | SLA profiles by transaction type and policy |
+| Executive narrative summary | Rule-based deterministic frontend text | Backend-assisted LLM summary with controls |
+| Trend analytics | Snapshot KPIs and stage comparisons | Time-series trend views and historical analysis |
+
+## 7. Functional Requirements
 
 ### FR-1 L/C Record Management
 
-1. System shall allow manual creation of an L/C record with required metadata.
-2. URN shall be unique.
-3. System shall store timestamps for lifecycle milestones.
+1. System shall allow manual creation of L/C records.
+2. System shall enforce URN uniqueness.
+3. System shall persist lifecycle timestamps used for SLA analytics.
 
 ### FR-2 Status Lifecycle Control
 
-1. System shall enforce valid transition paths between statuses.
-2. System shall record an event log entry for each transition.
-3. Release action shall be restricted to officer roles (or super admin).
+1. System shall validate legal status transitions.
+2. System shall record an event for each transition.
+3. System shall restrict release transitions to officer/super-admin roles.
 
 ### FR-3 Exception Handling
 
-1. User shall be able to set status to Exception with optional reason.
-2. User shall be able to resolve exception and provide effective exception minutes.
-3. Exception time shall reduce SLA elapsed time in dashboard calculations.
+1. System shall support marking records as Exception with optional reason.
+2. System shall support resolving exceptions and applying exception-minute adjustments.
+3. System shall deduct exception time from effective SLA elapsed calculations.
 
-### FR-4 SLA Management
+### FR-4 SLA Configuration
 
-1. System shall support configurable global SLA min/max values.
-2. System shall classify records as OK, warning, or breach using configured thresholds.
-3. SLA configuration updates shall be access controlled.
+1. System shall support configurable global SLA min/max minutes.
+2. System shall classify records into normal/warning/breach outcomes.
+3. System shall restrict SLA updates to authorized roles.
 
 ### FR-5 Role and Scope Authorization
 
-1. System shall gate routes and API actions by role.
-2. Import-scoped users shall be blocked from Export records and actions, and vice versa.
-3. Executive shall have read-heavy access to overview, logs, and SLA/admin views per current policy.
+1. System shall enforce role-gated actions and route visibility.
+2. System shall enforce scope boundaries between Import and Export for non-All roles.
+3. System shall support mock role headers for development mode.
 
-### FR-6 Executive Visibility
+### FR-6 Operational and Executive Visibility
 
-1. System shall present combined Import/Export KPI performance.
-2. System shall present stage-duration comparison and bottleneck indicators.
-3. System shall present a summary narrative of current performance (rule-based in current build).
+1. System shall show per-stream and combined KPI cards.
+2. System shall show stage-duration comparisons and bottleneck indicators.
+3. System shall show event logs for governance and operations review.
 
 ### FR-7 Real-Time Refresh
 
-1. Backend shall publish LC update events for subscribers.
-2. Frontend shall refresh data when subscribed update events are received.
+1. Backend shall publish L/C update notifications over SSE.
+2. Frontend shall refresh state after receiving stream updates.
 
-## 6. API Surface (Current)
+## 8. API Surface (Implemented)
 
 ### Health
 
@@ -153,11 +166,6 @@ Frontend role selector and backend request headers simulate role-based access us
 - GET /api/lc
 - GET /api/lc/:id
 - PATCH /api/lc/:id/status
-
-### Events
-
-- GET /api/events
-- GET /api/events/stream
 
 ### Master Data
 
@@ -172,36 +180,51 @@ Frontend role selector and backend request headers simulate role-based access us
 - PUT /api/officers/:id
 - DELETE /api/officers/:id
 
+### Events
+
+- GET /api/events
+- GET /api/events/stream
+
 ### SLA and Utility
 
 - GET /api/sla
 - PATCH /api/sla
 - POST /api/reset
 
-## 7. Non-Functional Requirements
+## 9. Non-Functional Requirements
 
-1. Backend must support concurrent status updates safely (transaction + row locking).
-2. Frontend should remain usable when backend is unavailable by using cached local state.
-3. Real-time stream must not block normal API operations.
-4. UI should be usable on desktop and mobile form factors.
+1. Backend updates shall be transaction-safe under concurrent writes.
+2. Stream updates shall not block core API traffic.
+3. Frontend shall degrade gracefully when backend is unavailable via cached local state.
+4. UI shall be usable on desktop and mobile form factors.
 
-## 8. Gap-to-Target Roadmap
+## 10. Constraints and Known Limitations
 
-### Phase A (Next)
+1. Authentication is mock-based; there is no real identity provider integration.
+2. Intake is manual only; there is no live inbox polling/parsing.
+3. SLA policy is global; there is no per-stream policy split.
+4. Narrative summary is deterministic logic and can be labeled AI in UI, but no model inference occurs.
 
-1. Introduce automated email intake pipeline and URN auto-generation policy.
-2. Add per-transaction SLA profiles.
-3. Add trend charts for volume/compliance over time.
+## 11. Roadmap
 
-### Phase B
+### Phase A (Near Term)
 
-1. Replace mock RBAC with real authentication and server-issued identity claims.
-2. Integrate backend LLM summarization with explainable prompts and guardrails.
-3. Add export/reporting and audit-focused access policies.
+1. Implement automated email ingestion and URN policy.
+2. Add per-transaction SLA configuration.
+3. Add longitudinal trend analytics for throughput and compliance.
 
-## 9. Assumptions and Notes
+### Phase B (Later)
 
-1. This PRD reflects repository behavior as of 2026-03-26.
-2. Current "AI summary" is a rule-based frontend narrative, not an external LLM output.
-3. Current SLA configuration is global, not Import/Export-specific.
-4. Automated inbox monitoring is not present in this codebase.
+1. Replace mock RBAC with production authentication and server-issued claims.
+2. Add backend LLM summarization with explainability and guardrails.
+3. Add reporting/export and audit-focused policy controls.
+
+## 12. Acceptance Baseline for Current Release
+
+The current release is considered aligned with this PRD when all conditions below are met:
+
+1. Manual create-to-release workflow works for both Import and Export scopes.
+2. Scope and role checks prevent unauthorized actions.
+3. SLA values are configurable and reflected in dashboard classifications.
+4. SSE updates trigger frontend data refresh behavior.
+5. Event log records create and transition actions with from/to status details.
