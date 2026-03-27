@@ -15,7 +15,7 @@ The core value proposition is **operational transparency**, enabling managers to
 2. **Frictionless Tracking:** Manual stage transitions (`Start Drafting`, `Start Checking Underlying`, `Release`) are instantaneous, requiring zero data entry.
 3. **Exception Handling:** Allows operations to mark an L/C with an 'Exception' status and provide a detailed reason, preventing uncontrollable delays from negatively impacting the SLA timer.
 4. **Data-Driven Insights:** An analytics dashboard displays active metrics, average stage durations, and immediately highlights SLA breaches.
-5. **Flexible SLAs:** Parameterized SLA configuration (e.g., default 90-120 minutes) to reflect current operational targets.
+5. **Flexible SLAs:** Parameterized SLA maximum threshold (e.g., default 120 minutes) to reflect current operational targets.
 6. **Detailed Audit Trail:** An event log tracking exact user, state, and timestamps for every transition.
 7. **Real-Time Refresh:** Frontend listens to backend SSE updates and refreshes dashboard/queue data.
 8. **Accessibility & Usability:**

@@ -28,16 +28,16 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
           <table class="data-table">
             <thead>
               <tr>
-                <th>{{ 'queue.col_num' | translate }}</th>
-                <th>{{ 'queue.col_urn' | translate }}</th>
-                <th>{{ 'queue.col_subject' | translate }}</th>
-                <th>{{ 'queue.col_assigned' | translate }}</th>
-                <th>{{ 'queue.col_status' | translate }}</th>
-                <th>{{ 'queue.col_start_date' | translate }}</th>
-                <th>{{ 'queue.col_elapsed' | translate }}</th>
-                <th>{{ 'queue.col_time_left_sla' | translate }}</th>
-                <th>{{ 'queue.col_released_by' | translate }}</th>
-                <th>{{ 'queue.col_action' | translate }}</th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'rowNumber'" [attr.aria-sort]="ariaSort('rowNumber')" (click)="toggleSort('rowNumber')">{{ 'queue.col_num' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'rowNumber'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'urn'" [attr.aria-sort]="ariaSort('urn')" (click)="toggleSort('urn')">{{ 'queue.col_urn' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'urn'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'subject'" [attr.aria-sort]="ariaSort('subject')" (click)="toggleSort('subject')">{{ 'queue.col_subject' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'subject'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'assignedTo'" [attr.aria-sort]="ariaSort('assignedTo')" (click)="toggleSort('assignedTo')">{{ 'queue.col_assigned' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'assignedTo'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'status'" [attr.aria-sort]="ariaSort('status')" (click)="toggleSort('status')">{{ 'queue.col_status' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'status'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'startDate'" [attr.aria-sort]="ariaSort('startDate')" (click)="toggleSort('startDate')">{{ 'queue.col_start_date' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'startDate'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'elapsed'" [attr.aria-sort]="ariaSort('elapsed')" (click)="toggleSort('elapsed')">{{ 'queue.col_elapsed' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'elapsed'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'timeLeft'" [attr.aria-sort]="ariaSort('timeLeft')" (click)="toggleSort('timeLeft')">{{ 'queue.col_time_left_sla' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'timeLeft'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'releasedBy'" [attr.aria-sort]="ariaSort('releasedBy')" (click)="toggleSort('releasedBy')">{{ 'queue.col_released_by' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'releasedBy'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'action'" [attr.aria-sort]="ariaSort('action')" (click)="toggleSort('action')">{{ 'queue.col_action' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'action'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -205,6 +205,8 @@ export class QueueComponent implements OnInit {
 
   searchTerm = '';
   currentFilter = signal('all');
+  sortColumn = signal<string>('startDate');
+  sortDirection = signal<'asc' | 'desc'>('desc');
   selectedLc: any = null;
   transactionType = signal<string>('Import');
   officerSelections: Record<number, string> = {};
@@ -250,8 +252,124 @@ export class QueueComponent implements OnInit {
         (r.approvedBy || '').toLowerCase().includes(search)
       );
     }
-    return data;
+
+    const rowNumberByKey = new Map<string, number>();
+    data.forEach((record, index) => rowNumberByKey.set(this.rowKey(record), index + 1));
+
+    return this.sortRows(data, rowNumberByKey);
   });
+
+  toggleSort(column: string): void {
+    if (this.sortColumn() === column) {
+      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    this.sortColumn.set(column);
+    this.sortDirection.set('asc');
+  }
+
+  ariaSort(column: string): 'ascending' | 'descending' | 'none' {
+    if (this.sortColumn() !== column) {
+      return 'none';
+    }
+    return this.sortDirection() === 'asc' ? 'ascending' : 'descending';
+  }
+
+  private sortRows(data: any[], rowNumberByKey: Map<string, number>): any[] {
+    const direction = this.sortDirection() === 'asc' ? 1 : -1;
+    const sorted = [...data].sort((a, b) => {
+      const diff = this.compareByColumn(a, b, rowNumberByKey);
+      if (diff !== 0) {
+        return diff * direction;
+      }
+      return this.compareText(a.urn, b.urn);
+    });
+    return sorted;
+  }
+
+  private compareByColumn(a: any, b: any, rowNumberByKey: Map<string, number>): number {
+    switch (this.sortColumn()) {
+      case 'rowNumber':
+        return this.compareNumber(rowNumberByKey.get(this.rowKey(a)) || 0, rowNumberByKey.get(this.rowKey(b)) || 0);
+      case 'urn':
+        return this.compareText(a.urn, b.urn);
+      case 'subject':
+        return this.compareText(a.subject, b.subject);
+      case 'assignedTo':
+        return this.compareText(a.assignedTo, b.assignedTo);
+      case 'status':
+        return this.compareStatus(a.status, b.status);
+      case 'startDate':
+        return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
+      case 'elapsed':
+        return this.compareNumber(this.getElapsedMinutes(a), this.getElapsedMinutes(b));
+      case 'timeLeft':
+        return this.compareNumber(this.getRemainingSlaMinutes(a), this.getRemainingSlaMinutes(b));
+      case 'releasedBy':
+        return this.compareText(a.approvedBy, b.approvedBy);
+      case 'action':
+        return this.compareNumber(this.actionRank(a.status), this.actionRank(b.status));
+      default:
+        return 0;
+    }
+  }
+
+  private compareStatus(a: string, b: string): number {
+    const rankA = this.statusRank(a);
+    const rankB = this.statusRank(b);
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+    return this.compareText(a, b);
+  }
+
+  private statusRank(status: string): number {
+    const rank: Record<string, number> = {
+      'Received': 1,
+      'Drafting': 2,
+      'Checking Underlying': 3,
+      'Exception': 4,
+      'Released': 5,
+      'Breached': 6,
+    };
+    return rank[status] || 99;
+  }
+
+  private actionRank(status: string): number {
+    const rank: Record<string, number> = {
+      'Received': 1,
+      'Drafting': 2,
+      'Checking Underlying': 3,
+      'Exception': 4,
+      'Breached': 5,
+      'Released': 6,
+    };
+    return rank[status] || 99;
+  }
+
+  private compareText(a: unknown, b: unknown): number {
+    const left = String(a || '').toLowerCase();
+    const right = String(b || '').toLowerCase();
+    return left.localeCompare(right);
+  }
+
+  private compareNumber(a: number, b: number): number {
+    return a - b;
+  }
+
+  private toMillis(value: string | null | undefined): number {
+    if (!value) {
+      return 0;
+    }
+    return new Date(value).getTime();
+  }
+
+  private rowKey(record: any): string {
+    if (record?.id !== undefined && record?.id !== null) {
+      return String(record.id);
+    }
+    return String(record?.urn || '');
+  }
 
   setFilter(value: string) {
     this.currentFilter.set(value);

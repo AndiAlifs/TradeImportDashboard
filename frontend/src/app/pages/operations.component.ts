@@ -280,14 +280,15 @@ export class OperationsComponent implements OnInit {
 
   slaIndicatorHtml(r: any): string {
     const sla = this.sla();
+    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
     if (r.status === 'Released') {
       const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
-      if (total <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${total}m</span>`;
+      if (total <= warningThreshold) return `<span class="sla-indicator green">✓ ${total}m</span>`;
       if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
       return `<span class="sla-indicator red">✗ ${total}m</span>`;
     }
     const elapsed = this.getElapsedMinutes(r);
-    if (elapsed <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
+    if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
     if (elapsed <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
     return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
   }

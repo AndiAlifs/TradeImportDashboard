@@ -51,16 +51,16 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
           <table class="data-table">
             <thead>
               <tr>
-                <th>{{ 'queue.col_num' | translate }}</th>
-                <th>{{ 'queue.col_urn' | translate }}</th>
-                <th>{{ 'summary.col_type' | translate }}</th>
-                <th>{{ 'queue.col_sender' | translate }}</th>
-                <th>{{ 'queue.col_subject' | translate }}</th>
-                <th>{{ 'queue.col_assigned' | translate }}</th>
-                <th>{{ 'queue.col_status' | translate }}</th>
-                <th>{{ 'queue.col_received' | translate }}</th>
-                <th>{{ 'queue.col_elapsed' | translate }}</th>
-                <th>{{ 'queue.col_sla' | translate }}</th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'rowNumber'" [attr.aria-sort]="ariaSort('rowNumber')" (click)="toggleSort('rowNumber')">{{ 'queue.col_num' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'rowNumber'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'urn'" [attr.aria-sort]="ariaSort('urn')" (click)="toggleSort('urn')">{{ 'queue.col_urn' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'urn'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'transactionType'" [attr.aria-sort]="ariaSort('transactionType')" (click)="toggleSort('transactionType')">{{ 'summary.col_type' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'transactionType'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'senderEmail'" [attr.aria-sort]="ariaSort('senderEmail')" (click)="toggleSort('senderEmail')">{{ 'queue.col_sender' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'senderEmail'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'subject'" [attr.aria-sort]="ariaSort('subject')" (click)="toggleSort('subject')">{{ 'queue.col_subject' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'subject'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'assignedTo'" [attr.aria-sort]="ariaSort('assignedTo')" (click)="toggleSort('assignedTo')">{{ 'queue.col_assigned' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'assignedTo'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'status'" [attr.aria-sort]="ariaSort('status')" (click)="toggleSort('status')">{{ 'queue.col_status' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'status'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'receivedAt'" [attr.aria-sort]="ariaSort('receivedAt')" (click)="toggleSort('receivedAt')">{{ 'queue.col_received' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'receivedAt'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'elapsed'" [attr.aria-sort]="ariaSort('elapsed')" (click)="toggleSort('elapsed')">{{ 'queue.col_elapsed' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'elapsed'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'sla'" [attr.aria-sort]="ariaSort('sla')" (click)="toggleSort('sla')">{{ 'queue.col_sla' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'sla'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -200,6 +200,8 @@ export class AllLcsComponent implements OnInit {
 
   searchTerm = '';
   currentFilter = signal('all');
+  sortColumn = signal<string>('receivedAt');
+  sortDirection = signal<'asc' | 'desc'>('desc');
   selectedLc: any = null;
   transactionType = signal<string>('Import');
   customFrom = '';
@@ -257,8 +259,140 @@ export class AllLcsComponent implements OnInit {
         (r.assignedTo || '').toLowerCase().includes(search)
       );
     }
-    return data;
+
+    const rowNumberByKey = new Map<string, number>();
+    data.forEach((record, index) => rowNumberByKey.set(this.rowKey(record), index + 1));
+
+    return this.sortRows(data, rowNumberByKey);
   });
+
+  toggleSort(column: string): void {
+    if (this.sortColumn() === column) {
+      this.sortDirection.set(this.sortDirection() === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    this.sortColumn.set(column);
+    this.sortDirection.set('asc');
+  }
+
+  ariaSort(column: string): 'ascending' | 'descending' | 'none' {
+    if (this.sortColumn() !== column) {
+      return 'none';
+    }
+    return this.sortDirection() === 'asc' ? 'ascending' : 'descending';
+  }
+
+  private sortRows(data: any[], rowNumberByKey: Map<string, number>): any[] {
+    const direction = this.sortDirection() === 'asc' ? 1 : -1;
+    return [...data].sort((a, b) => {
+      const diff = this.compareByColumn(a, b, rowNumberByKey);
+      if (diff !== 0) {
+        return diff * direction;
+      }
+      return this.compareText(a.urn, b.urn);
+    });
+  }
+
+  private compareByColumn(a: any, b: any, rowNumberByKey: Map<string, number>): number {
+    switch (this.sortColumn()) {
+      case 'rowNumber':
+        return this.compareNumber(rowNumberByKey.get(this.rowKey(a)) || 0, rowNumberByKey.get(this.rowKey(b)) || 0);
+      case 'urn':
+        return this.compareText(a.urn, b.urn);
+      case 'transactionType':
+        return this.compareText(a.transactionType, b.transactionType);
+      case 'senderEmail':
+        return this.compareText(a.senderEmail, b.senderEmail);
+      case 'subject':
+        return this.compareText(a.subject, b.subject);
+      case 'assignedTo':
+        return this.compareText(a.assignedTo, b.assignedTo);
+      case 'status':
+        return this.compareStatus(a.status, b.status);
+      case 'receivedAt':
+        return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
+      case 'elapsed':
+        return this.compareNumber(this.getElapsedMinutes(a), this.getElapsedMinutes(b));
+      case 'sla':
+        return this.compareSla(a, b);
+      default:
+        return 0;
+    }
+  }
+
+  private compareStatus(a: string, b: string): number {
+    const rankA = this.statusRank(a);
+    const rankB = this.statusRank(b);
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+    return this.compareText(a, b);
+  }
+
+  private statusRank(status: string): number {
+    const rank: Record<string, number> = {
+      'Received': 1,
+      'Drafting': 2,
+      'Checking Underlying': 3,
+      'Exception': 4,
+      'Released': 5,
+      'Breached': 6,
+    };
+    return rank[status] || 99;
+  }
+
+  private compareSla(a: any, b: any): number {
+    const left = this.slaSortPayload(a);
+    const right = this.slaSortPayload(b);
+    if (left.bucket !== right.bucket) {
+      return left.bucket - right.bucket;
+    }
+    return left.minutes - right.minutes;
+  }
+
+  private slaSortPayload(record: any): { bucket: number; minutes: number } {
+    const sla = this.dataStore.slaConfig();
+    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
+    const minutes = this.slaMinutes(record);
+    if (minutes <= warningThreshold) {
+      return { bucket: 0, minutes };
+    }
+    if (minutes <= sla.slaMaxMinutes) {
+      return { bucket: 1, minutes };
+    }
+    return { bucket: 2, minutes };
+  }
+
+  private slaMinutes(record: any): number {
+    if (record.status === 'Released' && record.releasedAt) {
+      return Math.max(0, Math.round((new Date(record.releasedAt).getTime() - new Date(record.receivedAt).getTime()) / 60000));
+    }
+    return this.getElapsedMinutes(record);
+  }
+
+  private compareText(a: unknown, b: unknown): number {
+    const left = String(a || '').toLowerCase();
+    const right = String(b || '').toLowerCase();
+    return left.localeCompare(right);
+  }
+
+  private compareNumber(a: number, b: number): number {
+    return a - b;
+  }
+
+  private toMillis(value: string | null | undefined): number {
+    if (!value) {
+      return 0;
+    }
+    return new Date(value).getTime();
+  }
+
+  private rowKey(record: any): string {
+    if (record?.id !== undefined && record?.id !== null) {
+      return String(record.id);
+    }
+    return String(record?.urn || '');
+  }
 
   setFilter(value: string) {
     this.currentFilter.set(value);
@@ -328,14 +462,15 @@ export class AllLcsComponent implements OnInit {
 
   slaIndicatorHtml(r: any): string {
     const sla = this.dataStore.slaConfig();
+    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
     if (r.status === 'Released' && r.releasedAt) {
       const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
-      if (total <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${total}m</span>`;
+      if (total <= warningThreshold) return `<span class="sla-indicator green">✓ ${total}m</span>`;
       if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
       return `<span class="sla-indicator red">✗ ${total}m</span>`;
     }
     const elapsed = this.getElapsedMinutes(r);
-    if (elapsed <= sla.slaMinMinutes) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
+    if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
     if (elapsed <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
     return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
   }

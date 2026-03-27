@@ -1,7 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
 export interface SlaConfig {
-  slaMinMinutes: number;
   slaMaxMinutes: number;
 }
 
@@ -33,7 +32,7 @@ const MOCK_ROLE_KEY = 'shila_mock_role';
 const EXEC_DASHBOARD_RANGE_KEY = 'shila_exec_date_range';
 const OPS_DASHBOARD_RANGE_KEY = 'shila_ops_date_range';
 
-const DEFAULT_SLA: SlaConfig = { slaMinMinutes: 90, slaMaxMinutes: 120 };
+const DEFAULT_SLA: SlaConfig = { slaMaxMinutes: 120 };
 
 export type MockRole =
   | 'super_admin'
@@ -399,6 +398,10 @@ export class DataStoreService {
 
   private buildDateQuery(context: DashboardContext): string {
     const range = this.getDateRange(context);
+    return this.buildDateQueryFromRange(range);
+  }
+
+  private buildDateQueryFromRange(range: DashboardDateRange): string {
     const params = new URLSearchParams();
 
     if (range.preset === 'custom') {
@@ -409,6 +412,63 @@ export class DataStoreService {
 
     params.set('preset', range.preset);
     return params.toString();
+  }
+
+  private toDateInputValue(value: Date): string {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private readLocalLcCache(): any[] {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  }
+
+  getPreviousEquivalentRange(range: DashboardDateRange): DashboardDateRange {
+    const bounds = this.getRangeBounds(range);
+    if (!bounds) {
+      return { preset: 'yesterday', fromDate: '', toDate: '' };
+    }
+
+    const windowMs = bounds.to.getTime() - bounds.from.getTime();
+    const prevTo = new Date(bounds.from.getTime() - 1);
+    const prevFrom = new Date(prevTo.getTime() - windowMs);
+
+    return {
+      preset: 'custom',
+      fromDate: this.toDateInputValue(prevFrom),
+      toDate: this.toDateInputValue(prevTo),
+    };
+  }
+
+  async fetchLCsForRange(range: DashboardDateRange, options: { transactionType?: 'Import' | 'Export' } = {}): Promise<any[]> {
+    const params = new URLSearchParams('limit=500&offset=0');
+    const dateQuery = this.buildDateQueryFromRange(range);
+
+    if (options.transactionType) {
+      params.set('transactionType', options.transactionType);
+    }
+
+    if (dateQuery) {
+      const parsed = new URLSearchParams(dateQuery);
+      parsed.forEach((value, key) => {
+        params.set(key, value);
+      });
+    }
+
+    try {
+      const response = await this.apiRequest(`/lc?${params.toString()}`);
+      return Array.isArray(response?.data) ? response.data : [];
+    } catch {
+      const cached = this.readLocalLcCache();
+      return cached.filter((record) => this.isWithinRange(record?.receivedAt, range));
+    }
   }
 
   private getRangeBounds(range: DashboardDateRange): { from: Date; to: Date } | null {

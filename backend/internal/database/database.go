@@ -33,7 +33,7 @@ func SeedDefaults(db *gorm.DB) error {
 		return fmt.Errorf("count sla config: %w", err)
 	}
 	if count == 0 {
-		cfg := models.SLAConfig{SLAMinMinutes: 90, SLAMaxMinutes: 120}
+		cfg := models.SLAConfig{SLAMaxMinutes: 120}
 		if err := db.Create(&cfg).Error; err != nil {
 			return fmt.Errorf("seed sla config: %w", err)
 		}

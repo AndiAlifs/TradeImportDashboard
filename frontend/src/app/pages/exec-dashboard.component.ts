@@ -1,9 +1,11 @@
-import { Component, OnInit, computed, inject } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DataStoreService } from '../services/data-store.service';
+import { DashboardDateRange, DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
 import { StageDuration, computeAverageStageDurations, findLongestStage } from '../utils/stage-duration';
+
+type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
 
 @Component({
   selector: 'app-exec-dashboard',
@@ -30,6 +32,47 @@ import { StageDuration, computeAverageStageDurations, findLongestStage } from '.
           <button type="button" class="range-apply-btn" (click)="applyCustomRange()">{{ 'date.apply' | translate }}</button>
         </div>
         <div class="date-range-caption">{{ 'date.server_time' | translate }} · {{ selectedRangeLabel() }}</div>
+      </div>
+
+      <div class="exec-sla-compare">
+        <div class="exec-sla-compare-header">
+          <div>
+            <h3>{{ 'exec.sla_compare_title' | translate }}</h3>
+            <p>{{ comparisonRangeSummary() }}</p>
+            <p class="exec-sla-compare-note" [attr.title]="'exec.sla_compare_server_note' | translate">{{ 'exec.sla_compare_server_note' | translate }}</p>
+          </div>
+          <label class="exec-sla-compare-select-wrap">
+            <span>{{ 'exec.sla_compare_selector' | translate }}</span>
+            <select class="exec-sla-compare-select" [value]="comparisonMetric()" (change)="setComparisonMetric($any($event.target).value)">
+              <option *ngFor="let option of comparisonOptions" [value]="option.value">{{ option.labelKey | translate }}</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="exec-sla-compare-loading" *ngIf="comparisonLoading()">
+          {{ 'exec.sla_compare_loading' | translate }}
+        </div>
+
+        <div class="exec-sla-compare-grid" *ngIf="!comparisonLoading()">
+          <div class="exec-sla-compare-card" *ngFor="let row of comparisonRows()">
+            <div class="exec-sla-compare-card-label">{{ row.labelKey | translate }}</div>
+            <div class="exec-sla-compare-main">{{ row.current }}%</div>
+            <div class="exec-sla-compare-detail">{{ 'exec.sla_compare_previous' | translate }}: {{ row.previous }}%</div>
+            <div class="exec-sla-compare-bars" aria-hidden="true">
+              <div class="exec-sla-compare-bar-row">
+                <span>{{ 'exec.sla_compare_current' | translate }}</span>
+                <div class="exec-sla-compare-track"><div class="exec-sla-compare-fill current" [style.width.%]="comparisonBarWidth(row.current)"></div></div>
+              </div>
+              <div class="exec-sla-compare-bar-row">
+                <span>{{ 'exec.sla_compare_previous' | translate }}</span>
+                <div class="exec-sla-compare-track"><div class="exec-sla-compare-fill previous" [style.width.%]="comparisonBarWidth(row.previous)"></div></div>
+              </div>
+            </div>
+            <div class="exec-sla-compare-delta" [ngClass]="row.trendClass">
+              {{ row.deltaText }} pp · {{ row.trendKey | translate }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Executive KPI Cards -->
@@ -204,6 +247,7 @@ import { StageDuration, computeAverageStageDurations, findLongestStage } from '.
 export class ExecDashboardComponent implements OnInit {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
+  private readonly comparisonMetricStorageKey = 'shila_exec_sla_compare_metric';
 
   readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
     { value: 'today', labelKey: 'date.today' },
@@ -215,7 +259,18 @@ export class ExecDashboardComponent implements OnInit {
   customFrom = '';
   customTo = '';
 
+  readonly comparisonOptions: Array<{ value: SlaComparisonMetric; labelKey: string }> = [
+    { value: 'overall', labelKey: 'exec.sla_compare_overall' },
+    { value: 'import', labelKey: 'exec.sla_compare_import' },
+    { value: 'export', labelKey: 'exec.sla_compare_export' },
+    { value: 'all', labelKey: 'exec.sla_compare_all' },
+  ];
+
   range = computed(() => this.dataStore.executiveDateRange());
+  comparisonMetric = signal<SlaComparisonMetric>(this.loadComparisonMetric());
+  comparisonLoading = signal<boolean>(false);
+  private comparisonCurrentRecords = signal<any[]>([]);
+  private comparisonPreviousRecords = signal<any[]>([]);
 
   private importData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Import'));
   private exportData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Export'));
@@ -295,6 +350,21 @@ export class ExecDashboardComponent implements OnInit {
     };
   });
 
+  comparisonRows = computed(() => {
+    const current = this.computeSlaMetrics(this.comparisonCurrentRecords());
+    const previous = this.computeSlaMetrics(this.comparisonPreviousRecords());
+    const allRows = [
+      this.createComparisonRow('overall', 'exec.sla_compare_overall', current.overall, previous.overall),
+      this.createComparisonRow('import', 'exec.sla_compare_import', current.import, previous.import),
+      this.createComparisonRow('export', 'exec.sla_compare_export', current.export, previous.export),
+    ];
+
+    if (this.comparisonMetric() === 'all') {
+      return allRows;
+    }
+    return allRows.filter((row) => row.metric === this.comparisonMetric());
+  });
+
   aiSummary = computed(() => {
     const data = this.dataStore.lcs();
     const sla = this.sla();
@@ -308,7 +378,7 @@ export class ExecDashboardComponent implements OnInit {
     if (overallCompliance < 90) { healthStatus = '🟡 Moderate'; healthClass = 'health-moderate'; }
     if (overallCompliance < 75) { healthStatus = '🔴 Critical'; healthClass = 'health-critical'; }
 
-    const slaTarget = `${sla.slaMinMinutes}–${sla.slaMaxMinutes} min`;
+    const slaTarget = `<= ${sla.slaMaxMinutes} min`;
 
     const importBottleneck = this.importBottleneckStage();
     const exportBottleneck = this.exportBottleneckStage();
@@ -365,6 +435,93 @@ export class ExecDashboardComponent implements OnInit {
     }).length;
   }
 
+  private computeSlaMetrics(records: any[]): { overall: number; import: number; export: number } {
+    const importRecords = records.filter((record) => record.transactionType === 'Import');
+    const exportRecords = records.filter((record) => record.transactionType === 'Export');
+    return {
+      overall: this.computeSlaPercentage(records),
+      import: this.computeSlaPercentage(importRecords),
+      export: this.computeSlaPercentage(exportRecords),
+    };
+  }
+
+  private computeSlaPercentage(records: any[]): number {
+    const total = records.length;
+    if (total === 0) {
+      return 0;
+    }
+    const breached = this.countBreaches(records);
+    return Math.round(((total - breached) / total) * 100);
+  }
+
+  private createComparisonRow(metric: Exclude<SlaComparisonMetric, 'all'>, labelKey: string, current: number, previous: number) {
+    const delta = current - previous;
+    const trendClass = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
+    const trendKey = delta > 0 ? 'exec.sla_compare_trend_up' : delta < 0 ? 'exec.sla_compare_trend_down' : 'exec.sla_compare_trend_flat';
+    const sign = delta > 0 ? '+' : '';
+    return {
+      metric,
+      labelKey,
+      current,
+      previous,
+      trendClass,
+      trendKey,
+      deltaText: `${sign}${delta}`,
+    };
+  }
+
+  comparisonBarWidth(value: number): number {
+    return Math.max(0, Math.min(100, value || 0));
+  }
+
+  private loadComparisonMetric(): SlaComparisonMetric {
+    const stored = localStorage.getItem(this.comparisonMetricStorageKey);
+    if (stored === 'overall' || stored === 'import' || stored === 'export' || stored === 'all') {
+      return stored;
+    }
+    return 'overall';
+  }
+
+  setComparisonMetric(value: string): void {
+    if (value !== 'overall' && value !== 'import' && value !== 'export' && value !== 'all') {
+      return;
+    }
+    this.comparisonMetric.set(value);
+    localStorage.setItem(this.comparisonMetricStorageKey, value);
+  }
+
+  comparisonRangeSummary(): string {
+    const current = this.range();
+    const previous = this.dataStore.getPreviousEquivalentRange(current);
+    return `${this.ts.translate('exec.sla_compare_current')}: ${this.formatRange(current)} | ${this.ts.translate('exec.sla_compare_previous')}: ${this.formatRange(previous)}`;
+  }
+
+  private formatRange(range: DashboardDateRange): string {
+    if (range.preset === 'today') return this.ts.translate('date.today');
+    if (range.preset === 'yesterday') return this.ts.translate('date.yesterday');
+    if (range.preset === 'last7days') return this.ts.translate('date.last_7_days');
+    if (range.preset === 'last14days') return this.ts.translate('date.last_14_days');
+    if (range.preset === 'last1month') return this.ts.translate('date.last_month');
+    if (!range.fromDate || !range.toDate) return this.ts.translate('date.custom');
+    return `${range.fromDate} ${this.ts.translate('date.to')} ${range.toDate}`;
+  }
+
+  private async refreshSlaComparison(): Promise<void> {
+    const currentRange = this.range();
+    const previousRange = this.dataStore.getPreviousEquivalentRange(currentRange);
+    this.comparisonLoading.set(true);
+    try {
+      const [currentRecords, previousRecords] = await Promise.all([
+        this.dataStore.fetchLCsForRange(currentRange),
+        this.dataStore.fetchLCsForRange(previousRange),
+      ]);
+      this.comparisonCurrentRecords.set(currentRecords);
+      this.comparisonPreviousRecords.set(previousRecords);
+    } finally {
+      this.comparisonLoading.set(false);
+    }
+  }
+
   private getElapsedMinutes(r: any): number {
     let total = 0;
     if (r.status === 'Released' && r.releasedAt) {
@@ -404,18 +561,19 @@ export class ExecDashboardComponent implements OnInit {
     this.dataStore.setActiveDashboardContext('executive');
     this.syncInputsFromRange();
     void this.dataStore.refreshData();
+    void this.refreshSlaComparison();
   }
 
   usePreset(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): void {
     const bounds = this.presetDateBounds(preset);
     this.customFrom = bounds.from;
     this.customTo = bounds.to;
-    void this.dataStore.setPresetDateRange('executive', preset);
+    void this.dataStore.setPresetDateRange('executive', preset).then(() => this.refreshSlaComparison());
   }
 
   applyCustomRange(): void {
     if (!this.customFrom || !this.customTo) return;
-    void this.dataStore.setCustomDateRange('executive', this.customFrom, this.customTo);
+    void this.dataStore.setCustomDateRange('executive', this.customFrom, this.customTo).then(() => this.refreshSlaComparison());
   }
 
   isPresetActive(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): boolean {

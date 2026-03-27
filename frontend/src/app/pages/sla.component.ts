@@ -16,11 +16,6 @@ import { TranslationService } from '../services/translation.service';
         <p>{{ 'sla.config_desc' | translate }}</p>
 
         <div class="form-group">
-          <label for="sla-min">{{ 'sla.min_label' | translate }}</label>
-          <input type="number" id="sla-min" [(ngModel)]="slaMin" min="1" />
-        </div>
-
-        <div class="form-group">
           <label for="sla-max">{{ 'sla.max_label' | translate }}</label>
           <input type="number" id="sla-max" [(ngModel)]="slaMax" min="1" />
         </div>
@@ -45,14 +40,12 @@ export class SlaComponent {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
 
-  slaMin = 90;
   slaMax = 120;
   saving = false;
   canManageSla = computed(() => this.dataStore.canAccessAction('manage_sla'));
 
   constructor() {
     const current = this.dataStore.slaConfig();
-    this.slaMin = current.slaMinMinutes;
     this.slaMax = current.slaMaxMinutes;
   }
 
@@ -63,7 +56,7 @@ export class SlaComponent {
     }
     this.saving = true;
     try {
-      await this.dataStore.saveSlaConfig({ slaMinMinutes: this.slaMin, slaMaxMinutes: this.slaMax });
+      await this.dataStore.saveSlaConfig({ slaMaxMinutes: this.slaMax });
       this.showToast('success', this.ts.translate('toast.sla_saved'));
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to save SLA');
@@ -77,9 +70,8 @@ export class SlaComponent {
       this.showToast('info', 'Forbidden: current role cannot reset SLA');
       return;
     }
-    this.slaMin = 90;
     this.slaMax = 120;
-    this.dataStore.saveSlaConfig({ slaMinMinutes: 90, slaMaxMinutes: 120 }).then(() => {
+    this.dataStore.saveSlaConfig({ slaMaxMinutes: 120 }).then(() => {
       this.showToast('info', this.ts.translate('toast.sla_reset'));
     });
   }
@@ -93,7 +85,6 @@ export class SlaComponent {
     try {
       await this.dataStore.resetAllData();
       const updated = this.dataStore.slaConfig();
-      this.slaMin = updated.slaMinMinutes;
       this.slaMax = updated.slaMaxMinutes;
       this.showToast('info', this.ts.translate('toast.data_reset'));
     } catch (e: any) {

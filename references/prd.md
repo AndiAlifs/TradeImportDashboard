@@ -64,7 +64,7 @@ RBAC is currently mock-based, enforced by both frontend route/menu rules and bac
 
 ### 5.3 SLA and Timing
 
-1. A single global SLA configuration is implemented: slaMinMinutes and slaMaxMinutes (default 90 and 120).
+1. A single global SLA configuration is implemented: slaMaxMinutes (default 120).
 2. Effective elapsed time uses lifecycle timestamps with exception-minute deductions.
 3. Exception state supports reason capture and accumulated exception minutes.
 4. Breach/compliance indicators appear in operations and executive views.

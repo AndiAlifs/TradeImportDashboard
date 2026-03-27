@@ -9,7 +9,6 @@ import (
 )
 
 type updateSLARequest struct {
-	SLAMinMinutes int `json:"slaMinMinutes" binding:"required,gte=1"`
 	SLAMaxMinutes int `json:"slaMaxMinutes" binding:"required,gte=1"`
 }
 
@@ -36,10 +35,6 @@ func (h *Handler) UpdateSLA(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if req.SLAMinMinutes > req.SLAMaxMinutes {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "slaMinMinutes cannot be greater than slaMaxMinutes"})
-		return
-	}
 
 	var cfg models.SLAConfig
 	if err := h.db.Order("id asc").First(&cfg).Error; err != nil {
@@ -47,7 +42,6 @@ func (h *Handler) UpdateSLA(c *gin.Context) {
 		return
 	}
 
-	cfg.SLAMinMinutes = req.SLAMinMinutes
 	cfg.SLAMaxMinutes = req.SLAMaxMinutes
 
 	if err := h.db.Save(&cfg).Error; err != nil {

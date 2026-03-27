@@ -103,6 +103,6 @@ When `.env` sets `APP_PORT=8081`, runtime is `http://localhost:8081`.
 ## Notes
 
 - The app runs auto-migration on startup for: `lcs`, `events`, `sla_config`, `assignees`, `officers`.
-- It seeds one default SLA row (90/120) if not present.
+- It seeds one default SLA row (max 120 minutes) if not present.
 - Credentials are loaded from `.env` only.
 - Development RBAC is mock-based through request headers: `X-Mock-Role`, `X-Mock-Scope`, `X-Mock-User`.
