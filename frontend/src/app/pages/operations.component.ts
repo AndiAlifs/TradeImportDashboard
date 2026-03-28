@@ -113,7 +113,9 @@ import { TranslationService } from '../services/translation.service';
             <thead>
               <tr>
                 <th>{{ 'summary.col_urn' | translate }}</th>
-                <th>{{ 'summary.col_sender' | translate }}</th>
+                <th>{{ 'summary.col_subject' | translate }}</th>
+                <th>{{ 'summary.col_assigned' | translate }}</th>
+                <th>{{ 'summary.col_released_by' | translate }}</th>
                 <th>{{ 'summary.col_status' | translate }}</th>
                 <th>{{ 'summary.col_received' | translate }}</th>
                 <th>{{ 'summary.col_elapsed' | translate }}</th>
@@ -123,7 +125,9 @@ import { TranslationService } from '../services/translation.service';
             <tbody>
               <tr *ngFor="let r of filteredData().slice(0, 15)">
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.senderEmail }}</td>
+                <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
+                <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.assignedTo || '—' }}</td>
+                <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.approvedBy || '—' }}</td>
                 <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
                 <td style="font-size:0.8rem;color:var(--text-muted)">{{ formatTime(r.receivedAt) }}</td>
                 <td class="elapsed-time">{{ formatElapsed(r) }}</td>
