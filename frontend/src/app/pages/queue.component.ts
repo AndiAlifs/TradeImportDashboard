@@ -372,7 +372,6 @@ export class QueueComponent implements OnInit {
     if (search) {
       data = data.filter(r =>
         (r.urn || '').toLowerCase().includes(search) ||
-        (r.senderEmail || '').toLowerCase().includes(search) ||
         (r.subject || '').toLowerCase().includes(search) ||
         (r.assignedTo || '').toLowerCase().includes(search) ||
         (r.approvedBy || '').toLowerCase().includes(search)

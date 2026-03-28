@@ -9,7 +9,6 @@ import { TranslationService } from '../services/translation.service';
 type CreateOrderFormData = {
   transactionType: string;
   urn: string;
-  senderEmail: string;
   subject: string;
   assignedTo: string;
   receivedAt: string;
@@ -33,10 +32,6 @@ type CreateOrderFormData = {
           <div class="form-group">
             <label for="create-urn">{{ 'create.form.urn' | translate }}</label>
             <input type="text" id="create-urn" [(ngModel)]="formData.urn" name="urn" required placeholder="LC-20260325-001" />
-          </div>
-          <div class="form-group">
-            <label for="create-sender">{{ 'create.form.sender' | translate }}</label>
-            <input type="email" id="create-sender" [(ngModel)]="formData.senderEmail" name="senderEmail" required placeholder="exporter@client.com" />
           </div>
           <div class="form-group">
             <label for="create-subject">{{ 'create.form.subject' | translate }}</label>
@@ -75,7 +70,6 @@ export class CreateOrderComponent implements OnInit {
   formData: CreateOrderFormData = {
     transactionType: 'Import',
     urn: '',
-    senderEmail: '',
     subject: '',
     assignedTo: '',
     receivedAt: '',
@@ -103,7 +97,6 @@ export class CreateOrderComponent implements OnInit {
       await this.dataStore.createLCOrder({
         transactionType: this.formData.transactionType,
         urn: this.formData.urn,
-        senderEmail: this.formData.senderEmail,
         subject: this.formData.subject,
         assignedTo: this.formData.assignedTo,
         receivedAt: this.toIsoOrThrow(this.formData.receivedAt),
@@ -112,7 +105,6 @@ export class CreateOrderComponent implements OnInit {
       this.formData = {
         transactionType: this.transactionType(),
         urn: '',
-        senderEmail: '',
         subject: '',
         assignedTo: '',
         receivedAt: this.nowForDateTimeLocal(),

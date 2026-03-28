@@ -7,7 +7,6 @@ export interface SlaConfig {
 export interface CreateLCOrderRequest {
   transactionType: string;
   urn: string;
-  senderEmail: string;
   subject: string;
   assignedTo: string;
   receivedAt: string;

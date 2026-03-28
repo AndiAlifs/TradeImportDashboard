@@ -17,7 +17,6 @@ import (
 
 type createLCRequest struct {
 	URN             string `json:"urn" binding:"required,max=32"`
-	SenderEmail     string `json:"senderEmail" binding:"required,email"`
 	Subject         string `json:"subject" binding:"required"`
 	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
 	AssignedTo      string `json:"assignedTo"`
@@ -65,7 +64,6 @@ func (h *Handler) CreateLC(c *gin.Context) {
 	now := time.Now().UTC()
 	lc := models.LC{
 		URN:                   req.URN,
-		SenderEmail:           req.SenderEmail,
 		Subject:               req.Subject,
 		TransactionType:       req.TransactionType,
 		AssignedTo:            req.AssignedTo,
@@ -377,10 +375,12 @@ func isValidTransition(fromStatus, toStatus string) bool {
 			models.StatusException: true,
 		},
 		models.StatusDrafting: {
+			models.StatusReceived:           true,
 			models.StatusCheckingUnderlying: true,
 			models.StatusException:          true,
 		},
 		models.StatusCheckingUnderlying: {
+			models.StatusDrafting:  true,
 			models.StatusReleased:  true,
 			models.StatusBreached:  true,
 			models.StatusException: true,

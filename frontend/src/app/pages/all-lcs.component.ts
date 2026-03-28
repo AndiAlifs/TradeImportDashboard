@@ -54,7 +54,6 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <th class="sortable" [class.sorted]="sortColumn() === 'rowNumber'" [attr.aria-sort]="ariaSort('rowNumber')" (click)="toggleSort('rowNumber')">{{ 'queue.col_num' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'rowNumber'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'urn'" [attr.aria-sort]="ariaSort('urn')" (click)="toggleSort('urn')">{{ 'queue.col_urn' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'urn'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'transactionType'" [attr.aria-sort]="ariaSort('transactionType')" (click)="toggleSort('transactionType')">{{ 'summary.col_type' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'transactionType'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
-                <th class="sortable" [class.sorted]="sortColumn() === 'senderEmail'" [attr.aria-sort]="ariaSort('senderEmail')" (click)="toggleSort('senderEmail')">{{ 'queue.col_sender' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'senderEmail'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'subject'" [attr.aria-sort]="ariaSort('subject')" (click)="toggleSort('subject')">{{ 'queue.col_subject' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'subject'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'assignedTo'" [attr.aria-sort]="ariaSort('assignedTo')" (click)="toggleSort('assignedTo')">{{ 'queue.col_assigned' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'assignedTo'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'status'" [attr.aria-sort]="ariaSort('status')" (click)="toggleSort('status')">{{ 'queue.col_status' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'status'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
@@ -71,7 +70,6 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <td style="color:var(--text-muted)">{{ i + 1 }}</td>
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
                 <td><span class="type-badge" [ngClass]="r.transactionType === 'Import' ? 'import' : 'export'">{{ r.transactionType }}</span></td>
-                <td style="font-size:0.8rem">{{ r.senderEmail }}</td>
                 <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
                 <td style="font-size:0.8rem">{{ r.assignedTo }}</td>
                 <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
@@ -260,7 +258,6 @@ export class AllLcsComponent implements OnInit {
     if (search) {
       data = data.filter(r =>
         (r.urn || '').toLowerCase().includes(search) ||
-        (r.senderEmail || '').toLowerCase().includes(search) ||
         (r.subject || '').toLowerCase().includes(search) ||
         (r.assignedTo || '').toLowerCase().includes(search)
       );
@@ -307,8 +304,6 @@ export class AllLcsComponent implements OnInit {
         return this.compareText(a.urn, b.urn);
       case 'transactionType':
         return this.compareText(a.transactionType, b.transactionType);
-      case 'senderEmail':
-        return this.compareText(a.senderEmail, b.senderEmail);
       case 'subject':
         return this.compareText(a.subject, b.subject);
       case 'assignedTo':
