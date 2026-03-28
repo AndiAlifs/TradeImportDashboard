@@ -126,13 +126,13 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.exceptionStartedAt || selectedLc.exceptionTotalMinutes > 0" class="timeline-item" [ngClass]="selectedLc.status === 'Exception' ? 'exception active' : 'exception completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.exception' | translate }}</div>
+                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
                   <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
                   <div class="timeline-desc">
-                    {{ selectedLc.exceptionReason || ('timeline.desc.exception_active' | translate) }}
+                    <span *ngIf="selectedLc.exceptionReason" style="display:block">{{ selectedLc.exceptionReason }}</span>
+                    <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
                     <ng-container *ngIf="selectedLc.status !== 'Exception'">
-                      <br/>
-                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}{{ selectedLc.exceptionTotalMinutes ? ' (' + selectedLc.exceptionTotalMinutes + ' min total)' : '' }}</span>
+                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}<ng-container *ngIf="selectedLc.exceptionTotalMinutes > 0"> · {{ 'timeline.exception_duration' | translate }}: {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</ng-container></span>
                     </ng-container>
                   </div>
                 </div>
@@ -453,6 +453,12 @@ export class AllLcsComponent implements OnInit {
   formatDateTime(iso: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  formatExceptionDuration(minutes: number): string {
+    if (!minutes || minutes <= 0) return '—';
+    if (minutes < 60) return `${minutes}m`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 
   formatElapsed(r: any): string {

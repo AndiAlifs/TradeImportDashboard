@@ -63,6 +63,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                     <ng-container *ngSwitchCase="'Drafting'">
                       <button class="action-btn warning" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-checking')">{{ 'action.start_checking' | translate }}</button>
                       <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Received')">Return to Received</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Checking Underlying'">
                       <div style="display:flex;flex-direction:column;gap:4px">
@@ -72,6 +73,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                         </select>
                         <button class="action-btn success" [disabled]="!canRelease()" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
                         <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Drafting')">Return to Drafting</button>
                       </div>
                     </ng-container>
                     <span *ngSwitchCase="'Released'" class="action-btn completed">{{ 'action.completed' | translate }}</span>
@@ -131,13 +133,13 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.exceptionStartedAt || selectedLc.exceptionTotalMinutes > 0" class="timeline-item" [ngClass]="selectedLc.status === 'Exception' ? 'exception active' : 'exception completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.exception' | translate }}</div>
+                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
                   <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
                   <div class="timeline-desc">
-                    {{ selectedLc.exceptionReason || ('timeline.desc.exception_active' | translate) }}
+                    <span *ngIf="selectedLc.exceptionReason" style="display:block">{{ selectedLc.exceptionReason }}</span>
+                    <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
                     <ng-container *ngIf="selectedLc.status !== 'Exception'">
-                      <br/>
-                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}{{ selectedLc.exceptionTotalMinutes ? ' (' + selectedLc.exceptionTotalMinutes + ' min total)' : '' }}</span>
+                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}<ng-container *ngIf="selectedLc.exceptionTotalMinutes > 0"> · {{ 'timeline.exception_duration' | translate }}: {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</ng-container></span>
                     </ng-container>
                   </div>
                 </div>
@@ -261,6 +263,52 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
         </div>
       </div>
 
+      <!-- Mark Exception Modal -->
+      <div class="modal-overlay" [class.active]="!!markingExceptionLc" (click)="markingExceptionLc = null">
+        <div class="modal-container form-card" *ngIf="markingExceptionLc" (click)="$event.stopPropagation()" style="max-width: 400px;">
+          <div class="modal-header">
+            <div>
+              <h3 style="margin:0;font-size:1rem">{{ 'action.mark_exception' | translate }}</h3>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">{{ markingExceptionLc.urn }}</div>
+            </div>
+            <button class="modal-close" (click)="markingExceptionLc = null">×</button>
+          </div>
+          <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Reason</label>
+              <input type="text" class="search-input" style="width:100%" [(ngModel)]="exceptionNote" placeholder="Enter reason" />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="markingExceptionLc = null">Cancel</button>
+              <button class="action-btn danger" (click)="submitMarkException()">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Return Status Modal -->
+      <div class="modal-overlay" [class.active]="!!returningStatusLc" (click)="returningStatusLc = null">
+        <div class="modal-container form-card" *ngIf="returningStatusLc" (click)="$event.stopPropagation()" style="max-width: 400px;">
+          <div class="modal-header">
+            <div>
+              <h3 style="margin:0;font-size:1rem">Return to {{ returnTargetStatus }}</h3>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">{{ returningStatusLc.urn }}</div>
+            </div>
+            <button class="modal-close" (click)="returningStatusLc = null">×</button>
+          </div>
+          <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+            <div>
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Reason / Notes</label>
+              <input type="text" class="search-input" style="width:100%" [(ngModel)]="returnNote" placeholder="Enter reason for returning" />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="returningStatusLc = null">Cancel</button>
+              <button class="action-btn primary" (click)="submitReturnStatus()">Submit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `
 })
@@ -281,6 +329,13 @@ export class QueueComponent implements OnInit {
   resolutionMinutes: number = 0;
   resolutionNextStatus: string = '';
   exceptionHistory: any[] = [];
+
+  markingExceptionLc: any = null;
+  exceptionNote: string = '';
+
+  returningStatusLc: any = null;
+  returnTargetStatus: string = '';
+  returnNote: string = '';
 
   officers = computed(() => this.dataStore.officers());
   canUpdate = computed(() => this.dataStore.canAccessAction('update_status', this.transactionType()));
@@ -515,9 +570,14 @@ export class QueueComponent implements OnInit {
       this.showToast('info', 'Forbidden: current role cannot mark exception');
       return;
     }
+    this.exceptionNote = '';
+    this.markingExceptionLc = r;
+  }
 
-    const reason = prompt(this.ts.translate('prompt.mark_exception'), '');
-    if (reason === null) return;
+  async submitMarkException() {
+    if (!this.markingExceptionLc) return;
+    const r = this.markingExceptionLc;
+    const reason = this.exceptionNote;
     try {
       await this.dataStore.updateLCStatus(r.id, {
         newStatus: 'Exception',
@@ -526,6 +586,35 @@ export class QueueComponent implements OnInit {
         notes: this.ts.translate('note.mark_exception') + (reason ? `: ${reason}` : ''),
       });
       this.showToast('success', `${r.urn} → Exception`);
+      this.markingExceptionLc = null;
+    } catch (e: any) {
+      this.showToast('info', e.message || 'Action failed');
+    }
+  }
+
+  async promptReturnStatus(r: any, targetStatus: string) {
+    if (!this.canUpdate()) {
+      this.showToast('info', 'Forbidden: current role cannot update status');
+      return;
+    }
+    this.returnTargetStatus = targetStatus;
+    this.returnNote = '';
+    this.returningStatusLc = r;
+  }
+
+  async submitReturnStatus() {
+    if (!this.returningStatusLc) return;
+    const r = this.returningStatusLc;
+    const targetStatus = this.returnTargetStatus;
+    const note = this.returnNote;
+    try {
+      await this.dataStore.updateLCStatus(r.id, {
+        newStatus: targetStatus,
+        userId: r.assignedTo,
+        notes: `Returned to ${targetStatus}` + (note ? `: ${note}` : ''),
+      });
+      this.showToast('success', `${r.urn} → ${targetStatus}`);
+      this.returningStatusLc = null;
     } catch (e: any) {
       this.showToast('info', e.message || 'Action failed');
     }
@@ -580,6 +669,12 @@ export class QueueComponent implements OnInit {
   formatDateTime(iso: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  formatExceptionDuration(minutes: number): string {
+    if (!minutes || minutes <= 0) return '—';
+    if (minutes < 60) return `${minutes}m`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 
   formatElapsed(r: any): string {
