@@ -456,6 +456,7 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 		lc.PreviousStatus = &prev
 		lc.Status = models.StatusException
 		lc.ExceptionStartedAt = &now
+		lc.ExceptionResolvedAt = nil
 		if strings.TrimSpace(req.ExceptionReason) != "" {
 			r := strings.TrimSpace(req.ExceptionReason)
 			lc.ExceptionReason = &r
@@ -483,6 +484,7 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 			deltaMin = 0
 		}
 		lc.ExceptionTotalMinutes += deltaMin
+		lc.ExceptionResolvedAt = &now
 		lc.PreviousStatus = nil
 		action = "Resolve Exception"
 	}

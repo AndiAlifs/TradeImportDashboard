@@ -176,10 +176,15 @@ import { TranslationService } from '../services/translation.service';
                   <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
                   <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
                   <div class="timeline-desc">
-                    <span *ngIf="selectedLc.exceptionReason" style="display:block">{{ selectedLc.exceptionReason }}</span>
+                    <span *ngIf="selectedLc.exceptionReason" style="display:block;margin-bottom:0.4rem">{{ selectedLc.exceptionReason }}</span>
                     <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.25rem;font-size:0.82em;color:var(--text-muted)">
+                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</span>
+                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="selectedLc.status !== 'Exception' && selectedLc.exceptionResolvedAt">{{ formatDateTime(selectedLc.exceptionResolvedAt) }}</ng-container><ng-container *ngIf="selectedLc.status === 'Exception'"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="selectedLc.status !== 'Exception' && !selectedLc.exceptionResolvedAt">—</ng-container></span>
+                      <span *ngIf="selectedLc.exceptionTotalMinutes > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</span>
+                    </div>
                     <ng-container *ngIf="selectedLc.status !== 'Exception'">
-                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}<ng-container *ngIf="selectedLc.exceptionTotalMinutes > 0"> · {{ 'timeline.exception_duration' | translate }}: {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</ng-container></span>
+                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}</span>
                     </ng-container>
                   </div>
                 </div>
