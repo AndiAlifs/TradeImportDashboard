@@ -380,22 +380,29 @@ func isValidTransition(fromStatus, toStatus string) bool {
 			models.StatusException:          true,
 		},
 		models.StatusCheckingUnderlying: {
-			models.StatusDrafting:  true,
-			models.StatusReleased:  true,
-			models.StatusBreached:  true,
-			models.StatusException: true,
+			models.StatusDrafting:               true,
+			models.StatusReleased:               true,
+			models.StatusBreached:               true,
+			models.StatusBreachedWithException:  true,
+			models.StatusException:              true,
 		},
 		models.StatusBreached: {
 			models.StatusCheckingUnderlying: true,
 			models.StatusReleased:           true,
 			models.StatusException:          true,
 		},
-		models.StatusException: {
-			models.StatusReceived:           true,
-			models.StatusDrafting:           true,
+		models.StatusBreachedWithException: {
 			models.StatusCheckingUnderlying: true,
-			models.StatusBreached:           true,
 			models.StatusReleased:           true,
+			models.StatusException:          true,
+		},
+		models.StatusException: {
+			models.StatusReceived:               true,
+			models.StatusDrafting:               true,
+			models.StatusCheckingUnderlying:     true,
+			models.StatusBreached:               true,
+			models.StatusBreachedWithException:  true,
+			models.StatusReleased:               true,
 		},
 	}
 	return allowed[fromStatus][toStatus]
@@ -451,6 +458,18 @@ func applyStatusTransition(lc *models.LC, req updateStatusRequest, now time.Time
 			notes = "Released"
 		}
 		action = "Release"
+	case models.StatusBreached:
+		lc.Status = models.StatusBreached
+		if notes == "" {
+			notes = "SLA breached"
+		}
+		action = "Mark Breached"
+	case models.StatusBreachedWithException:
+		lc.Status = models.StatusBreachedWithException
+		if notes == "" {
+			notes = "SLA breached (effective time after exception deduction)"
+		}
+		action = "Mark Breached with Exception"
 	case models.StatusException:
 		prev := lc.Status
 		lc.PreviousStatus = &prev

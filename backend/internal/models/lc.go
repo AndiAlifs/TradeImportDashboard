@@ -3,21 +3,23 @@ package models
 import "time"
 
 const (
-	StatusReceived           = "Received"
-	StatusDrafting           = "Drafting"
-	StatusCheckingUnderlying = "Checking Underlying"
-	StatusReleased           = "Released"
-	StatusBreached           = "Breached"
-	StatusException          = "Exception"
+	StatusReceived                = "Received"
+	StatusDrafting                = "Drafting"
+	StatusCheckingUnderlying      = "Checking Underlying"
+	StatusReleased                = "Released"
+	StatusBreached                = "Breached"
+	StatusBreachedWithException   = "Breached with Exception"
+	StatusException               = "Exception"
 )
 
 var AllowedStatuses = map[string]bool{
-	StatusReceived:           true,
-	StatusDrafting:           true,
-	StatusCheckingUnderlying: true,
-	StatusReleased:           true,
-	StatusBreached:           true,
-	StatusException:          true,
+	StatusReceived:              true,
+	StatusDrafting:              true,
+	StatusCheckingUnderlying:    true,
+	StatusReleased:              true,
+	StatusBreached:              true,
+	StatusBreachedWithException: true,
+	StatusException:             true,
 }
 
 type LC struct {

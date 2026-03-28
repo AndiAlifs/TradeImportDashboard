@@ -468,7 +468,15 @@ export class AllLcsComponent implements OnInit {
   }
 
   statusClass(status: string): string {
-    const map: any = { 'Received': 'received', 'Drafting': 'drafting', 'Checking Underlying': 'checking', 'Released': 'released', 'Breached': 'breached', 'Exception': 'exception' };
+    const map: any = {
+      'Received': 'received',
+      'Drafting': 'drafting',
+      'Checking Underlying': 'checking',
+      'Released': 'released',
+      'Breached': 'breached',
+      'Breached with Exception': 'breached',
+      'Exception': 'exception'
+    };
     return map[status] || 'received';
   }
 
@@ -480,6 +488,10 @@ export class AllLcsComponent implements OnInit {
       if (total <= warningThreshold) return `<span class="sla-indicator green">✓ ${total}m</span>`;
       if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
       return `<span class="sla-indicator red">✗ ${total}m</span>`;
+    }
+    if (r.status === 'Breached with Exception') {
+      const elapsed = this.getElapsedMinutes(r);
+      return `<span class="sla-indicator orange">⚠ ${this.ts.translate('sla.breached_exception')} (${elapsed}m)</span>`;
     }
     const elapsed = this.getElapsedMinutes(r);
     if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;

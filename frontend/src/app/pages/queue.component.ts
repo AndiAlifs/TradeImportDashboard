@@ -700,7 +700,15 @@ export class QueueComponent implements OnInit {
   }
 
   statusClass(status: string): string {
-    const map: any = { 'Received': 'received', 'Drafting': 'drafting', 'Checking Underlying': 'checking', 'Released': 'released', 'Breached': 'breached', 'Exception': 'exception' };
+    const map: any = {
+      'Received': 'received',
+      'Drafting': 'drafting',
+      'Checking Underlying': 'checking',
+      'Released': 'released',
+      'Breached': 'breached',
+      'Breached with Exception': 'breached',
+      'Exception': 'exception'
+    };
     return map[status] || 'received';
   }
 

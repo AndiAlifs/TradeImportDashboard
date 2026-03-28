@@ -830,6 +830,10 @@ body {
   color: var(--danger);
 }
 
+.sla-indicator.orange {
+  color: #ea580c;
+}
+
 /* ---------- Action Buttons ---------- */
 .action-btn {
   padding: 0.4rem 0.85rem;

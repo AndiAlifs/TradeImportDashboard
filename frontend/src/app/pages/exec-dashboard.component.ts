@@ -431,7 +431,8 @@ export class ExecDashboardComponent implements OnInit {
     const sla = this.sla();
     return records.filter(r => {
       const elapsed = this.getElapsedMinutes(r);
-      return (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached';
+      return (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') ||
+             r.status === 'Breached' || r.status === 'Breached with Exception';
     }).length;
   }
 
