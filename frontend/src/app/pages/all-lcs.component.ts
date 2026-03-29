@@ -66,7 +66,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <tr *ngIf="filteredRecords().length === 0">
                 <td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
               </tr>
-              <tr *ngFor="let r of filteredRecords(); let i = index">
+              <tr *ngFor="let r of filteredRecords(); let i = index" [class.at-risk-row]="isAtRisk(r)">
                 <td style="color:var(--text-muted)">{{ i + 1 }}</td>
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
                 <td><span class="type-badge" [ngClass]="r.transactionType === 'Import' ? 'import' : 'export'">{{ r.transactionType }}</span></td>
@@ -478,6 +478,13 @@ export class AllLcsComponent implements OnInit {
       'Exception': 'exception'
     };
     return map[status] || 'received';
+  }
+
+  isAtRisk(r: any): boolean {
+    if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
+    const elapsed = this.getElapsedMinutes(r);
+    const max = this.dataStore.slaConfig().slaMaxMinutes;
+    return elapsed >= (max * 0.75) && elapsed <= max;
   }
 
   slaIndicatorHtml(r: any): string {

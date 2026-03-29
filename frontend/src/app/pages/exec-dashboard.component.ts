@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DashboardDateRange, DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeAverageStageDurations, findLongestStage } from '../utils/stage-duration';
+import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
 
 type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
 
@@ -217,6 +217,214 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
         </div>
       </div>
 
+      <!-- Staff & Officer Performance -->
+      <div class="data-table-wrapper" style="margin-top:1.25rem">
+        <div class="table-header">
+          <h3>{{ 'exec.staff_performance_title' | translate }}</h3>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>{{ 'exec.col_name' | translate }}</th>
+              <th>{{ 'exec.col_role' | translate }}</th>
+              <th>{{ 'exec.col_volume' | translate }}</th>
+              <th>{{ 'exec.col_breaches' | translate }}</th>
+              <th>{{ 'exec.col_compliance' | translate }}</th>
+              <th>{{ 'exec.col_avg_time' | translate }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="staffPerformance().length === 0">
+              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+            </tr>
+            <tr *ngFor="let s of staffPerformance()">
+              <td><strong>{{ s.name }}</strong></td>
+              <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
+              <td>{{ s.volume }}</td>
+              <td style="cursor: pointer" (click)="showBreachDetails(s)" [style.color]="s.breaches > 0 ? 'var(--danger)' : 'var(--text-secondary)'">
+                <strong *ngIf="s.breaches > 0" style="text-decoration:underline">{{ s.breaches }}</strong>
+                <span *ngIf="s.breaches === 0">{{ s.breaches }}</span>
+              </td>
+              <td [style.color]="s.compliancePct < 90 ? 'var(--danger)' : 'var(--success)'"><strong>{{ s.compliancePct }}%</strong></td>
+              <td>{{ s.avgTime > 0 ? s.avgTime + 'm' : '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Breached L/Cs Modal -->
+      <div class="modal-overlay" [class.active]="!!selectedBreachStats" (click)="selectedBreachStats = null">
+        <div class="modal-container form-card" *ngIf="selectedBreachStats" (click)="$event.stopPropagation()" style="max-width:500px">
+          <div class="modal-header">
+            <div>
+              <h3 style="margin:0;font-size:1rem">{{ 'exec.col_breaches' | translate }}: {{ selectedBreachStats.name }} ({{ selectedBreachStats.role }})</h3>
+            </div>
+            <button class="modal-close" (click)="selectedBreachStats = null">×</button>
+          </div>
+          <div class="modal-body table-scroll" style="max-height:300px;padding:0">
+            <table class="data-table" style="font-size:0.8rem">
+              <thead>
+                <tr>
+                  <th style="padding:0.6rem 1rem">URN</th>
+                  <th style="padding:0.6rem 1rem">Status</th>
+                  <th style="padding:0.6rem 1rem">Elapsed</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of selectedBreachStats.breachedLcs">
+                  <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                  <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+                  <td class="elapsed-time" style="padding:0.6rem 1rem">{{ formatElapsed(r) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- LC Detail Modal -->
+      <div class="modal-overlay" [class.active]="!!selectedLc" (click)="selectedLc = null">
+        <div class="modal-container form-card" *ngIf="selectedLc" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <div>
+              <h3>{{ selectedLc.urn }}</h3>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">[{{ selectedLc.transactionType }}] {{ selectedLc.subject }}</div>
+            </div>
+            <button class="modal-close" (click)="selectedLc = null">×</button>
+          </div>
+          <div class="modal-body table-scroll" style="max-height:60vh;padding:1.5rem">
+            <div class="timeline">
+              <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ 'timeline.received' | translate }}</div>
+                  <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
+                  <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
+                </div>
+              </div>
+              <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ 'timeline.drafting' | translate }}</div>
+                  <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
+                  <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
+                </div>
+              </div>
+              <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ 'timeline.checking' | translate }}</div>
+                  <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
+                  <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
+                </div>
+              </div>
+              <div *ngIf="selectedLc.exceptionStartedAt || selectedLc.exceptionTotalMinutes > 0" class="timeline-item" [ngClass]="selectedLc.status === 'Exception' ? 'exception active' : 'exception completed'">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
+                  <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
+                  <div class="timeline-desc">
+                    <span *ngIf="selectedLc.exceptionReason" style="display:block;margin-bottom:0.4rem">{{ selectedLc.exceptionReason }}</span>
+                    <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
+                    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.25rem;font-size:0.82em;color:var(--text-muted)">
+                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</span>
+                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="selectedLc.status !== 'Exception' && selectedLc.exceptionResolvedAt">{{ formatDateTime(selectedLc.exceptionResolvedAt) }}</ng-container><ng-container *ngIf="selectedLc.status === 'Exception'"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="selectedLc.status !== 'Exception' && !selectedLc.exceptionResolvedAt">—</ng-container></span>
+                      <span *ngIf="selectedLc.exceptionTotalMinutes > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</span>
+                    </div>
+                    <ng-container *ngIf="selectedLc.status !== 'Exception'">
+                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}</span>
+                    </ng-container>
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                  <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
+                  <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
+                  <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stage-duration-card" *ngIf="selectedLc">
+              <div class="stage-duration-header">
+                <h4>{{ 'timeline.stage_duration' | translate }}</h4>
+                <span *ngIf="getLcBottleneck(selectedLc) as bottleneck" class="stage-duration-pill">
+                  {{ 'timeline.longest_stage' | translate }}: {{ bottleneck.labelKey | translate }} ({{ formatMinutesLabel(bottleneck.minutes) }})
+                </span>
+              </div>
+
+              <div *ngIf="getLcStageDurations(selectedLc).length === 0" class="stage-duration-empty">
+                {{ 'timeline.no_stage_duration' | translate }}
+              </div>
+
+              <div class="stage-share-wrap" *ngIf="getLcStageDurations(selectedLc).length > 0">
+                <div class="stage-share-title">{{ 'timeline.stage_share' | translate }}</div>
+                <div class="stage-share-bar">
+                  <div
+                    *ngFor="let segment of getStageShareSegments(selectedLc)"
+                    class="stage-share-segment"
+                    [ngClass]="segment.className"
+                    [style.width.%]="segment.percent"
+                    [title]="(segment.labelKey | translate) + ' ' + formatPercent(segment.percent) + ' (' + formatMinutesLabel(segment.minutes) + ')'">
+                  </div>
+                </div>
+                <div class="stage-share-legend">
+                  <span class="stage-share-item" *ngFor="let segment of getStageShareSegments(selectedLc)">
+                    <span class="stage-share-dot" [ngClass]="segment.className"></span>
+                    <span>{{ segment.labelKey | translate }}</span>
+                    <strong>{{ formatPercent(segment.percent) }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <div class="stage-duration-list" *ngIf="getLcStageDurations(selectedLc).length > 0">
+                <div class="stage-duration-row" *ngFor="let stage of getLcStageDurations(selectedLc)">
+                  <div class="stage-duration-label">
+                    {{ stage.labelKey | translate }}
+                    <span *ngIf="stage.isActive" class="stage-live-tag">{{ 'timeline.live' | translate }}</span>
+                  </div>
+                  <div class="stage-duration-track">
+                    <div class="stage-duration-fill" [class.longest]="stage.isLongest" [style.width.%]="stageWidth(stage.minutes, selectedLc)"></div>
+                  </div>
+                  <div class="stage-duration-value">{{ formatMinutesLabel(stage.minutes) }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stage-duration-card" *ngIf="exceptionHistory.length > 0" style="margin-top: 1rem;">
+              <div class="stage-duration-header">
+                <h4 style="margin:0;font-size:0.9rem;color:var(--text-primary)">{{ 'timeline.exception_history' | translate }}</h4>
+              </div>
+              <div class="table-scroll" style="max-height: 200px">
+                <table class="data-table" style="font-size:0.75rem;margin-top:0.5rem">
+                  <thead>
+                    <tr>
+                      <th style="padding:0.4rem">{{ 'timeline.col_started_at' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_reason' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_resolved_at' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_duration' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_returned_to' | translate }}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let ex of exceptionHistory">
+                      <td style="padding:0.4rem;white-space:nowrap">{{ formatDateTime(ex.startedAt) }}</td>
+                      <td style="padding:0.4rem">{{ ex.reason }}</td>
+                      <td style="padding:0.4rem;white-space:nowrap">{{ ex.resolvedAt ? formatDateTime(ex.resolvedAt) : '—' }}</td>
+                      <td style="padding:0.4rem">{{ ex.resolutionMinutes != null ? ex.resolutionMinutes : '—' }}</td>
+                      <td style="padding:0.4rem">{{ ex.resolvedToStatus || '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
       <!-- Combined Recent Activity -->
       <div class="data-table-wrapper" style="margin-top:1.25rem">
         <div class="table-header">
@@ -248,6 +456,10 @@ export class ExecDashboardComponent implements OnInit {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
   private readonly comparisonMetricStorageKey = 'shila_exec_sla_compare_metric';
+
+  selectedBreachStats: any = null;
+  selectedLc: any = null;
+  exceptionHistory: any[] = [];
 
   readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
     { value: 'today', labelKey: 'date.today' },
@@ -298,6 +510,57 @@ export class ExecDashboardComponent implements OnInit {
     if (released.length === 0) return 0;
     const totalMin = released.reduce((sum, r) => sum + Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000), 0);
     return Math.round(totalMin / released.length);
+  });
+
+  staffPerformance = computed(() => {
+    const lcs = this.dataStore.lcs();
+    const sla = this.sla();
+    const map = new Map<string, any>();
+    
+    lcs.forEach(r => {
+      if (!r.assignedTo) return;
+      const key = `Staff-${r.assignedTo}`;
+      if (!map.has(key)) map.set(key, { name: r.assignedTo, role: 'Staff', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [] });
+      const stats = map.get(key);
+      stats.volume++;
+      const elapsed = this.getElapsedMinutes(r);
+      const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      if (isBreached) {
+        stats.breaches++;
+        stats.breachedLcs.push(r);
+      }
+      
+      if (r.status === 'Released') {
+         stats.totalMins += this.getElapsedMinutes(r);
+         stats.timeCount++;
+      }
+    });
+
+    lcs.forEach(r => {
+      if (!r.approvedBy) return;
+      const key = `Officer-${r.approvedBy}`;
+      if (!map.has(key)) map.set(key, { name: r.approvedBy, role: 'Officer', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [] });
+      const stats = map.get(key);
+      stats.volume++;
+      const elapsed = this.getElapsedMinutes(r);
+      const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      if (isBreached) {
+        stats.breaches++;
+        stats.breachedLcs.push(r);
+      }
+      if (r.status === 'Released') {
+         stats.totalMins += this.getElapsedMinutes(r);
+         stats.timeCount++;
+      }
+    });
+
+    return Array.from(map.values()).map(s => {
+      return {
+        ...s,
+        compliancePct: s.volume > 0 ? Math.round(((s.volume - s.breaches) / s.volume) * 100) : 100,
+        avgTime: s.timeCount > 0 ? Math.round(s.totalMins / s.timeCount) : 0
+      };
+    }).sort((a,b) => b.volume - a.volume);
   });
 
   recentEvents = computed(() => this.dataStore.events().slice(0, 8));
@@ -533,6 +796,92 @@ export class ExecDashboardComponent implements OnInit {
       total = Math.round((Date.now() - new Date(r.receivedAt).getTime()) / 60000);
     }
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
+  }
+
+  showBreachDetails(s: any) {
+    if (s.breaches === 0) return;
+    this.selectedBreachStats = s;
+  }
+
+  async showLcDetails(r: any) {
+    this.selectedLc = r;
+    this.exceptionHistory = [];
+    this.exceptionHistory = await this.dataStore.getLCExceptions(r.id);
+  }
+
+  formatDateTime(iso: string): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  formatExceptionDuration(minutes: number): string {
+    if (!minutes || minutes <= 0) return '—';
+    if (minutes < 60) return `${minutes}m`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+  }
+
+  getLcStageDurations(r: any): StageDuration[] {
+    return computeLcStageDurations(r);
+  }
+
+  getLcBottleneck(r: any): StageDuration | null {
+    return findLongestStage(this.getLcStageDurations(r));
+  }
+
+  stageWidth(minutes: number, r: any): number {
+    const stages = this.getLcStageDurations(r);
+    const maxMinutes = stages.reduce((max, stage) => Math.max(max, stage.minutes), 0);
+    if (maxMinutes <= 0) return 0;
+    return Math.max(8, Math.round((minutes / maxMinutes) * 100));
+  }
+
+  formatMinutesLabel(minutes: number): string {
+    return formatMinutesLabel(minutes);
+  }
+
+  getStageShareSegments(r: any): Array<{ labelKey: string; percent: number; className: string; minutes: number }> {
+    const stages = this.getLcStageDurations(r);
+    const total = stages.reduce((sum, stage) => sum + stage.minutes, 0);
+    if (total <= 0) return [];
+    return stages.map((stage) => ({
+      labelKey: stage.labelKey,
+      percent: Math.round((stage.minutes / total) * 1000) / 10,
+      className: this.stageShareClass(stage.key),
+      minutes: stage.minutes,
+    }));
+  }
+
+  formatPercent(value: number): string {
+    return `${value.toFixed(1)}%`;
+  }
+
+  private stageShareClass(key: StageDuration['key']): string {
+    const map: Record<StageDuration['key'], string> = {
+      inbox: 'stage-share-inbox',
+      drafting: 'stage-share-drafting',
+      checking: 'stage-share-checking',
+      exception: 'stage-share-exception',
+    };
+    return map[key];
+  }
+
+  statusClass(status: string): string {
+    const map: any = {
+      'Received': 'received',
+      'Drafting': 'drafting',
+      'Checking Underlying': 'checking',
+      'Released': 'released',
+      'Breached': 'breached',
+      'Breached with Exception': 'breached',
+      'Exception': 'exception'
+    };
+    return map[status] || 'received';
+  }
+
+  formatElapsed(r: any): string {
+    const mins = this.getElapsedMinutes(r);
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
   }
 
   private mapStagesForComparison(stages: StageDuration[]) {

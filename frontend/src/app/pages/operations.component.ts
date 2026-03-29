@@ -123,7 +123,7 @@ import { TranslationService } from '../services/translation.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of filteredData().slice(0, 15)">
+              <tr *ngFor="let r of filteredData().slice(0, 15)" [class.at-risk-row]="isAtRisk(r)">
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
                 <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
                 <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.assignedTo || '—' }}</td>
@@ -306,6 +306,13 @@ export class OperationsComponent implements OnInit {
       'Exception': 'exception'
     };
     return map[status] || 'received';
+  }
+
+  isAtRisk(r: any): boolean {
+    if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
+    const elapsed = this.getElapsedMinutes(r);
+    const max = this.sla().slaMaxMinutes;
+    return elapsed >= (max * 0.75) && elapsed <= max;
   }
 
   slaIndicatorHtml(r: any): string {

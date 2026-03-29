@@ -44,7 +44,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <tr *ngIf="filteredRecords().length === 0">
                 <td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
               </tr>
-              <tr *ngFor="let r of filteredRecords(); let i = index">
+              <tr *ngFor="let r of filteredRecords(); let i = index" [class.at-risk-row]="isAtRisk(r)">
                 <td style="color:var(--text-muted)">{{ i + 1 }}</td>
                 <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
                 <td style="font-size:0.8rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
@@ -62,8 +62,8 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                     </ng-container>
                     <ng-container *ngSwitchCase="'Drafting'">
                       <button class="action-btn warning" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-checking')">{{ 'action.start_checking' | translate }}</button>
-                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
-                      <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Received')">Return to Received</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Received')">{{ 'action.return_to' | translate }} {{ 'timeline.received' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Checking Underlying'">
                       <div style="display:flex;flex-direction:column;gap:4px">
@@ -72,8 +72,8 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                           <option *ngFor="let o of officers()" [value]="o.name">{{ o.name }}</option>
                         </select>
                         <button class="action-btn success" [disabled]="!canRelease()" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
-                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
-                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Drafting')">Return to Drafting</button>
+                          <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
+                          <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Drafting')">{{ 'action.return_to' | translate }} {{ 'timeline.drafting' | translate }}</button>
                       </div>
                     </ng-container>
                     <span *ngSwitchCase="'Released'" class="action-btn completed">{{ 'action.completed' | translate }}</span>
@@ -207,17 +207,17 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
 
             <div class="stage-duration-card" *ngIf="exceptionHistory.length > 0" style="margin-top: 1rem;">
               <div class="stage-duration-header">
-                <h4 style="margin:0;font-size:0.9rem;color:var(--text-primary)">Exception History</h4>
+                <h4 style="margin:0;font-size:0.9rem;color:var(--text-primary)">{{ 'timeline.exception_history' | translate }}</h4>
               </div>
               <div class="table-scroll" style="max-height: 200px">
                 <table class="data-table" style="font-size:0.75rem;margin-top:0.5rem">
                   <thead>
                     <tr>
-                      <th style="padding:0.4rem">Started At</th>
-                      <th style="padding:0.4rem">Reason</th>
-                      <th style="padding:0.4rem">Resolved At</th>
-                      <th style="padding:0.4rem">Duration (m)</th>
-                      <th style="padding:0.4rem">Returned To</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_started_at' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_reason' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_resolved_at' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_duration' | translate }}</th>
+                      <th style="padding:0.4rem">{{ 'timeline.col_returned_to' | translate }}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -253,16 +253,16 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <input type="number" class="search-input" style="width:100%" [(ngModel)]="resolutionMinutes" min="0" />
             </div>
             <div>
-              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Return to Status</label>
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">{{ 'action.return_to' | translate }}</label>
               <select class="search-input" style="width:100%" [(ngModel)]="resolutionNextStatus">
-                <option value="Drafting">Drafting</option>
-                <option value="Checking Underlying">Checking Underlying</option>
-                <option value="Received">Received</option>
+                <option value="Drafting">{{ 'timeline.drafting' | translate }}</option>
+                <option value="Checking Underlying">{{ 'timeline.checking' | translate }}</option>
+                <option value="Received">{{ 'timeline.received' | translate }}</option>
               </select>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
-              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="resolvingExceptionLc = null">Cancel</button>
-              <button class="action-btn success" (click)="submitResolveException()">Submit</button>
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="resolvingExceptionLc = null">{{ 'action.cancel' | translate }}</button>
+              <button class="action-btn success" (click)="submitResolveException()">{{ 'action.submit' | translate }}</button>
             </div>
           </div>
         </div>
@@ -280,12 +280,12 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
           </div>
           <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
             <div>
-              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Reason</label>
-              <input type="text" class="search-input" style="width:100%" [(ngModel)]="exceptionNote" placeholder="Enter reason" />
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">{{ 'action.reason' | translate }}</label>
+              <input type="text" class="search-input" style="width:100%" [(ngModel)]="exceptionNote" [placeholder]="'action.reason' | translate" />
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
-              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="markingExceptionLc = null">Cancel</button>
-              <button class="action-btn danger" (click)="submitMarkException()">Submit</button>
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="markingExceptionLc = null">{{ 'action.cancel' | translate }}</button>
+              <button class="action-btn danger" (click)="submitMarkException()">{{ 'action.submit' | translate }}</button>
             </div>
           </div>
         </div>
@@ -296,19 +296,19 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
         <div class="modal-container form-card" *ngIf="returningStatusLc" (click)="$event.stopPropagation()" style="max-width: 400px;">
           <div class="modal-header">
             <div>
-              <h3 style="margin:0;font-size:1rem">Return to {{ returnTargetStatus }}</h3>
+              <h3 style="margin:0;font-size:1rem">{{ 'action.return_to' | translate }} {{ returnTargetStatus }}</h3>
               <div style="font-size:0.75rem;color:var(--text-secondary)">{{ returningStatusLc.urn }}</div>
             </div>
             <button class="modal-close" (click)="returningStatusLc = null">×</button>
           </div>
           <div class="modal-body" style="display:flex;flex-direction:column;gap:1rem;">
             <div>
-              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">Reason / Notes</label>
-              <input type="text" class="search-input" style="width:100%" [(ngModel)]="returnNote" placeholder="Enter reason for returning" />
+              <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">{{ 'action.notes' | translate }}</label>
+              <input type="text" class="search-input" style="width:100%" [(ngModel)]="returnNote" [placeholder]="'action.notes' | translate" />
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
-              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="returningStatusLc = null">Cancel</button>
-              <button class="action-btn primary" (click)="submitReturnStatus()">Submit</button>
+              <button class="action-btn" style="background:var(--bg-secondary);color:var(--text-secondary)" (click)="returningStatusLc = null">{{ 'action.cancel' | translate }}</button>
+              <button class="action-btn primary" (click)="submitReturnStatus()">{{ 'action.submit' | translate }}</button>
             </div>
           </div>
         </div>
@@ -726,6 +726,13 @@ export class QueueComponent implements OnInit {
 
   private getRemainingSlaMinutes(r: any): number {
     return this.dataStore.slaConfig().slaMaxMinutes - this.getElapsedMinutes(r);
+  }
+
+  isAtRisk(r: any): boolean {
+    if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
+    const elapsed = this.getElapsedMinutes(r);
+    const max = this.dataStore.slaConfig().slaMaxMinutes;
+    return elapsed >= (max * 0.75) && elapsed <= max;
   }
 
   private formatMinutesCompact(minutes: number): string {
