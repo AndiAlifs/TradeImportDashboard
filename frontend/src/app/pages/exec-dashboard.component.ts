@@ -234,22 +234,25 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
             </tr>
           </thead>
           <tbody>
-            <tr *ngIf="staffPerformance().length === 0">
-              <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
-            </tr>
-            <tr *ngFor="let s of staffPerformance()">
-              <td><strong>{{ s.name }}</strong></td>
-              <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
-              <td>
-                <a class="urn-link" (click)="showVolumeDetails(s)"><strong>{{ s.volume }}</strong></a>
-              </td>
-              <td style="cursor: pointer" (click)="showBreachDetails(s)" [style.color]="s.breaches > 0 ? 'var(--danger)' : 'var(--text-secondary)'">
-                <strong *ngIf="s.breaches > 0" style="text-decoration:underline">{{ s.breaches }}</strong>
-                <span *ngIf="s.breaches === 0">{{ s.breaches }}</span>
-              </td>
-              <td [style.color]="s.compliancePct < 90 ? 'var(--danger)' : 'var(--success)'"><strong>{{ s.compliancePct }}%</strong></td>
-              <td>{{ s.avgTime > 0 ? s.avgTime + 'm' : '—' }}</td>
-            </tr>
+            @for (s of staffPerformance(); track s.name) {
+              <tr>
+                <td><strong>{{ s.name }}</strong></td>
+                <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
+                <td>
+                  <a class="urn-link" (click)="showVolumeDetails(s)"><strong>{{ s.volume }}</strong></a>
+                </td>
+                <td style="cursor: pointer" (click)="showBreachDetails(s)" [style.color]="s.breaches > 0 ? 'var(--danger)' : 'var(--text-secondary)'">
+                  <strong *ngIf="s.breaches > 0" style="text-decoration:underline">{{ s.breaches }}</strong>
+                  <span *ngIf="s.breaches === 0">{{ s.breaches }}</span>
+                </td>
+                <td [style.color]="s.compliancePct < 90 ? 'var(--danger)' : 'var(--success)'"><strong>{{ s.compliancePct }}%</strong></td>
+                <td>{{ s.avgTime > 0 ? s.avgTime + 'm' : '—' }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+              </tr>
+            }
           </tbody>
         </table>
       </div>
@@ -275,16 +278,19 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let r of selectedVolumeStats.relatedLcs">
-                  <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                  <td style="padding:0.6rem 1rem">{{ r.transactionType || '—' }}</td>
-                  <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
-                  <td style="padding:0.6rem 1rem">{{ r.assignedTo || '—' }}</td>
-                  <td style="padding:0.6rem 1rem">{{ r.approvedBy || '—' }}</td>
-                </tr>
-                <tr *ngIf="selectedVolumeStats.relatedLcs.length === 0">
-                  <td colspan="5" style="text-align:center;color:var(--text-muted);padding:1rem">{{ 'recent.empty' | translate }}</td>
-                </tr>
+                @for (r of selectedVolumeStats.relatedLcs; track r.id || r.urn) {
+                  <tr>
+                    <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                    <td style="padding:0.6rem 1rem">{{ r.transactionType || '—' }}</td>
+                    <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+                    <td style="padding:0.6rem 1rem">{{ r.assignedTo || '—' }}</td>
+                    <td style="padding:0.6rem 1rem">{{ r.approvedBy || '—' }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" style="text-align:center;color:var(--text-muted);padding:1rem">{{ 'recent.empty' | translate }}</td>
+                  </tr>
+                }
               </tbody>
             </table>
           </div>
@@ -310,11 +316,17 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let r of selectedBreachStats.breachedLcs">
-                  <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                  <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
-                  <td class="elapsed-time" style="padding:0.6rem 1rem">{{ formatElapsed(r) }}</td>
-                </tr>
+                @for (r of selectedBreachStats.breachedLcs; track r.id || r.urn) {
+                  <tr>
+                    <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                    <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+                    <td class="elapsed-time" style="padding:0.6rem 1rem">{{ formatElapsed(r) }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3" style="text-align:center;color:var(--text-muted);padding:1rem">{{ 'recent.empty' | translate }}</td>
+                  </tr>
+                }
               </tbody>
             </table>
           </div>
@@ -448,13 +460,19 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let ex of exceptionHistory">
-                      <td style="padding:0.4rem;white-space:nowrap">{{ formatDateTime(ex.startedAt) }}</td>
-                      <td style="padding:0.4rem">{{ ex.reason }}</td>
-                      <td style="padding:0.4rem;white-space:nowrap">{{ ex.resolvedAt ? formatDateTime(ex.resolvedAt) : '—' }}</td>
-                      <td style="padding:0.4rem">{{ ex.resolutionMinutes != null ? ex.resolutionMinutes : '—' }}</td>
-                      <td style="padding:0.4rem">{{ ex.resolvedToStatus || '—' }}</td>
-                    </tr>
+                    @for (ex of exceptionHistory; track ex.id || $index) {
+                      <tr>
+                        <td style="padding:0.4rem;white-space:nowrap">{{ formatDateTime(ex.startedAt) }}</td>
+                        <td style="padding:0.4rem">{{ ex.reason }}</td>
+                        <td style="padding:0.4rem;white-space:nowrap">{{ ex.resolvedAt ? formatDateTime(ex.resolvedAt) : '—' }}</td>
+                        <td style="padding:0.4rem">{{ ex.resolutionMinutes != null ? ex.resolutionMinutes : '—' }}</td>
+                        <td style="padding:0.4rem">{{ ex.resolvedToStatus || '—' }}</td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="5" style="text-align:center;color:var(--text-muted);padding:1rem">{{ 'recent.empty' | translate }}</td>
+                      </tr>
+                    }
                   </tbody>
                 </table>
               </div>
@@ -477,13 +495,16 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
             </tr>
           </thead>
           <tbody>
-            <tr *ngIf="recentEvents().length === 0">
-              <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
-            </tr>
-            <tr *ngFor="let e of recentEvents()">
-              <td style="white-space:nowrap;font-size:0.775rem;color:var(--text-muted)">{{ formatTime(e.timestamp) }}</td>
-              <td><strong>{{ e.urn }}</strong> → {{ e.to }} <span style="color:var(--text-muted);font-size:0.75rem">by {{ e.user }}</span></td>
-            </tr>
+            @for (e of recentEvents(); track e.id || $index) {
+              <tr>
+                <td style="white-space:nowrap;font-size:0.775rem;color:var(--text-muted)">{{ formatTime(e.timestamp) }}</td>
+                <td><strong>{{ e.urn }}</strong> → {{ e.to }} <span style="color:var(--text-muted);font-size:0.75rem">by {{ e.user }}</span></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+              </tr>
+            }
           </tbody>
         </table>
       </div>

@@ -91,13 +91,16 @@ import { TranslationService } from '../services/translation.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngIf="recentEvents().length === 0">
-                <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
-              </tr>
-              <tr *ngFor="let e of recentEvents()">
-                <td style="white-space:nowrap;font-size:0.775rem;color:var(--text-muted)">{{ formatTime(e.timestamp) }}</td>
-                <td><strong>{{ e.urn }}</strong> → {{ e.to }} <span style="color:var(--text-muted);font-size:0.75rem">by {{ e.user }}</span></td>
-              </tr>
+              @for (e of recentEvents(); track e.id || $index) {
+                <tr>
+                  <td style="white-space:nowrap;font-size:0.775rem;color:var(--text-muted)">{{ formatTime(e.timestamp) }}</td>
+                  <td><strong>{{ e.urn }}</strong> → {{ e.to }} <span style="color:var(--text-muted);font-size:0.75rem">by {{ e.user }}</span></td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>
@@ -123,16 +126,22 @@ import { TranslationService } from '../services/translation.service';
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let r of filteredData().slice(0, 15)" [class.at-risk-row]="isAtRisk(r)">
-                <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
-                <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.assignedTo || '—' }}</td>
-                <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.approvedBy || '—' }}</td>
-                <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
-                <td style="font-size:0.8rem;color:var(--text-muted)">{{ formatTime(r.receivedAt) }}</td>
-                <td class="elapsed-time">{{ formatElapsed(r) }}</td>
-                <td [innerHTML]="slaIndicatorHtml(r)"></td>
-              </tr>
+              @for (r of filteredData().slice(0, 15); track r.id || r.urn) {
+                <tr [class.at-risk-row]="r._isAtRisk">
+                  <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                  <td style="font-size:0.8rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
+                  <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.assignedTo || '—' }}</td>
+                  <td style="font-size:0.8rem;color:var(--text-secondary)">{{ r.approvedBy || '—' }}</td>
+                  <td><span class="status-badge" [ngClass]="r._statusClass"><span class="dot"></span>{{ r.status }}</span></td>
+                  <td style="font-size:0.8rem;color:var(--text-muted)">{{ r._formattedTime }}</td>
+                  <td class="elapsed-time">{{ r._elapsedFormatted }}</td>
+                  <td [innerHTML]="r._slaIndicatorHtml"></td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>
@@ -234,7 +243,20 @@ export class OperationsComponent implements OnInit {
     void this.dataStore.refreshData({ transactionType: this.type });
   }
 
-  filteredData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === this.type));
+  enrichedData = computed(() => {
+    return this.dataStore.lcs().map(r => ({
+      ...r,
+      _receivedAtMillis: r.receivedAt ? new Date(r.receivedAt).getTime() : 0,
+      _elapsedMinutes: this.getElapsedMinutes(r),
+      _statusClass: this.statusClass(r.status),
+      _formattedTime: this.formatTime(r.receivedAt),
+      _elapsedFormatted: this.formatElapsed(r),
+      _slaIndicatorHtml: this.slaIndicatorHtml(r),
+      _isAtRisk: this.isAtRisk(r)
+    }));
+  });
+
+  filteredData = computed(() => this.enrichedData().filter(r => r.transactionType === this.type));
   private sla = computed(() => this.dataStore.slaConfig());
 
   activeCount = computed(() => this.filteredData().filter(r => r.status !== 'Released').length);

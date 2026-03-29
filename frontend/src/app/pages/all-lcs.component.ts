@@ -65,27 +65,30 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               </tr>
             </thead>
             <tbody>
-              <tr *ngIf="filteredRecords().length === 0">
-                <td colspan="11" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
-              </tr>
-              <tr *ngFor="let r of filteredRecords(); let i = index" [class.at-risk-row]="isAtRisk(r)">
-                <td style="color:var(--text-muted)">{{ i + 1 }}</td>
-                <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                <td><span class="type-badge" [ngClass]="r.transactionType === 'Import' ? 'import' : 'export'">{{ r.transactionType }}</span></td>
-                <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
-                <td style="font-size:0.8rem">{{ r.assignedTo }}</td>
-                <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
-                <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatDateOnly(r.receivedAt) }}</td>
-                <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatTime(r.receivedAt) }}</td>
-                <td class="elapsed-time">{{ formatElapsed(r) }}</td>
-                <td [innerHTML]="slaIndicatorHtml(r)"></td>
-                <td>
-                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
-                    <button class="action-btn primary" type="button" (click)="openEditModal(r)" [disabled]="!canEditLc(r)">{{ 'action.edit' | translate }}</button>
-                    <button class="action-btn danger-outline" type="button" (click)="openDeleteModal(r)" [disabled]="!canDeleteLc()">{{ 'action.delete' | translate }}</button>
-                  </div>
-                </td>
-              </tr>
+              @for (r of filteredRecords(); track r.id || r.urn; let i = $index) {
+                <tr [class.at-risk-row]="r._isAtRisk">
+                  <td style="color:var(--text-muted)">{{ i + 1 }}</td>
+                  <td><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                  <td><span class="type-badge" [ngClass]="r.transactionType === 'Import' ? 'import' : 'export'">{{ r.transactionType }}</span></td>
+                  <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
+                  <td style="font-size:0.8rem">{{ r.assignedTo }}</td>
+                  <td><span class="status-badge" [ngClass]="r._statusClass"><span class="dot"></span>{{ r.status }}</span></td>
+                  <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ r._formattedDate }}</td>
+                  <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ r._formattedTime }}</td>
+                  <td class="elapsed-time">{{ r._elapsedFormatted }}</td>
+                  <td [innerHTML]="r._slaIndicatorHtml"></td>
+                  <td>
+                    <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                      <button class="action-btn primary" type="button" (click)="openEditModal(r)" [disabled]="!canEditLc(r)">{{ 'action.edit' | translate }}</button>
+                      <button class="action-btn danger-outline" type="button" (click)="openDeleteModal(r)" [disabled]="!canDeleteLc()">{{ 'action.delete' | translate }}</button>
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="11" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
+                </tr>
+              }
             </tbody>
           </table>
         </div>
@@ -348,8 +351,22 @@ export class AllLcsComponent implements OnInit {
 
   activeAssignees = computed(() => this.dataStore.assignees().filter((item: any) => item?.isActive !== false));
 
+  enrichedRecords = computed(() => {
+    return this.dataStore.lcs().map(r => ({
+      ...r,
+      _receivedAtMillis: r.receivedAt ? new Date(r.receivedAt).getTime() : 0,
+      _elapsedMinutes: this.getElapsedMinutes(r),
+      _statusClass: this.statusClass(r.status),
+      _formattedDate: this.formatDateOnly(r.receivedAt),
+      _formattedTime: this.formatTime(r.receivedAt),
+      _elapsedFormatted: this.formatElapsed(r),
+      _slaIndicatorHtml: this.slaIndicatorHtml(r),
+      _isAtRisk: this.isAtRisk(r)
+    }));
+  });
+
   filteredRecords = computed(() => {
-    let data = this.dataStore.lcs().filter(r => r.transactionType === this.transactionType());
+    let data = this.enrichedRecords().filter(r => r.transactionType === this.transactionType());
     const filter = this.currentFilter();
     const search = this.searchSignal().toLowerCase();
 
@@ -412,11 +429,10 @@ export class AllLcsComponent implements OnInit {
       case 'status':
         return this.compareStatus(a.status, b.status);
       case 'date':
-        return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
       case 'receivedAt':
-        return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
+        return this.compareNumber(a._receivedAtMillis, b._receivedAtMillis);
       case 'elapsed':
-        return this.compareNumber(this.getElapsedMinutes(a), this.getElapsedMinutes(b));
+        return this.compareNumber(a._elapsedMinutes, b._elapsedMinutes);
       case 'sla':
         return this.compareSla(a, b);
       default:

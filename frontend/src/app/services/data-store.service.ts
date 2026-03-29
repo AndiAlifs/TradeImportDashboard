@@ -352,7 +352,24 @@ export class DataStoreService {
       return;
     }
 
-    this.scheduleSilentRefresh();
+    // OPTIMIZED: Update the signal locally instead of fetching the whole list
+    this.lcs.update(currentRecords => {
+      const idx = currentRecords.findIndex(lc => lc.id === payload.lcId);
+      if (idx > -1) {
+        const updatedList = [...currentRecords];
+        updatedList[idx] = {
+          ...updatedList[idx],
+          status: payload.toStatus,
+          // Update any other fields provided by the stream event
+        };
+        return updatedList;
+      }
+      
+      // Fallback: If the record isn't in local state (e.g., brand new creation), 
+      // fetch only the missing record or trigger a debounced refresh
+      this.scheduleSilentRefresh(); 
+      return currentRecords;
+    });
   }
 
   private scheduleSilentRefresh(): void {
