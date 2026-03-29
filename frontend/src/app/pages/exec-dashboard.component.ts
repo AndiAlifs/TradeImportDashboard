@@ -240,7 +240,9 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
             <tr *ngFor="let s of staffPerformance()">
               <td><strong>{{ s.name }}</strong></td>
               <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
-              <td>{{ s.volume }}</td>
+              <td>
+                <a class="urn-link" (click)="showVolumeDetails(s)"><strong>{{ s.volume }}</strong></a>
+              </td>
               <td style="cursor: pointer" (click)="showBreachDetails(s)" [style.color]="s.breaches > 0 ? 'var(--danger)' : 'var(--text-secondary)'">
                 <strong *ngIf="s.breaches > 0" style="text-decoration:underline">{{ s.breaches }}</strong>
                 <span *ngIf="s.breaches === 0">{{ s.breaches }}</span>
@@ -250,6 +252,43 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Volume L/Cs Modal -->
+      <div class="modal-overlay" [class.active]="!!selectedVolumeStats" (click)="selectedVolumeStats = null">
+        <div class="modal-container form-card" *ngIf="selectedVolumeStats" (click)="$event.stopPropagation()" style="max-width:760px">
+          <div class="modal-header">
+            <div>
+              <h3 style="margin:0;font-size:1rem">Volume: {{ selectedVolumeStats.name }} ({{ selectedVolumeStats.role }})</h3>
+            </div>
+            <button class="modal-close" (click)="selectedVolumeStats = null">×</button>
+          </div>
+          <div class="modal-body table-scroll" style="max-height:420px;padding:0">
+            <table class="data-table" style="font-size:0.8rem">
+              <thead>
+                <tr>
+                  <th style="padding:0.6rem 1rem">URN</th>
+                  <th style="padding:0.6rem 1rem">Type</th>
+                  <th style="padding:0.6rem 1rem">Status</th>
+                  <th style="padding:0.6rem 1rem">Assigned</th>
+                  <th style="padding:0.6rem 1rem">Approved</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let r of selectedVolumeStats.relatedLcs">
+                  <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
+                  <td style="padding:0.6rem 1rem">{{ r.transactionType || '—' }}</td>
+                  <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+                  <td style="padding:0.6rem 1rem">{{ r.assignedTo || '—' }}</td>
+                  <td style="padding:0.6rem 1rem">{{ r.approvedBy || '—' }}</td>
+                </tr>
+                <tr *ngIf="selectedVolumeStats.relatedLcs.length === 0">
+                  <td colspan="5" style="text-align:center;color:var(--text-muted);padding:1rem">{{ 'recent.empty' | translate }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Breached L/Cs Modal -->
@@ -457,6 +496,7 @@ export class ExecDashboardComponent implements OnInit {
   private ts = inject(TranslationService);
   private readonly comparisonMetricStorageKey = 'shila_exec_sla_compare_metric';
 
+  selectedVolumeStats: any = null;
   selectedBreachStats: any = null;
   selectedLc: any = null;
   exceptionHistory: any[] = [];
@@ -520,9 +560,10 @@ export class ExecDashboardComponent implements OnInit {
     lcs.forEach(r => {
       if (!r.assignedTo) return;
       const key = `Staff-${r.assignedTo}`;
-      if (!map.has(key)) map.set(key, { name: r.assignedTo, role: 'Staff', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [] });
+      if (!map.has(key)) map.set(key, { name: r.assignedTo, role: 'Staff', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [] });
       const stats = map.get(key);
       stats.volume++;
+      stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
       const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
@@ -539,9 +580,10 @@ export class ExecDashboardComponent implements OnInit {
     lcs.forEach(r => {
       if (!r.approvedBy) return;
       const key = `Officer-${r.approvedBy}`;
-      if (!map.has(key)) map.set(key, { name: r.approvedBy, role: 'Officer', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [] });
+      if (!map.has(key)) map.set(key, { name: r.approvedBy, role: 'Officer', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [] });
       const stats = map.get(key);
       stats.volume++;
+      stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
       const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
@@ -801,6 +843,10 @@ export class ExecDashboardComponent implements OnInit {
   showBreachDetails(s: any) {
     if (s.breaches === 0) return;
     this.selectedBreachStats = s;
+  }
+
+  showVolumeDetails(s: any): void {
+    this.selectedVolumeStats = s;
   }
 
   async showLcDetails(r: any) {
