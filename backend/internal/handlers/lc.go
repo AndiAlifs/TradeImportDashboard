@@ -32,6 +32,16 @@ type updateStatusRequest struct {
 	ApprovedBy       string `json:"approvedBy"`
 }
 
+type updateLCRequest struct {
+	URN             string `json:"urn" binding:"required,max=32"`
+	Subject         string `json:"subject" binding:"required"`
+	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
+	AssignedTo      string `json:"assignedTo"`
+	ReceivedAt      string `json:"receivedAt" binding:"required"`
+	ExceptionReason string `json:"exceptionReason"`
+	ApprovedBy      string `json:"approvedBy"`
+}
+
 var errInvalidTransition = errors.New("invalid status transition")
 
 func (h *Handler) CreateLC(c *gin.Context) {
@@ -365,6 +375,198 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, updated)
 }
 
+func (h *Handler) UpdateLC(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	if !ok {
+		return
+	}
+
+	id, err := parseUintID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req updateLCRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	req.URN = strings.TrimSpace(req.URN)
+	if req.URN == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "urn is required"})
+		return
+	}
+	req.Subject = strings.TrimSpace(req.Subject)
+	if req.Subject == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "subject is required"})
+		return
+	}
+	receivedAt, err := parseClientReceivedAt(req.ReceivedAt)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if !actor.CanAccessTransaction(req.TransactionType) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
+		return
+	}
+
+	var updated models.LC
+	broadcastEvent := LCUpdateEvent{}
+	now := time.Now().UTC()
+
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		var lc models.LC
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lc, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if !actor.CanAccessTransaction(lc.TransactionType) {
+			return errors.New("forbidden: transaction type is out of scope")
+		}
+
+		fromStatus := lc.Status
+
+		lc.URN = req.URN
+		lc.Subject = req.Subject
+		lc.TransactionType = req.TransactionType
+		lc.AssignedTo = strings.TrimSpace(req.AssignedTo)
+		lc.ReceivedAt = receivedAt
+
+		exceptionReason := strings.TrimSpace(req.ExceptionReason)
+		if exceptionReason == "" {
+			lc.ExceptionReason = nil
+		} else {
+			lc.ExceptionReason = &exceptionReason
+		}
+
+		approvedBy := strings.TrimSpace(req.ApprovedBy)
+		if approvedBy == "" {
+			lc.ApprovedBy = nil
+		} else {
+			lc.ApprovedBy = &approvedBy
+		}
+
+		if err := tx.Save(&lc).Error; err != nil {
+			return err
+		}
+
+		event := models.Event{
+			LCID:       lc.ID,
+			URN:        lc.URN,
+			UserID:     fallbackUser(actor.User),
+			Action:     "Edit Order",
+			FromStatus: fromStatus,
+			ToStatus:   lc.Status,
+			Notes:      "Updated L/C details",
+			OccurredAt: now,
+		}
+		if err := tx.Create(&event).Error; err != nil {
+			return err
+		}
+
+		broadcastEvent = LCUpdateEvent{
+			LCID:            lc.ID,
+			URN:             lc.URN,
+			TransactionType: lc.TransactionType,
+			FromStatus:      fromStatus,
+			ToStatus:        lc.Status,
+			UpdatedBy:       fallbackUser(actor.User),
+			OccurredAt:      now,
+		}
+		updated = lc
+		return nil
+	}); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
+			return
+		}
+		if strings.HasPrefix(err.Error(), "forbidden:") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") && strings.Contains(strings.ToLower(err.Error()), "urn") {
+			c.JSON(http.StatusConflict, gin.H{"error": "urn already exists"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.broadcaster.Publish(broadcastEvent)
+	c.JSON(http.StatusOK, updated)
+}
+
+func (h *Handler) DeleteLC(c *gin.Context) {
+	actor, ok := RequireRole(c, RoleSuperAdmin)
+	if !ok {
+		return
+	}
+
+	id, err := parseUintID(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	broadcastEvent := LCUpdateEvent{}
+	now := time.Now().UTC()
+
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		var lc models.LC
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&lc, "id = ?", id).Error; err != nil {
+			return err
+		}
+		if !actor.CanAccessTransaction(lc.TransactionType) {
+			return errors.New("forbidden: transaction type is out of scope")
+		}
+
+		if err := tx.Delete(&lc).Error; err != nil {
+			return err
+		}
+
+		event := models.Event{
+			LCID:       lc.ID,
+			URN:        lc.URN,
+			UserID:     fallbackUser(actor.User),
+			Action:     "Delete Order",
+			FromStatus: lc.Status,
+			ToStatus:   "Deleted",
+			Notes:      "Soft deleted L/C record",
+			OccurredAt: now,
+		}
+		if err := tx.Create(&event).Error; err != nil {
+			return err
+		}
+
+		broadcastEvent = LCUpdateEvent{
+			LCID:            lc.ID,
+			URN:             lc.URN,
+			TransactionType: lc.TransactionType,
+			FromStatus:      lc.Status,
+			ToStatus:        "Deleted",
+			UpdatedBy:       fallbackUser(actor.User),
+			OccurredAt:      now,
+		}
+		return nil
+	}); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "record not found"})
+			return
+		}
+		if strings.HasPrefix(err.Error(), "forbidden:") {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.broadcaster.Publish(broadcastEvent)
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
 func isValidTransition(fromStatus, toStatus string) bool {
 	if fromStatus == toStatus {
 		return true
@@ -380,11 +582,11 @@ func isValidTransition(fromStatus, toStatus string) bool {
 			models.StatusException:          true,
 		},
 		models.StatusCheckingUnderlying: {
-			models.StatusDrafting:               true,
-			models.StatusReleased:               true,
-			models.StatusBreached:               true,
-			models.StatusBreachedWithException:  true,
-			models.StatusException:              true,
+			models.StatusDrafting:              true,
+			models.StatusReleased:              true,
+			models.StatusBreached:              true,
+			models.StatusBreachedWithException: true,
+			models.StatusException:             true,
 		},
 		models.StatusBreached: {
 			models.StatusCheckingUnderlying: true,
@@ -397,12 +599,12 @@ func isValidTransition(fromStatus, toStatus string) bool {
 			models.StatusException:          true,
 		},
 		models.StatusException: {
-			models.StatusReceived:               true,
-			models.StatusDrafting:               true,
-			models.StatusCheckingUnderlying:     true,
-			models.StatusBreached:               true,
-			models.StatusBreachedWithException:  true,
-			models.StatusReleased:               true,
+			models.StatusReceived:              true,
+			models.StatusDrafting:              true,
+			models.StatusCheckingUnderlying:    true,
+			models.StatusBreached:              true,
+			models.StatusBreachedWithException: true,
+			models.StatusReleased:              true,
 		},
 	}
 	return allowed[fromStatus][toStatus]

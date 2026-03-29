@@ -12,6 +12,16 @@ export interface CreateLCOrderRequest {
   receivedAt: string;
 }
 
+export interface UpdateLCRequest {
+  urn: string;
+  subject: string;
+  transactionType: string;
+  assignedTo: string;
+  receivedAt: string;
+  exceptionReason: string;
+  approvedBy: string;
+}
+
 interface LCUpdateStreamEvent {
   lcId: number;
   urn: string;
@@ -174,7 +184,7 @@ export class DataStoreService {
     const role = this.currentRole();
     if (role === 'super_admin') return true;
     if (role === 'executive') {
-      return menu === 'exec' || menu === 'assignee-master' || menu === 'officer-master' || menu === 'sla' || menu === 'eventlog';
+      return menu === 'exec' || menu === 'eventlog';
     }
 
     if (menu === 'exec') return true;
@@ -191,7 +201,7 @@ export class DataStoreService {
     if (role === 'super_admin') return true;
 
     if (role === 'executive') {
-      return normalizedPath === '/' || normalizedPath === '/assignee-master' || normalizedPath === '/officer-registration' || normalizedPath === '/sla' || normalizedPath === '/eventlog';
+      return normalizedPath === '/' || normalizedPath === '/eventlog';
     }
 
     if (normalizedPath === '/' || normalizedPath.startsWith('/import') || normalizedPath.startsWith('/export')) {
@@ -214,6 +224,8 @@ export class DataStoreService {
       | 'create_lc'
       | 'update_status'
       | 'release_lc'
+      | 'update_lc'
+      | 'delete_lc'
       | 'manage_assignee'
       | 'manage_officer'
       | 'manage_sla'
@@ -233,7 +245,10 @@ export class DataStoreService {
     switch (action) {
       case 'create_lc':
       case 'update_status':
+      case 'update_lc':
         return role === 'import_officer' || role === 'import_staff' || role === 'export_officer' || role === 'export_staff';
+      case 'delete_lc':
+        return false;
       case 'release_lc':
         return role === 'import_officer' || role === 'export_officer';
       case 'manage_assignee':
@@ -594,6 +609,16 @@ export class DataStoreService {
       await this.refreshData();
       throw error;
     }
+  }
+
+  async updateLC(id: number, data: UpdateLCRequest): Promise<void> {
+    await this.apiRequest(`/lc/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+    await this.refreshData();
+  }
+
+  async deleteLC(id: number): Promise<void> {
+    await this.apiRequest(`/lc/${id}`, { method: 'DELETE' });
+    await this.refreshData();
   }
 
   async getLCExceptions(id: number): Promise<any[]> {

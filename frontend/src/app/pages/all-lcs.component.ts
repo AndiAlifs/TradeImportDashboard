@@ -2,7 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { DataStoreService } from '../services/data-store.service';
+import { DataStoreService, UpdateLCRequest } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
 import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
@@ -57,14 +57,16 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <th class="sortable" [class.sorted]="sortColumn() === 'subject'" [attr.aria-sort]="ariaSort('subject')" (click)="toggleSort('subject')">{{ 'queue.col_subject' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'subject'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'assignedTo'" [attr.aria-sort]="ariaSort('assignedTo')" (click)="toggleSort('assignedTo')">{{ 'queue.col_assigned' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'assignedTo'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'status'" [attr.aria-sort]="ariaSort('status')" (click)="toggleSort('status')">{{ 'queue.col_status' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'status'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th class="sortable" [class.sorted]="sortColumn() === 'date'" [attr.aria-sort]="ariaSort('date')" (click)="toggleSort('date')">{{ 'queue.col_date' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'date'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'receivedAt'" [attr.aria-sort]="ariaSort('receivedAt')" (click)="toggleSort('receivedAt')">{{ 'queue.col_received' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'receivedAt'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'elapsed'" [attr.aria-sort]="ariaSort('elapsed')" (click)="toggleSort('elapsed')">{{ 'queue.col_elapsed' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'elapsed'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
                 <th class="sortable" [class.sorted]="sortColumn() === 'sla'" [attr.aria-sort]="ariaSort('sla')" (click)="toggleSort('sla')">{{ 'queue.col_sla' | translate }}<span class="sort-indicator" *ngIf="sortColumn() === 'sla'">{{ sortDirection() === 'asc' ? '▲' : '▼' }}</span></th>
+                <th>{{ 'queue.col_action' | translate }}</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngIf="filteredRecords().length === 0">
-                <td colspan="10" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
+                <td colspan="11" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'queue.no_records' | translate }}</td>
               </tr>
               <tr *ngFor="let r of filteredRecords(); let i = index" [class.at-risk-row]="isAtRisk(r)">
                 <td style="color:var(--text-muted)">{{ i + 1 }}</td>
@@ -73,9 +75,16 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <td style="font-size:0.8rem;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" [title]="r.subject">{{ r.subject }}</td>
                 <td style="font-size:0.8rem">{{ r.assignedTo }}</td>
                 <td><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
+                <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatDateOnly(r.receivedAt) }}</td>
                 <td style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap">{{ formatTime(r.receivedAt) }}</td>
                 <td class="elapsed-time">{{ formatElapsed(r) }}</td>
                 <td [innerHTML]="slaIndicatorHtml(r)"></td>
+                <td>
+                  <div style="display:flex;gap:0.4rem;flex-wrap:wrap">
+                    <button class="action-btn primary" type="button" (click)="openEditModal(r)" [disabled]="!canEditLc(r)">{{ 'action.edit' | translate }}</button>
+                    <button class="action-btn danger-outline" type="button" (click)="openDeleteModal(r)" [disabled]="!canDeleteLc()">{{ 'action.delete' | translate }}</button>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -199,6 +208,90 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
         </div>
       </div>
 
+      <div class="modal-overlay" [class.active]="!!editingLc" (click)="closeEditModal()">
+        <div class="modal-container" *ngIf="editingLc" (click)="$event.stopPropagation()" style="max-width:640px">
+          <div class="modal-header">
+            <div>
+              <h3>{{ 'lc.edit_title' | translate }}</h3>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">{{ editingLc.urn }}</div>
+            </div>
+            <button class="modal-close" type="button" (click)="closeEditModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.75rem;align-items:end">
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'queue.col_urn' | translate }}</div>
+                <input type="text" [(ngModel)]="editForm.urn" maxlength="32" />
+              </label>
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'summary.col_type' | translate }}</div>
+                <select [(ngModel)]="editForm.transactionType">
+                  <option value="Import">Import</option>
+                  <option value="Export">Export</option>
+                </select>
+              </label>
+              <label style="grid-column:1 / -1">
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'queue.col_subject' | translate }}</div>
+                <input type="text" [(ngModel)]="editForm.subject" />
+              </label>
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'queue.col_assigned' | translate }}</div>
+                <input type="text" [(ngModel)]="editForm.assignedTo" />
+              </label>
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.received_at' | translate }}</div>
+                <input type="datetime-local" [(ngModel)]="editForm.receivedAt" />
+              </label>
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.exception_reason' | translate }}</div>
+                <input type="text" [(ngModel)]="editForm.exceptionReason" />
+              </label>
+              <label>
+                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.approved_by' | translate }}</div>
+                <input type="text" [(ngModel)]="editForm.approvedBy" />
+              </label>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem">
+              <button type="button" class="btn-secondary" (click)="closeEditModal()">{{ 'action.cancel' | translate }}</button>
+              <button type="button" class="btn-primary" (click)="requestEditConfirm()">{{ 'action.save' | translate }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" [class.active]="showEditConfirm" (click)="cancelEditConfirm()">
+        <div class="modal-container" *ngIf="showEditConfirm" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>{{ 'lc.confirm_save_title' | translate }}</h3>
+            <button class="modal-close" type="button" (click)="cancelEditConfirm()">×</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin:0 0 1rem">{{ 'lc.confirm_save_message' | translate }}</p>
+            <div style="display:flex;justify-content:flex-end;gap:0.5rem">
+              <button type="button" class="btn-secondary" (click)="cancelEditConfirm()">{{ 'action.cancel' | translate }}</button>
+              <button type="button" class="btn-primary" (click)="confirmSaveEdit()" [disabled]="savingEdit">{{ 'action.confirm_save' | translate }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" [class.active]="!!deleteTargetLc" (click)="closeDeleteModal()">
+        <div class="modal-container" *ngIf="deleteTargetLc" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3>{{ 'lc.confirm_delete_title' | translate }}</h3>
+            <button class="modal-close" type="button" (click)="closeDeleteModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin:0 0 0.5rem">{{ 'lc.confirm_delete_message' | translate }}</p>
+            <p style="margin:0 0 1rem;color:var(--text-secondary)"><strong>{{ deleteTargetLc.urn }}</strong></p>
+            <div style="display:flex;justify-content:flex-end;gap:0.5rem">
+              <button type="button" class="btn-secondary" (click)="closeDeleteModal()">{{ 'action.cancel' | translate }}</button>
+              <button type="button" class="btn-danger" (click)="confirmDeleteLc()" [disabled]="deletingLc">{{ 'action.confirm_delete' | translate }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   `
 })
@@ -212,6 +305,12 @@ export class AllLcsComponent implements OnInit {
   sortColumn = signal<string>('receivedAt');
   sortDirection = signal<'asc' | 'desc'>('desc');
   selectedLc: any = null;
+  editingLc: any = null;
+  showEditConfirm = false;
+  savingEdit = false;
+  deleteTargetLc: any = null;
+  deletingLc = false;
+  editForm: UpdateLCRequest = this.emptyEditForm();
   transactionType = signal<string>('Import');
   customFrom = '';
   customTo = '';
@@ -315,6 +414,8 @@ export class AllLcsComponent implements OnInit {
         return this.compareText(a.assignedTo, b.assignedTo);
       case 'status':
         return this.compareStatus(a.status, b.status);
+      case 'date':
+        return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
       case 'receivedAt':
         return this.compareNumber(this.toMillis(a.receivedAt), this.toMillis(b.receivedAt));
       case 'elapsed':
@@ -443,6 +544,129 @@ export class AllLcsComponent implements OnInit {
 
   showLcDetails(r: any) {
     this.selectedLc = r;
+  }
+
+  canEditLc(record: any): boolean {
+    return this.dataStore.canAccessAction('update_lc', record?.transactionType);
+  }
+
+  canDeleteLc(): boolean {
+    return this.dataStore.canAccessAction('delete_lc');
+  }
+
+  openEditModal(record: any): void {
+    if (!this.canEditLc(record)) {
+      this.showToast('info', this.ts.translate('toast.forbidden_edit_lc'));
+      return;
+    }
+
+    this.editingLc = record;
+    this.showEditConfirm = false;
+    this.editForm = {
+      urn: String(record?.urn || ''),
+      subject: String(record?.subject || ''),
+      transactionType: record?.transactionType === 'Export' ? 'Export' : 'Import',
+      assignedTo: String(record?.assignedTo || ''),
+      receivedAt: this.toDateTimeLocal(record?.receivedAt),
+      exceptionReason: String(record?.exceptionReason || ''),
+      approvedBy: String(record?.approvedBy || ''),
+    };
+  }
+
+  closeEditModal(): void {
+    if (this.savingEdit) {
+      return;
+    }
+    this.showEditConfirm = false;
+    this.editingLc = null;
+    this.editForm = this.emptyEditForm();
+  }
+
+  requestEditConfirm(): void {
+    if (!this.editingLc) {
+      return;
+    }
+
+    if (!this.editForm.urn.trim() || !this.editForm.subject.trim() || !this.editForm.receivedAt) {
+      this.showToast('info', this.ts.translate('toast.edit_lc_required_fields'));
+      return;
+    }
+
+    this.showEditConfirm = true;
+  }
+
+  cancelEditConfirm(): void {
+    if (this.savingEdit) {
+      return;
+    }
+    this.showEditConfirm = false;
+  }
+
+  async confirmSaveEdit(): Promise<void> {
+    if (!this.editingLc) {
+      return;
+    }
+
+    this.savingEdit = true;
+    try {
+      const payload: UpdateLCRequest = {
+        urn: this.editForm.urn.trim(),
+        subject: this.editForm.subject.trim(),
+        transactionType: this.editForm.transactionType,
+        assignedTo: this.editForm.assignedTo.trim(),
+        receivedAt: new Date(this.editForm.receivedAt).toISOString(),
+        exceptionReason: this.editForm.exceptionReason.trim(),
+        approvedBy: this.editForm.approvedBy.trim(),
+      };
+      await this.dataStore.updateLC(this.editingLc.id, payload);
+      this.showToast('success', this.ts.translate('toast.lc_updated'));
+      this.closeEditModal();
+    } catch (e: any) {
+      this.showToast('info', e?.message || this.ts.translate('toast.lc_update_failed'));
+    } finally {
+      this.savingEdit = false;
+    }
+  }
+
+  openDeleteModal(record: any): void {
+    if (!this.canDeleteLc()) {
+      this.showToast('info', this.ts.translate('toast.forbidden_delete_lc'));
+      return;
+    }
+    this.deleteTargetLc = record;
+  }
+
+  closeDeleteModal(): void {
+    if (this.deletingLc) {
+      return;
+    }
+    this.deleteTargetLc = null;
+  }
+
+  async confirmDeleteLc(): Promise<void> {
+    if (!this.deleteTargetLc) {
+      return;
+    }
+
+    this.deletingLc = true;
+    try {
+      const deletingId = this.deleteTargetLc.id;
+      await this.dataStore.deleteLC(deletingId);
+      if (this.selectedLc?.id === deletingId) {
+        this.selectedLc = null;
+      }
+      this.showToast('success', this.ts.translate('toast.lc_deleted'));
+      this.closeDeleteModal();
+    } catch (e: any) {
+      this.showToast('info', e?.message || this.ts.translate('toast.lc_delete_failed'));
+    } finally {
+      this.deletingLc = false;
+    }
+  }
+
+  formatDateOnly(iso: string): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-GB');
   }
 
   formatTime(iso: string): string {
@@ -614,5 +838,46 @@ export class AllLcsComponent implements OnInit {
     const month = String(value.getMonth() + 1).padStart(2, '0');
     const day = String(value.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private toDateTimeLocal(iso: string): string {
+    if (!iso) {
+      return '';
+    }
+    const value = new Date(iso);
+    if (Number.isNaN(value.getTime())) {
+      return '';
+    }
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    const hour = String(value.getHours()).padStart(2, '0');
+    const minute = String(value.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  private emptyEditForm(): UpdateLCRequest {
+    return {
+      urn: '',
+      subject: '',
+      transactionType: 'Import',
+      assignedTo: '',
+      receivedAt: '',
+      exceptionReason: '',
+      approvedBy: '',
+    };
+  }
+
+  private showToast(type: 'success' | 'info', message: string): void {
+    const container = document.getElementById('toast-container');
+    if (!container) {
+      return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span class="toast-icon">${type === 'success' ? '✔' : 'i'}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
   }
 }

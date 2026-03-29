@@ -56,6 +56,8 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 		api.POST("/lc", h.CreateLC)
 		api.GET("/lc", h.ListLCs)
 		api.GET("/lc/:id", h.GetLCByID)
+		api.PUT("/lc/:id", h.UpdateLC)
+		api.DELETE("/lc/:id", h.DeleteLC)
 		api.GET("/lc/:id/exceptions", h.GetLCExceptions)
 		api.PATCH("/lc/:id/status", h.UpdateLCStatus)
 
