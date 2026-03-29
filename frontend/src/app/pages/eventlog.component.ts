@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
@@ -51,12 +51,19 @@ import { TranslationService } from '../services/translation.service';
     </div>
   `
 })
-export class EventlogComponent {
+export class EventlogComponent implements OnInit {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
 
-  events = computed(() => this.dataStore.events());
+  private allEvents = signal<any[]>([]);
+  private allEventsLoaded = signal(false);
+
+  events = computed(() => this.allEventsLoaded() ? this.allEvents() : this.dataStore.events());
   canClearLog = computed(() => this.dataStore.canAccessAction('reset_data'));
+
+  async ngOnInit(): Promise<void> {
+    await this.loadAllEvents();
+  }
 
   formatDateTime(iso: string): string {
     if (!iso) return '—';
@@ -77,6 +84,13 @@ export class EventlogComponent {
     this.showToast('info', this.ts.translate('toast.log_cleared'));
     // Refresh to pick up the cleared state
     this.dataStore.refreshData();
+    void this.loadAllEvents();
+  }
+
+  private async loadAllEvents(): Promise<void> {
+    const events = await this.dataStore.fetchAllEvents();
+    this.allEvents.set(events);
+    this.allEventsLoaded.set(true);
   }
 
   private showToast(type: 'success' | 'info', message: string) {

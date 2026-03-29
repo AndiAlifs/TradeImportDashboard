@@ -483,6 +483,34 @@ export class DataStoreService {
     }
   }
 
+  async fetchAllEvents(): Promise<any[]> {
+    const pageSize = 500;
+    let offset = 0;
+    let total = 0;
+    const combined: any[] = [];
+
+    try {
+      do {
+        const response = await this.apiRequest(`/events?limit=${pageSize}&offset=${offset}`);
+        const chunk = Array.isArray(response?.data) ? response.data : [];
+        total = Number(response?.total || 0);
+
+        combined.push(...chunk);
+        offset += chunk.length;
+
+        if (chunk.length === 0) {
+          break;
+        }
+      } while (offset < total);
+
+      this.events.set(combined);
+      this.persistLocalCache();
+      return combined;
+    } catch {
+      return this.events();
+    }
+  }
+
   private getRangeBounds(range: DashboardDateRange): { from: Date; to: Date } | null {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
