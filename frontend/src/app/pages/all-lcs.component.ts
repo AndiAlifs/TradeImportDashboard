@@ -236,19 +236,14 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               </label>
               <label>
                 <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'queue.col_assigned' | translate }}</div>
-                <input type="text" [(ngModel)]="editForm.assignedTo" />
+                <select [(ngModel)]="editForm.assignedTo">
+                  <option value="">--</option>
+                  <option *ngFor="let assignee of activeAssignees()" [value]="assignee.name">{{ assignee.name }}</option>
+                </select>
               </label>
               <label>
                 <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.received_at' | translate }}</div>
                 <input type="datetime-local" [(ngModel)]="editForm.receivedAt" />
-              </label>
-              <label>
-                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.exception_reason' | translate }}</div>
-                <input type="text" [(ngModel)]="editForm.exceptionReason" />
-              </label>
-              <label>
-                <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.25rem">{{ 'lc.approved_by' | translate }}</div>
-                <input type="text" [(ngModel)]="editForm.approvedBy" />
               </label>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:0.5rem;margin-top:1rem">
@@ -350,6 +345,8 @@ export class AllLcsComponent implements OnInit {
   totalRecords = computed(() => {
     return this.dataStore.lcs().filter(r => r.transactionType === this.transactionType()).length;
   });
+
+  activeAssignees = computed(() => this.dataStore.assignees().filter((item: any) => item?.isActive !== false));
 
   filteredRecords = computed(() => {
     let data = this.dataStore.lcs().filter(r => r.transactionType === this.transactionType());
@@ -568,8 +565,6 @@ export class AllLcsComponent implements OnInit {
       transactionType: record?.transactionType === 'Export' ? 'Export' : 'Import',
       assignedTo: String(record?.assignedTo || ''),
       receivedAt: this.toDateTimeLocal(record?.receivedAt),
-      exceptionReason: String(record?.exceptionReason || ''),
-      approvedBy: String(record?.approvedBy || ''),
     };
   }
 
@@ -615,12 +610,10 @@ export class AllLcsComponent implements OnInit {
         transactionType: this.editForm.transactionType,
         assignedTo: this.editForm.assignedTo.trim(),
         receivedAt: new Date(this.editForm.receivedAt).toISOString(),
-        exceptionReason: this.editForm.exceptionReason.trim(),
-        approvedBy: this.editForm.approvedBy.trim(),
       };
       await this.dataStore.updateLC(this.editingLc.id, payload);
       this.showToast('success', this.ts.translate('toast.lc_updated'));
-      this.closeEditModal();
+      this.forceCloseEditModal();
     } catch (e: any) {
       this.showToast('info', e?.message || this.ts.translate('toast.lc_update_failed'));
     } finally {
@@ -655,8 +648,8 @@ export class AllLcsComponent implements OnInit {
       if (this.selectedLc?.id === deletingId) {
         this.selectedLc = null;
       }
+      this.deleteTargetLc = null;
       this.showToast('success', this.ts.translate('toast.lc_deleted'));
-      this.closeDeleteModal();
     } catch (e: any) {
       this.showToast('info', e?.message || this.ts.translate('toast.lc_delete_failed'));
     } finally {
@@ -863,9 +856,13 @@ export class AllLcsComponent implements OnInit {
       transactionType: 'Import',
       assignedTo: '',
       receivedAt: '',
-      exceptionReason: '',
-      approvedBy: '',
     };
+  }
+
+  private forceCloseEditModal(): void {
+    this.showEditConfirm = false;
+    this.editingLc = null;
+    this.editForm = this.emptyEditForm();
   }
 
   private showToast(type: 'success' | 'info', message: string): void {

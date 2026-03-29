@@ -18,8 +18,6 @@ export interface UpdateLCRequest {
   transactionType: string;
   assignedTo: string;
   receivedAt: string;
-  exceptionReason: string;
-  approvedBy: string;
 }
 
 interface LCUpdateStreamEvent {

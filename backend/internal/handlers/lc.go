@@ -33,13 +33,13 @@ type updateStatusRequest struct {
 }
 
 type updateLCRequest struct {
-	URN             string `json:"urn" binding:"required,max=32"`
-	Subject         string `json:"subject" binding:"required"`
-	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
-	AssignedTo      string `json:"assignedTo"`
-	ReceivedAt      string `json:"receivedAt" binding:"required"`
-	ExceptionReason string `json:"exceptionReason"`
-	ApprovedBy      string `json:"approvedBy"`
+	URN             string  `json:"urn" binding:"required,max=32"`
+	Subject         string  `json:"subject" binding:"required"`
+	TransactionType string  `json:"transactionType" binding:"required,oneof=Import Export"`
+	AssignedTo      string  `json:"assignedTo"`
+	ReceivedAt      string  `json:"receivedAt" binding:"required"`
+	ExceptionReason *string `json:"exceptionReason"`
+	ApprovedBy      *string `json:"approvedBy"`
 }
 
 var errInvalidTransition = errors.New("invalid status transition")
@@ -434,18 +434,22 @@ func (h *Handler) UpdateLC(c *gin.Context) {
 		lc.AssignedTo = strings.TrimSpace(req.AssignedTo)
 		lc.ReceivedAt = receivedAt
 
-		exceptionReason := strings.TrimSpace(req.ExceptionReason)
-		if exceptionReason == "" {
-			lc.ExceptionReason = nil
-		} else {
-			lc.ExceptionReason = &exceptionReason
+		if req.ExceptionReason != nil {
+			exceptionReason := strings.TrimSpace(*req.ExceptionReason)
+			if exceptionReason == "" {
+				lc.ExceptionReason = nil
+			} else {
+				lc.ExceptionReason = &exceptionReason
+			}
 		}
 
-		approvedBy := strings.TrimSpace(req.ApprovedBy)
-		if approvedBy == "" {
-			lc.ApprovedBy = nil
-		} else {
-			lc.ApprovedBy = &approvedBy
+		if req.ApprovedBy != nil {
+			approvedBy := strings.TrimSpace(*req.ApprovedBy)
+			if approvedBy == "" {
+				lc.ApprovedBy = nil
+			} else {
+				lc.ApprovedBy = &approvedBy
+			}
 		}
 
 		if err := tx.Save(&lc).Error; err != nil {
