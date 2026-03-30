@@ -33,7 +33,11 @@ func SeedDefaults(db *gorm.DB) error {
 		return fmt.Errorf("count sla config: %w", err)
 	}
 	if count == 0 {
-		cfg := models.SLAConfig{SLAMaxMinutes: 120}
+		cfg := models.SLAConfig{
+			ImportSLAMaxMinutes: 120,
+			ExportSLAMaxMinutes: 120,
+			BgSLAMaxMinutes:     120,
+		}
 		if err := db.Create(&cfg).Error; err != nil {
 			return fmt.Errorf("seed sla config: %w", err)
 		}
@@ -58,25 +62,29 @@ func SeedDefaults(db *gorm.DB) error {
 // ---------------------------------------------------------------------------
 
 func seedAssignees(db *gorm.DB) error {
-	names := []string{
-		"Abima Setya R",
-		"Bagus Taufiq E",
-		"Nidya Yuliantika",
-		"Chandra Mega M",
-		"Deliyana Martha",
+	names := []struct {
+		Name    string
+		Section string
+	}{
+		{"Abima Setya R", "Import"},
+		{"Bagus Taufiq E", "Import"},
+		{"Nidya Yuliantika", "Export"},
+		{"Chandra Mega M", "Export"},
+		{"Deliyana Martha", "Bank Guarantee"},
+		{"Rina Novita", "Bank Guarantee"},
 	}
 
-	for _, name := range names {
+	for _, n := range names {
 		var exists int64
-		if err := db.Model(&models.Assignee{}).Where("name = ?", name).Count(&exists).Error; err != nil {
-			return fmt.Errorf("check assignee %q: %w", name, err)
+		if err := db.Model(&models.Assignee{}).Where("name = ?", n.Name).Count(&exists).Error; err != nil {
+			return fmt.Errorf("check assignee %q: %w", n.Name, err)
 		}
 		if exists > 0 {
 			continue
 		}
-		a := models.Assignee{Name: name, IsActive: true}
+		a := models.Assignee{Name: n.Name, Section: n.Section, IsActive: true}
 		if err := db.Create(&a).Error; err != nil {
-			return fmt.Errorf("seed assignee %q: %w", name, err)
+			return fmt.Errorf("seed assignee %q: %w", n.Name, err)
 		}
 	}
 	return nil
@@ -87,32 +95,35 @@ func seedAssignees(db *gorm.DB) error {
 // ---------------------------------------------------------------------------
 
 func seedOfficers(db *gorm.DB) error {
-	names := []string{
-		"Zahra Ashiela",
-		"Rendra Rizky P",
-		"Tony Herry C",
+	names := []struct {
+		Name    string
+		Section string
+	}{
+		{"Zahra Ashiela", "Import"},
+		{"Rendra Rizky P", "Export"},
+		{"Tony Herry C", "Bank Guarantee"},
 	}
 
-	for _, name := range names {
+	for _, n := range names {
 		var exists int64
-		if err := db.Model(&models.Officer{}).Where("name = ?", name).Count(&exists).Error; err != nil {
-			return fmt.Errorf("check officer %q: %w", name, err)
+		if err := db.Model(&models.Officer{}).Where("name = ?", n.Name).Count(&exists).Error; err != nil {
+			return fmt.Errorf("check officer %q: %w", n.Name, err)
 		}
 		if exists > 0 {
 			continue
 		}
-		o := models.Officer{Name: name, IsActive: true}
+		o := models.Officer{Name: n.Name, Section: n.Section, IsActive: true}
 		if err := db.Create(&o).Error; err != nil {
-			return fmt.Errorf("seed officer %q: %w", name, err)
+			return fmt.Errorf("seed officer %q: %w", n.Name, err)
 		}
 	}
 	return nil
 }
 
 // ---------------------------------------------------------------------------
-// L/C records  (30 total: 15 Import + 15 Export)
+// L/C records  (45 total: 15 Import + 15 Export + 15 BG)
 //
-// Per transaction type (Import & Export), the distribution is:
+// Per transaction type, the distribution is:
 //   - 2 Released within SLA  (total processing < 120 min)
 //   - 3 Breached             (total processing > 120 min)
 //   - 5 Checking Underlying
@@ -120,7 +131,7 @@ func seedOfficers(db *gorm.DB) error {
 // ---------------------------------------------------------------------------
 
 func seedLCs(db *gorm.DB) error {
-	const targetRecords = 30
+	const targetRecords = 45
 
 	var count int64
 	if err := db.Model(&models.LC{}).Count(&count).Error; err != nil {
@@ -131,33 +142,33 @@ func seedLCs(db *gorm.DB) error {
 	}
 
 	// Load assignees for random assignment
-	assignees := make([]string, 0)
 	var assigneeRows []models.Assignee
 	if err := db.Where("is_active = ?", true).Find(&assigneeRows).Error; err != nil {
 		return fmt.Errorf("load assignees for seeding: %w", err)
 	}
+	assigneeByTx := make(map[string][]string)
 	for _, a := range assigneeRows {
 		if a.Name != "" {
-			assignees = append(assignees, a.Name)
+			assigneeByTx[a.Section] = append(assigneeByTx[a.Section], a.Name)
 		}
 	}
 
 	// Load officers for approvedBy on released LCs
-	officers := make([]string, 0)
 	var officerRows []models.Officer
 	if err := db.Where("is_active = ?", true).Find(&officerRows).Error; err != nil {
 		return fmt.Errorf("load officers for seeding: %w", err)
 	}
+	officerByTx := make(map[string][]string)
 	for _, o := range officerRows {
 		if o.Name != "" {
-			officers = append(officers, o.Name)
+			officerByTx[o.Section] = append(officerByTx[o.Section], o.Name)
 		}
 	}
 
 	rng := rand.New(rand.NewSource(42))
 	now := time.Now().UTC()
 
-	// Build a plan of 30 LCs: 15 Import + 15 Export
+	// Build a plan of 45 LCs
 	type lcPlan struct {
 		txType string
 		status string
@@ -185,6 +196,7 @@ func seedLCs(db *gorm.DB) error {
 	}
 
 	plans := append(buildBatch("Import"), buildBatch("Export")...)
+	plans = append(plans, buildBatch("Bank Guarantee")...)
 
 	baseSeq := int(count) + 1
 	slaMaxMinutes := 120
@@ -208,8 +220,9 @@ func seedLCs(db *gorm.DB) error {
 		}
 
 		// Assign to a random assignee
-		if len(assignees) > 0 {
-			lc.AssignedTo = assignees[rng.Intn(len(assignees))]
+		assigneesList := assigneeByTx[plan.txType]
+		if len(assigneesList) > 0 {
+			lc.AssignedTo = assigneesList[rng.Intn(len(assigneesList))]
 		}
 
 		switch plan.status {
@@ -223,8 +236,9 @@ func seedLCs(db *gorm.DB) error {
 			lc.DraftingStartedAt = &draftMid
 			lc.CheckingStartedAt = &checkMid
 			lc.ReleasedAt = &releasedAt
-			if len(officers) > 0 {
-				officer := officers[rng.Intn(len(officers))]
+			officersList := officerByTx[plan.txType]
+			if len(officersList) > 0 {
+				officer := officersList[rng.Intn(len(officersList))]
 				lc.ApprovedBy = &officer
 			}
 

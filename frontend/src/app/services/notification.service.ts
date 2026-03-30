@@ -29,14 +29,17 @@ export class NotificationService {
     const slaConfig = this.dataStore.slaConfig();
     const lcs = this.dataStore.lcs();
     const events = this.dataStore.events();
-    const warningThreshold = Math.floor(slaConfig.slaMaxMinutes * 0.75);
-
     // 1. Early Warnings
     lcs.forEach(lc => {
+      let maxSla = slaConfig.importSlaMaxMinutes;
+      if (lc.transactionType === 'Export') maxSla = slaConfig.exportSlaMaxMinutes;
+      if (lc.transactionType === 'Bank Guarantee') maxSla = slaConfig.bgSlaMaxMinutes;
+      const warningThreshold = Math.floor(maxSla * 0.75);
+
       const elapsed = this.getElapsedMinutes(lc);
       if (
         elapsed >= warningThreshold && 
-        elapsed <= slaConfig.slaMaxMinutes && 
+        elapsed <= maxSla && 
         lc.status !== 'Released' && 
         lc.status !== 'Exception' &&
         lc.status !== 'Breached' &&
@@ -49,7 +52,7 @@ export class NotificationService {
             type: 'alert',
             titleKey: 'notif.warning_title',
             messageKey: 'notif.warning_desc',
-            messageParams: { urn: lc.urn, mins: elapsed, threshold: slaConfig.slaMaxMinutes },
+            messageParams: { urn: lc.urn, mins: elapsed, threshold: maxSla },
             timestamp: new Date().toISOString(), // approximated for dynamic
             isRead: false,
           });

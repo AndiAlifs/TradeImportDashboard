@@ -5,7 +5,7 @@ import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
 import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
 
-type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
+type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 
 @Component({
   selector: 'app-exec-dashboard',
@@ -97,6 +97,11 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
           <div class="kpi-value">{{ exportSla() }}%</div>
           <div class="kpi-label">{{ 'exec.export_sla' | translate }}</div>
         </div>
+        <div class="kpi-card success" style="grid-column: span 1.5;">
+          <div class="kpi-icon">🛡️</div>
+          <div class="kpi-value">{{ bgSla() }}%</div>
+          <div class="kpi-label">{{ 'exec.bg_sla' | translate }}</div>
+        </div>
         <div class="kpi-card danger">
           <div class="kpi-icon">🚨</div>
           <div class="kpi-value">{{ totalBreaches() }}</div>
@@ -124,6 +129,10 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
                 <div class="comparison-bar-row">
                   <span class="comp-type-label export-label">{{ 'exec.export_label' | translate }}</span>
                   <div class="bar-track"><div class="bar-fill teal" [style.width.%]="barPctByStage(stage.exportVal, stage.stageMax)">{{ stage.exportVal }} min</div></div>
+                </div>
+                <div class="comparison-bar-row">
+                  <span class="comp-type-label bg-label" style="color:var(--info);border-color:var(--info);background:transparent">{{ 'exec.bg_label' | translate }}</span>
+                  <div class="bar-track"><div class="bar-fill info" [style.width.%]="barPctByStage(stage.bgVal, stage.stageMax)">{{ stage.bgVal }} min</div></div>
                 </div>
               </div>
             </div>
@@ -170,7 +179,26 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
                 </div>
               </div>
 
-              <div class="insight-chip span-2" *ngIf="crossBottleneckDelta() as delta">
+              <div class="insight-chip">
+                <div class="insight-chip-label">{{ 'exec.insight_bg_top' | translate }}</div>
+                <div class="insight-chip-value" *ngIf="bgBottleneckStage(); else noBgTop">
+                  {{ bgBottleneckStage()!.labelKey | translate }} · {{ bgBottleneckStage()!.minutes }}m
+                </div>
+                <ng-template #noBgTop>
+                  <div class="insight-chip-empty">{{ 'exec.bottleneck_empty' | translate }}</div>
+                </ng-template>
+                <div class="insight-metric" *ngIf="bgTopGap() > 0">
+                  <div class="insight-metric-row">
+                    <span>{{ 'exec.insight_gap_next' | translate }}</span>
+                    <strong>{{ bgTopGap() }}m</strong>
+                  </div>
+                  <div class="insight-delta-track">
+                    <div class="insight-delta-fill" [style.width.%]="gapPct(bgTopGap(), maxTopGap())"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="insight-chip span-3" *ngIf="crossBottleneckDelta() as delta">
                 <div class="insight-chip-label">{{ 'exec.insight_cross_delta' | translate }}</div>
                 <div class="insight-metric-row">
                   <span class="insight-chip-value">{{ delta.leadingType | translate }}</span>
@@ -209,6 +237,9 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'all';
             </div>
             <div class="ai-insight">
               <strong>🚢 Export Performance:</strong> SLA compliance at <strong>{{ exportSla() }}%</strong> with {{ exportBreachCount() }} breach{{ exportBreachCount() !== 1 ? 'es' : '' }}. {{ ai.exportBottleneckText }}
+            </div>
+            <div class="ai-insight">
+              <strong>🛡️ BG Performance:</strong> SLA compliance at <strong>{{ bgSla() }}%</strong> with {{ bgBreachCount() }} breach{{ bgBreachCount() !== 1 ? 'es' : '' }}. {{ ai.bgBottleneckText }}
             </div>
             <div class="ai-insight">
               <strong>💡 Recommendation:</strong> {{ ai.recommendation }}
@@ -536,6 +567,7 @@ export class ExecDashboardComponent implements OnInit {
     { value: 'overall', labelKey: 'exec.sla_compare_overall' },
     { value: 'import', labelKey: 'exec.sla_compare_import' },
     { value: 'export', labelKey: 'exec.sla_compare_export' },
+    { value: 'bg', labelKey: 'exec.sla_compare_bg' },
     { value: 'all', labelKey: 'exec.sla_compare_all' },
   ];
 
@@ -547,14 +579,17 @@ export class ExecDashboardComponent implements OnInit {
 
   private importData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Import'));
   private exportData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Export'));
+  private bgData = computed(() => this.dataStore.lcs().filter(r => r.transactionType === 'Bank Guarantee'));
   private sla = computed(() => this.dataStore.slaConfig());
 
   importProcessed = computed(() => this.importData().length);
   exportProcessed = computed(() => this.exportData().length);
+  bgProcessed = computed(() => this.bgData().length);
 
-  importBreachCount = computed(() => this.countBreaches(this.importData()));
-  exportBreachCount = computed(() => this.countBreaches(this.exportData()));
-  totalBreaches = computed(() => this.importBreachCount() + this.exportBreachCount());
+  importBreachCount = computed(() => this.countBreaches(this.importData(), this.sla().importSlaMaxMinutes));
+  exportBreachCount = computed(() => this.countBreaches(this.exportData(), this.sla().exportSlaMaxMinutes));
+  bgBreachCount = computed(() => this.countBreaches(this.bgData(), this.sla().bgSlaMaxMinutes));
+  totalBreaches = computed(() => this.importBreachCount() + this.exportBreachCount() + this.bgBreachCount());
 
   importSla = computed(() => {
     const total = this.importData().length;
@@ -564,6 +599,11 @@ export class ExecDashboardComponent implements OnInit {
   exportSla = computed(() => {
     const total = this.exportData().length;
     return total > 0 ? Math.round(((total - this.exportBreachCount()) / total) * 100) : 0;
+  });
+
+  bgSla = computed(() => {
+    const total = this.bgData().length;
+    return total > 0 ? Math.round(((total - this.bgBreachCount()) / total) * 100) : 0;
   });
 
   avgCycleTime = computed(() => {
@@ -586,7 +626,11 @@ export class ExecDashboardComponent implements OnInit {
       stats.volume++;
       stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
-      const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      let localSlaMinutes = sla.importSlaMaxMinutes;
+      if (r.transactionType === 'Export') localSlaMinutes = sla.exportSlaMaxMinutes;
+      if (r.transactionType === 'Bank Guarantee') localSlaMinutes = sla.bgSlaMaxMinutes;
+
+      const isBreached = (elapsed > localSlaMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
         stats.breaches++;
         stats.breachedLcs.push(r);
@@ -606,7 +650,11 @@ export class ExecDashboardComponent implements OnInit {
       stats.volume++;
       stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
-      const isBreached = (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      let localSlaMinutes = sla.importSlaMaxMinutes;
+      if (r.transactionType === 'Export') localSlaMinutes = sla.exportSlaMaxMinutes;
+      if (r.transactionType === 'Bank Guarantee') localSlaMinutes = sla.bgSlaMaxMinutes;
+
+      const isBreached = (elapsed > localSlaMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
         stats.breaches++;
         stats.breachedLcs.push(r);
@@ -630,49 +678,57 @@ export class ExecDashboardComponent implements OnInit {
 
   importStageAverages = computed(() => computeAverageStageDurations(this.importData()));
   exportStageAverages = computed(() => computeAverageStageDurations(this.exportData()));
+  bgStageAverages = computed(() => computeAverageStageDurations(this.bgData()));
 
   importBottleneckStage = computed(() => findLongestStage(this.importStageAverages()));
   exportBottleneckStage = computed(() => findLongestStage(this.exportStageAverages()));
+  bgBottleneckStage = computed(() => findLongestStage(this.bgStageAverages()));
 
   comparisonStages = computed(() => {
     const imp = this.mapStagesForComparison(this.importStageAverages());
     const exp = this.mapStagesForComparison(this.exportStageAverages());
-    const stageMax = (a: number, b: number) => Math.max(1, a, b);
+    const bg = this.mapStagesForComparison(this.bgStageAverages());
+    const stageMax = (a: number, b: number, c: number) => Math.max(1, a, b, c);
     return [
-      { label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox, stageMax: stageMax(imp.inbox, exp.inbox) },
-      { label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting, stageMax: stageMax(imp.drafting, exp.drafting) },
-      { label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking, stageMax: stageMax(imp.checking, exp.checking) },
-      { label: 'chart.total', importVal: imp.total, exportVal: exp.total, stageMax: stageMax(imp.total, exp.total) },
+      { label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox, bgVal: bg.inbox, stageMax: stageMax(imp.inbox, exp.inbox, bg.inbox) },
+      { label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting, bgVal: bg.drafting, stageMax: stageMax(imp.drafting, exp.drafting, bg.drafting) },
+      { label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking, bgVal: bg.checking, stageMax: stageMax(imp.checking, exp.checking, bg.checking) },
+      { label: 'chart.total', importVal: imp.total, exportVal: exp.total, bgVal: bg.total, stageMax: stageMax(imp.total, exp.total, bg.total) },
     ];
   });
 
   importTopGap = computed(() => this.topGap(this.importStageAverages()));
   exportTopGap = computed(() => this.topGap(this.exportStageAverages()));
-  maxTopGap = computed(() => Math.max(1, this.importTopGap(), this.exportTopGap()));
+  bgTopGap = computed(() => this.topGap(this.bgStageAverages()));
+  maxTopGap = computed(() => Math.max(1, this.importTopGap(), this.exportTopGap(), this.bgTopGap()));
   maxCrossDelta = computed(() => {
     const importTop = this.importBottleneckStage()?.minutes || 0;
     const exportTop = this.exportBottleneckStage()?.minutes || 0;
-    return Math.max(1, importTop, exportTop);
+    const bgTop = this.bgBottleneckStage()?.minutes || 0;
+    return Math.max(1, importTop, exportTop, bgTop);
   });
 
   crossBottleneckDelta = computed(() => {
-    const importTop = this.importBottleneckStage();
-    const exportTop = this.exportBottleneckStage();
-    if (!importTop && !exportTop) return null;
-    if (!importTop) {
-      return { leadingType: 'exec.export_label', minutes: exportTop!.minutes, stageLabelKey: exportTop!.labelKey };
+    const tops = [
+      { type: 'exec.import_label', top: this.importBottleneckStage() },
+      { type: 'exec.export_label', top: this.exportBottleneckStage() },
+      { type: 'exec.bg_label', top: this.bgBottleneckStage() }
+    ].filter(t => t.top !== null) as Array<{type: string; top: StageDuration}>;
+
+    if (tops.length < 2) return null;
+    tops.sort((a,b) => b.top.minutes - a.top.minutes);
+
+    const first = tops[0];
+    const second = tops[1];
+    
+    if (first.top.minutes === second.top.minutes) {
+       return { leadingType: 'exec.bottleneck_balanced', minutes: 0, stageLabelKey: first.top.labelKey };
     }
-    if (!exportTop) {
-      return { leadingType: 'exec.import_label', minutes: importTop.minutes, stageLabelKey: importTop.labelKey };
-    }
-    if (importTop.minutes === exportTop.minutes) {
-      return { leadingType: 'exec.bottleneck_balanced', minutes: 0, stageLabelKey: importTop.labelKey };
-    }
-    const exportLeads = exportTop.minutes > importTop.minutes;
+    
     return {
-      leadingType: exportLeads ? 'exec.export_label' : 'exec.import_label',
-      minutes: Math.abs(exportTop.minutes - importTop.minutes),
-      stageLabelKey: exportLeads ? exportTop.labelKey : importTop.labelKey,
+      leadingType: first.type,
+      minutes: Math.abs(first.top.minutes - second.top.minutes),
+      stageLabelKey: first.top.labelKey,
     };
   });
 
@@ -683,6 +739,7 @@ export class ExecDashboardComponent implements OnInit {
       this.createComparisonRow('overall', 'exec.sla_compare_overall', current.overall, previous.overall),
       this.createComparisonRow('import', 'exec.sla_compare_import', current.import, previous.import),
       this.createComparisonRow('export', 'exec.sla_compare_export', current.export, previous.export),
+      this.createComparisonRow('bg', 'exec.sla_compare_bg', current.bg, previous.bg),
     ];
 
     if (this.comparisonMetric() === 'all') {
@@ -704,34 +761,42 @@ export class ExecDashboardComponent implements OnInit {
     if (overallCompliance < 90) { healthStatus = '🟡 Moderate'; healthClass = 'health-moderate'; }
     if (overallCompliance < 75) { healthStatus = '🔴 Critical'; healthClass = 'health-critical'; }
 
-    const slaTarget = `<= ${sla.slaMaxMinutes} min`;
+    const slaTarget = `Import <= ${sla.importSlaMaxMinutes}m, Export <= ${sla.exportSlaMaxMinutes}m, BG <= ${sla.bgSlaMaxMinutes}m`;
 
     const importBottleneck = this.importBottleneckStage();
     const exportBottleneck = this.exportBottleneckStage();
+    const bgBottleneck = this.bgBottleneckStage();
     const importBottleneckText = importBottleneck
       ? `Primary bottleneck: ${this.stageName(importBottleneck.labelKey)} (avg ${importBottleneck.minutes} min).`
       : 'Insufficient data for bottleneck analysis.';
     const exportBottleneckText = exportBottleneck
       ? `Primary bottleneck: ${this.stageName(exportBottleneck.labelKey)} (avg ${exportBottleneck.minutes} min).`
       : 'Insufficient data for bottleneck analysis.';
+    const bgBottleneckText = bgBottleneck
+      ? `Primary bottleneck: ${this.stageName(bgBottleneck.labelKey)} (avg ${bgBottleneck.minutes} min).`
+      : 'Insufficient data for bottleneck analysis.';
 
     const impVol = this.importData().length;
     const expVol = this.exportData().length;
-    let volumeInsight = `Processing volumes are balanced — Import: ${impVol}, Export: ${expVol}.`;
-    if (impVol > expVol * 1.3) volumeInsight = `Import volume is significantly higher (${impVol} vs ${expVol}). Consider monitoring Import workload distribution.`;
-    else if (expVol > impVol * 1.3) volumeInsight = `Export volume is significantly higher (${expVol} vs ${impVol}). Consider monitoring Export workload distribution.`;
-
+    const bgVol = this.bgData().length;
+    let volumeInsight = `Processing volumes — Import: ${impVol}, Export: ${expVol}, BG: ${bgVol}.`;
+    
     let recommendation = volumeInsight;
     if (totalBreaches > 0) {
-      const focusType = this.importBreachCount() >= this.exportBreachCount() ? 'Import' : 'Export';
-      const focus = focusType === 'Import' ? importBottleneck : exportBottleneck;
-      const focusStage = focus ? this.stageName(focus.labelKey) : this.ts.translate('exec.bottleneck_empty');
-      recommendation += ` Focus on reducing ${focusType} ${focusStage} times to improve overall SLA compliance.`;
+      const bCounts = [
+          { type: 'Import', count: this.importBreachCount(), bottleneck: importBottleneck },
+          { type: 'Export', count: this.exportBreachCount(), bottleneck: exportBottleneck },
+          { type: 'Bank Guarantee', count: this.bgBreachCount(), bottleneck: bgBottleneck }
+      ].sort((a,b) => b.count - a.count);
+      
+      const focus = bCounts[0];
+      const focusStage = focus.bottleneck ? this.stageName(focus.bottleneck.labelKey) : this.ts.translate('exec.bottleneck_empty');
+      recommendation += ` Focus on reducing ${focus.type} ${focusStage} times to improve overall SLA compliance.`;
     } else {
       recommendation += ' All operations within target — maintain current performance.';
     }
 
-    return { healthStatus, healthClass, overallCompliance, activeCount, releasedCount, slaTarget, importBottleneckText, exportBottleneckText, recommendation };
+    return { healthStatus, healthClass, overallCompliance, activeCount, releasedCount, slaTarget, importBottleneckText, exportBottleneckText, bgBottleneckText, recommendation };
   });
 
   barPct(value: number): number {
@@ -753,31 +818,50 @@ export class ExecDashboardComponent implements OnInit {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
 
-  private countBreaches(records: any[]): number {
-    const sla = this.sla();
+  private countBreaches(records: any[], maxSla: number): number {
     return records.filter(r => {
       const elapsed = this.getElapsedMinutes(r);
-      return (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') ||
+      return (elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') ||
              r.status === 'Breached' || r.status === 'Breached with Exception';
     }).length;
   }
 
-  private computeSlaMetrics(records: any[]): { overall: number; import: number; export: number } {
+  private computeSlaMetrics(records: any[]): { overall: number; import: number; export: number, bg: number } {
     const importRecords = records.filter((record) => record.transactionType === 'Import');
     const exportRecords = records.filter((record) => record.transactionType === 'Export');
+    const bgRecords = records.filter((record) => record.transactionType === 'Bank Guarantee');
     return {
-      overall: this.computeSlaPercentage(records),
-      import: this.computeSlaPercentage(importRecords),
-      export: this.computeSlaPercentage(exportRecords),
+      overall: this.computeOverallSlaPercentage(records),
+      import: this.computeSlaPercentage(importRecords, this.sla().importSlaMaxMinutes),
+      export: this.computeSlaPercentage(exportRecords, this.sla().exportSlaMaxMinutes),
+      bg: this.computeSlaPercentage(bgRecords, this.sla().bgSlaMaxMinutes),
     };
   }
+  
+  private computeOverallSlaPercentage(records: any[]): number {
+      const total = records.length;
+      if (total === 0) return 0;
+      let breaches = 0;
+      records.forEach(r => {
+          let maxSla = 120;
+          if (r.transactionType === 'Import') maxSla = this.sla().importSlaMaxMinutes;
+          if (r.transactionType === 'Export') maxSla = this.sla().exportSlaMaxMinutes;
+          if (r.transactionType === 'Bank Guarantee') maxSla = this.sla().bgSlaMaxMinutes;
+          
+          const elapsed = this.getElapsedMinutes(r);
+          if ((elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception') {
+              breaches++;
+          }
+      });
+      return Math.round(((total - breaches) / total) * 100);
+  }
 
-  private computeSlaPercentage(records: any[]): number {
+  private computeSlaPercentage(records: any[], maxSla: number): number {
     const total = records.length;
     if (total === 0) {
       return 0;
     }
-    const breached = this.countBreaches(records);
+    const breached = this.countBreaches(records, maxSla);
     return Math.round(((total - breached) / total) * 100);
   }
 
@@ -803,14 +887,14 @@ export class ExecDashboardComponent implements OnInit {
 
   private loadComparisonMetric(): SlaComparisonMetric {
     const stored = localStorage.getItem(this.comparisonMetricStorageKey);
-    if (stored === 'overall' || stored === 'import' || stored === 'export' || stored === 'all') {
+    if (stored === 'overall' || stored === 'import' || stored === 'export' || stored === 'all' || stored === 'bg') {
       return stored;
     }
     return 'overall';
   }
 
   setComparisonMetric(value: string): void {
-    if (value !== 'overall' && value !== 'import' && value !== 'export' && value !== 'all') {
+    if (value !== 'overall' && value !== 'import' && value !== 'export' && value !== 'all' && value !== 'bg') {
       return;
     }
     this.comparisonMetric.set(value);

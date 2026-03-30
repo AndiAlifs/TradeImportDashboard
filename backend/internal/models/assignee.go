@@ -4,7 +4,8 @@ import "time"
 
 type Assignee struct {
 	ID        uint64    `json:"id" gorm:"primaryKey;autoIncrement"`
-	Name      string    `json:"name" gorm:"size:100;not null;uniqueIndex"`
+	Name      string    `json:"name" gorm:"size:100;not null;uniqueIndex:idx_name_section"`
+	Section   string    `json:"section" gorm:"size:64;not null;default:'Import';uniqueIndex:idx_name_section"`
 	IsActive  bool      `json:"isActive" gorm:"not null;default:true"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

@@ -9,7 +9,9 @@ import (
 )
 
 type updateSLARequest struct {
-	SLAMaxMinutes int `json:"slaMaxMinutes" binding:"required,gte=1"`
+	ImportSLAMaxMinutes int `json:"importSlaMaxMinutes" binding:"required,gte=1"`
+	ExportSLAMaxMinutes int `json:"exportSlaMaxMinutes" binding:"required,gte=1"`
+	BgSLAMaxMinutes     int `json:"bgSlaMaxMinutes" binding:"required,gte=1"`
 }
 
 func (h *Handler) GetSLA(c *gin.Context) {
@@ -42,7 +44,9 @@ func (h *Handler) UpdateSLA(c *gin.Context) {
 		return
 	}
 
-	cfg.SLAMaxMinutes = req.SLAMaxMinutes
+	cfg.ImportSLAMaxMinutes = req.ImportSLAMaxMinutes
+	cfg.ExportSLAMaxMinutes = req.ExportSLAMaxMinutes
+	cfg.BgSLAMaxMinutes = req.BgSLAMaxMinutes
 
 	if err := h.db.Save(&cfg).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

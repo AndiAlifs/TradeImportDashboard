@@ -725,13 +725,18 @@ export class QueueComponent implements OnInit {
   }
 
   private getRemainingSlaMinutes(r: any): number {
-    return this.dataStore.slaConfig().slaMaxMinutes - this.getElapsedMinutes(r);
+    let max = this.dataStore.slaConfig().importSlaMaxMinutes;
+    if (r.transactionType === 'Export') max = this.dataStore.slaConfig().exportSlaMaxMinutes;
+    if (r.transactionType === 'Bank Guarantee') max = this.dataStore.slaConfig().bgSlaMaxMinutes;
+    return max - this.getElapsedMinutes(r);
   }
 
   isAtRisk(r: any): boolean {
     if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
     const elapsed = this.getElapsedMinutes(r);
-    const max = this.dataStore.slaConfig().slaMaxMinutes;
+    let max = this.dataStore.slaConfig().importSlaMaxMinutes;
+    if (r.transactionType === 'Export') max = this.dataStore.slaConfig().exportSlaMaxMinutes;
+    if (r.transactionType === 'Bank Guarantee') max = this.dataStore.slaConfig().bgSlaMaxMinutes;
     return elapsed >= (max * 0.75) && elapsed <= max;
   }
 

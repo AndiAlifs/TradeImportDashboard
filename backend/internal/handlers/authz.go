@@ -13,10 +13,13 @@ const (
 	RoleImportOfficer = "import_officer"
 	RoleExportStaff   = "export_staff"
 	RoleExportOfficer = "export_officer"
+	RoleBgStaff       = "bg_staff"
+	RoleBgOfficer     = "bg_officer"
 
-	ScopeImport = "Import"
-	ScopeExport = "Export"
-	ScopeAll    = "All"
+	ScopeImport       = "Import"
+	ScopeExport       = "Export"
+	ScopeBg           = "Bank Guarantee"
+	ScopeAll          = "All"
 
 	CtxRoleKey  = "mock.role"
 	CtxScopeKey = "mock.scope"
@@ -32,7 +35,7 @@ type Actor struct {
 func NormalizeRole(raw string) string {
 	r := strings.ToLower(strings.TrimSpace(raw))
 	switch r {
-	case RoleSuperAdmin, RoleExecutive, RoleImportStaff, RoleImportOfficer, RoleExportStaff, RoleExportOfficer:
+	case RoleSuperAdmin, RoleExecutive, RoleImportStaff, RoleImportOfficer, RoleExportStaff, RoleExportOfficer, RoleBgStaff, RoleBgOfficer:
 		return r
 	default:
 		return RoleSuperAdmin
@@ -45,6 +48,8 @@ func ScopeForRole(role string) string {
 		return ScopeImport
 	case RoleExportStaff, RoleExportOfficer:
 		return ScopeExport
+	case RoleBgStaff, RoleBgOfficer:
+		return ScopeBg
 	default:
 		return ScopeAll
 	}
@@ -57,6 +62,8 @@ func normalizeScope(raw string) string {
 		return ScopeImport
 	case "export":
 		return ScopeExport
+	case "bank guarantee", "bg":
+		return ScopeBg
 	default:
 		return ScopeAll
 	}
@@ -105,15 +112,18 @@ func (a Actor) CanAccessTransaction(transactionType string) bool {
 	if a.Scope == ScopeExport {
 		return tx == "export"
 	}
+	if a.Scope == ScopeBg {
+		return tx == "bank guarantee" || tx == "bg"
+	}
 	return false
 }
 
 func CanUpdateStatus(actor Actor, newStatus string) bool {
 	status := strings.TrimSpace(newStatus)
 	if status == "Released" {
-		return IsRoleAllowed(actor.Role, RoleSuperAdmin, RoleImportOfficer, RoleExportOfficer)
+		return IsRoleAllowed(actor.Role, RoleSuperAdmin, RoleImportOfficer, RoleExportOfficer, RoleBgOfficer)
 	}
-	return IsRoleAllowed(actor.Role, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	return IsRoleAllowed(actor.Role, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 }
 
 func SetActorContext(c *gin.Context) {

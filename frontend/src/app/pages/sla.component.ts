@@ -16,8 +16,16 @@ import { TranslationService } from '../services/translation.service';
         <p>{{ 'sla.config_desc' | translate }}</p>
 
         <div class="form-group">
-          <label for="sla-max">{{ 'sla.max_label' | translate }}</label>
-          <input type="number" id="sla-max" [(ngModel)]="slaMax" min="1" />
+          <label for="sla-import-max">{{ 'sla.import_max_label' | translate }}</label>
+          <input type="number" id="sla-import-max" [(ngModel)]="importSlaMaxMinutes" min="1" />
+        </div>
+        <div class="form-group">
+          <label for="sla-export-max">{{ 'sla.export_max_label' | translate }}</label>
+          <input type="number" id="sla-export-max" [(ngModel)]="exportSlaMaxMinutes" min="1" />
+        </div>
+        <div class="form-group">
+          <label for="sla-bg-max">{{ 'sla.bg_max_label' | translate }}</label>
+          <input type="number" id="sla-bg-max" [(ngModel)]="bgSlaMaxMinutes" min="1" />
         </div>
 
         <div class="form-actions">
@@ -40,13 +48,17 @@ export class SlaComponent {
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
 
-  slaMax = 120;
+  importSlaMaxMinutes = 120;
+  exportSlaMaxMinutes = 120;
+  bgSlaMaxMinutes = 120;
   saving = false;
   canManageSla = computed(() => this.dataStore.canAccessAction('manage_sla'));
 
   constructor() {
     const current = this.dataStore.slaConfig();
-    this.slaMax = current.slaMaxMinutes;
+    this.importSlaMaxMinutes = current.importSlaMaxMinutes;
+    this.exportSlaMaxMinutes = current.exportSlaMaxMinutes;
+    this.bgSlaMaxMinutes = current.bgSlaMaxMinutes;
   }
 
   async handleSave() {
@@ -56,7 +68,7 @@ export class SlaComponent {
     }
     this.saving = true;
     try {
-      await this.dataStore.saveSlaConfig({ slaMaxMinutes: this.slaMax });
+      await this.dataStore.saveSlaConfig({ importSlaMaxMinutes: this.importSlaMaxMinutes, exportSlaMaxMinutes: this.exportSlaMaxMinutes, bgSlaMaxMinutes: this.bgSlaMaxMinutes });
       this.showToast('success', this.ts.translate('toast.sla_saved'));
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to save SLA');
@@ -70,8 +82,10 @@ export class SlaComponent {
       this.showToast('info', 'Forbidden: current role cannot reset SLA');
       return;
     }
-    this.slaMax = 120;
-    this.dataStore.saveSlaConfig({ slaMaxMinutes: 120 }).then(() => {
+    this.importSlaMaxMinutes = 120;
+    this.exportSlaMaxMinutes = 120;
+    this.bgSlaMaxMinutes = 120;
+    this.dataStore.saveSlaConfig({ importSlaMaxMinutes: 120, exportSlaMaxMinutes: 120, bgSlaMaxMinutes: 120 }).then(() => {
       this.showToast('info', this.ts.translate('toast.sla_reset'));
     });
   }
@@ -85,7 +99,9 @@ export class SlaComponent {
     try {
       await this.dataStore.resetAllData();
       const updated = this.dataStore.slaConfig();
-      this.slaMax = updated.slaMaxMinutes;
+      this.importSlaMaxMinutes = updated.importSlaMaxMinutes;
+      this.exportSlaMaxMinutes = updated.exportSlaMaxMinutes;
+      this.bgSlaMaxMinutes = updated.bgSlaMaxMinutes;
       this.showToast('info', this.ts.translate('toast.data_reset'));
     } catch (e: any) {
       this.showToast('info', e.message || 'Reset failed');

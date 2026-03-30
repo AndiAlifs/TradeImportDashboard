@@ -4,7 +4,7 @@ const EVENT_LOG_KEY = 'shila_event_log';
 const ASSIGNEE_KEY = 'shila_assignee_master';
 const OFFICER_KEY = 'shila_officer_master';
 
-const DEFAULT_SLA = { slaMaxMinutes: 120 };
+const DEFAULT_SLA = { importSlaMaxMinutes: 120, exportSlaMaxMinutes: 120, bgSlaMaxMinutes: 120 };
 const API_BASE = (window as any).SHILA_API_BASE || 'http://localhost:8081/api';
 
 let lcCache: any[] = [];

@@ -18,9 +18,19 @@ import { TranslationService } from '../services/translation.service';
         <p>{{ descKey | translate }}</p>
 
         <form (ngSubmit)="handleAdd()" style="margin-top: 1.5rem;">
-          <div class="form-group">
-            <label [for]="'master-name'">{{ nameLabel | translate }}</label>
-            <input type="text" id="master-name" [(ngModel)]="newName" name="name" required [placeholder]="namePlaceholder | translate" />
+          <div class="form-group" style="display:flex; gap:1rem;">
+            <div style="flex:1;">
+              <label [for]="'master-name'">{{ nameLabel | translate }}</label>
+              <input type="text" id="master-name" [(ngModel)]="newName" name="name" required [placeholder]="namePlaceholder | translate" />
+            </div>
+            <div style="flex:1;">
+              <label [for]="'master-section'">Section</label>
+              <select id="master-section" [(ngModel)]="newSection" name="section" required class="form-control">
+                <option value="Import">Import</option>
+                <option value="Export">Export</option>
+                <option value="Bank Guarantee">Bank Guarantee</option>
+              </select>
+            </div>
           </div>
           <div class="form-actions">
             <button type="submit" class="btn btn-primary" [disabled]="submitting || !canManage()">{{ submitLabel | translate }}</button>
@@ -38,6 +48,7 @@ import { TranslationService } from '../services/translation.service';
             <tr>
               <th>#</th>
               <th>{{ colNameKey | translate }}</th>
+              <th>Section</th>
               <th style="width: 120px; text-align: center;">Actions</th>
             </tr>
           </thead>
@@ -53,6 +64,18 @@ import { TranslationService } from '../services/translation.service';
                 </ng-container>
                 <ng-container *ngIf="editingId === item.id">
                   <input type="text" [(ngModel)]="editName" class="form-control" style="padding: 0.25rem 0.5rem; width: 100%; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-modifier); color: var(--text-base);" />
+                </ng-container>
+              </td>
+              <td>
+                <ng-container *ngIf="editingId !== item.id">
+                  <span class="badge" [ngClass]="'status-' + (item.section | lowercase).replace(' ', '-')">{{ item.section }}</span>
+                </ng-container>
+                <ng-container *ngIf="editingId === item.id">
+                  <select [(ngModel)]="editSection" class="form-control" style="padding: 0.25rem 0.5rem; width: 100%; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-modifier); color: var(--text-base);">
+                    <option value="Import">Import</option>
+                    <option value="Export">Export</option>
+                    <option value="Bank Guarantee">Bank Guarantee</option>
+                  </select>
                 </ng-container>
               </td>
               <td style="text-align: center;">
@@ -79,6 +102,7 @@ export class MasterDataComponent implements OnInit {
 
   dataType: 'assignee' | 'officer' = 'assignee';
   newName = '';
+  newSection = 'Import';
   submitting = false;
 
   // Translation keys based on type
@@ -128,17 +152,18 @@ export class MasterDataComponent implements OnInit {
       this.showToast('info', 'Forbidden: current role cannot manage this master data');
       return;
     }
-    if (this.submitting || !this.newName.trim()) return;
+    if (this.submitting || !this.newName.trim() || !this.newSection) return;
     this.submitting = true;
     try {
       if (this.dataType === 'assignee') {
-        await this.dataStore.createAssignee({ name: this.newName.trim() });
+        await this.dataStore.createAssignee({ name: this.newName.trim(), section: this.newSection });
         this.showToast('success', this.ts.translate('toast.assignee_added') || 'Assignee added successfully');
       } else {
-        await this.dataStore.createOfficer({ name: this.newName.trim() });
+        await this.dataStore.createOfficer({ name: this.newName.trim(), section: this.newSection });
         this.showToast('success', this.ts.translate('toast.officer_added') || 'Officer added successfully');
       }
       this.newName = '';
+      this.newSection = 'Import';
     } catch (e: any) {
       const failKey = this.dataType === 'assignee' ? 'toast.assignee_add_failed' : 'toast.officer_add_failed';
       this.showToast('info', this.ts.translate(failKey) || 'Failed to add item');
@@ -149,16 +174,19 @@ export class MasterDataComponent implements OnInit {
 
   editingId: number | null = null;
   editName = '';
+  editSection = '';
 
   startEdit(item: any) {
     if (!this.canManage()) return;
     this.editingId = item.id;
     this.editName = item.name;
+    this.editSection = item.section || 'Import';
   }
 
   cancelEdit() {
     this.editingId = null;
     this.editName = '';
+    this.editSection = '';
   }
 
   async saveEdit(item: any) {
@@ -166,13 +194,13 @@ export class MasterDataComponent implements OnInit {
       this.showToast('info', 'Forbidden: current role cannot update this master data');
       return;
     }
-    if (!this.editName.trim()) return;
+    if (!this.editName.trim() || !this.editSection) return;
     try {
       if (this.dataType === 'assignee') {
-        await this.dataStore.updateAssignee(item.id, { name: this.editName.trim() });
+        await this.dataStore.updateAssignee(item.id, { name: this.editName.trim(), section: this.editSection });
         this.showToast('success', 'Assignee updated successfully');
       } else {
-        await this.dataStore.updateOfficer(item.id, { name: this.editName.trim() });
+        await this.dataStore.updateOfficer(item.id, { name: this.editName.trim(), section: this.editSection });
         this.showToast('success', 'Officer updated successfully');
       }
       this.editingId = null;

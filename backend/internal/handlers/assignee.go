@@ -13,16 +13,17 @@ import (
 )
 
 type createAssigneeRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name    string `json:"name" binding:"required"`
+	Section string `json:"section" binding:"required"`
 }
 
 func (h *Handler) ListAssignees(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff); !ok {
 		return
 	}
 
 	var records []models.Assignee
-	if err := h.db.Where("is_active = ?", true).Order("name asc").Find(&records).Error; err != nil {
+	if err := h.db.Where("is_active = ?", true).Order("section asc, name asc").Find(&records).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -31,7 +32,7 @@ func (h *Handler) ListAssignees(c *gin.Context) {
 }
 
 func (h *Handler) CreateAssignee(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer, RoleBgOfficer); !ok {
 		return
 	}
 
@@ -46,8 +47,13 @@ func (h *Handler) CreateAssignee(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
 		return
 	}
+	section := strings.TrimSpace(req.Section)
+	if section == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "section is required"})
+		return
+	}
 
-	assignee := models.Assignee{Name: name, IsActive: true}
+	assignee := models.Assignee{Name: name, Section: section, IsActive: true}
 	if err := h.db.Create(&assignee).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "assignee already exists"})
@@ -91,11 +97,12 @@ func (h *Handler) GetAssigneeByID(c *gin.Context) {
 
 type updateAssigneeRequest struct {
 	Name     *string `json:"name"`
+	Section  *string `json:"section"`
 	IsActive *bool   `json:"isActive"`
 }
 
 func (h *Handler) UpdateAssignee(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleExportOfficer, RoleBgOfficer); !ok {
 		return
 	}
 
@@ -130,13 +137,21 @@ func (h *Handler) UpdateAssignee(c *gin.Context) {
 		}
 		assignee.Name = name
 	}
+	if req.Section != nil {
+		section := strings.TrimSpace(*req.Section)
+		if section == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "section cannot be empty"})
+			return
+		}
+		assignee.Section = section
+	}
 	if req.IsActive != nil {
 		assignee.IsActive = *req.IsActive
 	}
 
-	if err := h.db.Model(&assignee).Select("Name", "IsActive").Updates(assignee).Error; err != nil {
+	if err := h.db.Model(&assignee).Select("Name", "Section", "IsActive").Updates(assignee).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			c.JSON(http.StatusConflict, gin.H{"error": "assignee name already exists"})
+			c.JSON(http.StatusConflict, gin.H{"error": "assignee name and section already exists"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

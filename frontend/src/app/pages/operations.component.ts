@@ -223,7 +223,7 @@ export class OperationsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private ts = inject(TranslationService);
 
-  type: 'Import' | 'Export' = 'Import';
+  type: 'Import' | 'Export' | 'Bank Guarantee' = 'Import';
   selectedLc: any = null;
   readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
     { value: 'today', labelKey: 'date.today' },
@@ -263,9 +263,13 @@ export class OperationsComponent implements OnInit {
   completedCount = computed(() => this.filteredData().filter(r => r.status === 'Released').length);
   breachCount = computed(() => {
     const sla = this.sla();
+    let maxSla = sla.importSlaMaxMinutes;
+    if (this.type === 'Export') maxSla = sla.exportSlaMaxMinutes;
+    if (this.type === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
+
     return this.filteredData().filter(r => {
       const elapsed = this.getElapsedMinutes(r);
-      return (elapsed > sla.slaMaxMinutes && r.status !== 'Released' && r.status !== 'Exception') ||
+      return (elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') ||
              r.status === 'Breached' || r.status === 'Breached with Exception';
     }).length;
   });
@@ -333,17 +337,22 @@ export class OperationsComponent implements OnInit {
   isAtRisk(r: any): boolean {
     if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
     const elapsed = this.getElapsedMinutes(r);
-    const max = this.sla().slaMaxMinutes;
-    return elapsed >= (max * 0.75) && elapsed <= max;
+    let maxSla = this.sla().importSlaMaxMinutes;
+    if (this.type === 'Export') maxSla = this.sla().exportSlaMaxMinutes;
+    if (this.type === 'Bank Guarantee') maxSla = this.sla().bgSlaMaxMinutes;
+    return elapsed >= (maxSla * 0.75) && elapsed <= maxSla;
   }
 
   slaIndicatorHtml(r: any): string {
     const sla = this.sla();
-    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
+    let maxSla = sla.importSlaMaxMinutes;
+    if (this.type === 'Export') maxSla = sla.exportSlaMaxMinutes;
+    if (this.type === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
+    const warningThreshold = Math.floor(maxSla * 0.75);
     if (r.status === 'Released') {
       const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
       if (total <= warningThreshold) return `<span class="sla-indicator green">✓ ${total}m</span>`;
-      if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
+      if (total <= maxSla) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
       return `<span class="sla-indicator red">✗ ${total}m</span>`;
     }
     if (r.status === 'Breached with Exception') {
@@ -352,7 +361,7 @@ export class OperationsComponent implements OnInit {
     }
     const elapsed = this.getElapsedMinutes(r);
     if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
-    if (elapsed <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
+    if (elapsed <= maxSla) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
     return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
   }
 

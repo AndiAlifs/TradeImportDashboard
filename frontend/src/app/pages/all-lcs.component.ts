@@ -341,7 +341,7 @@ export class AllLcsComponent implements OnInit {
       }
       this.dataStore.setActiveDashboardContext('operations');
       this.syncInputsFromRange();
-      void this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' });
+      void this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' | 'Bank Guarantee' });
     });
   }
 
@@ -472,12 +472,15 @@ export class AllLcsComponent implements OnInit {
 
   private slaSortPayload(record: any): { bucket: number; minutes: number } {
     const sla = this.dataStore.slaConfig();
-    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
+    let maxSla = sla.importSlaMaxMinutes;
+    if (this.transactionType() === 'Export') maxSla = sla.exportSlaMaxMinutes;
+    if (this.transactionType() === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
+    const warningThreshold = Math.floor(maxSla * 0.75);
     const minutes = this.slaMinutes(record);
     if (minutes <= warningThreshold) {
       return { bucket: 0, minutes };
     }
-    if (minutes <= sla.slaMaxMinutes) {
+    if (minutes <= maxSla) {
       return { bucket: 1, minutes };
     }
     return { bucket: 2, minutes };
@@ -527,13 +530,13 @@ export class AllLcsComponent implements OnInit {
     this.customFrom = bounds.from;
     this.customTo = bounds.to;
     void this.dataStore.setPresetDateRange('operations', preset, false)
-      .then(() => this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' }));
+      .then(() => this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' | 'Bank Guarantee' }));
   }
 
   applyCustomRange(): void {
     if (!this.customFrom || !this.customTo) return;
     void this.dataStore.setCustomDateRange('operations', this.customFrom, this.customTo, false)
-      .then(() => this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' }));
+      .then(() => this.dataStore.refreshData({ transactionType: this.transactionType() as 'Import' | 'Export' | 'Bank Guarantee' }));
   }
 
   isPresetActive(preset: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'): boolean {
@@ -716,17 +719,22 @@ export class AllLcsComponent implements OnInit {
   isAtRisk(r: any): boolean {
     if (r.status === 'Released' || r.status === 'Breached' || r.status === 'Breached with Exception') return false;
     const elapsed = this.getElapsedMinutes(r);
-    const max = this.dataStore.slaConfig().slaMaxMinutes;
-    return elapsed >= (max * 0.75) && elapsed <= max;
+    let maxSla = this.dataStore.slaConfig().importSlaMaxMinutes;
+    if (this.transactionType() === 'Export') maxSla = this.dataStore.slaConfig().exportSlaMaxMinutes;
+    if (this.transactionType() === 'Bank Guarantee') maxSla = this.dataStore.slaConfig().bgSlaMaxMinutes;
+    return elapsed >= (maxSla * 0.75) && elapsed <= maxSla;
   }
 
   slaIndicatorHtml(r: any): string {
     const sla = this.dataStore.slaConfig();
-    const warningThreshold = Math.floor(sla.slaMaxMinutes * 0.75);
+    let maxSla = sla.importSlaMaxMinutes;
+    if (this.transactionType() === 'Export') maxSla = sla.exportSlaMaxMinutes;
+    if (this.transactionType() === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
+    const warningThreshold = Math.floor(maxSla * 0.75);
     if (r.status === 'Released' && r.releasedAt) {
       const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
       if (total <= warningThreshold) return `<span class="sla-indicator green">✓ ${total}m</span>`;
-      if (total <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
+      if (total <= maxSla) return `<span class="sla-indicator yellow">⚠ ${total}m</span>`;
       return `<span class="sla-indicator red">✗ ${total}m</span>`;
     }
     if (r.status === 'Breached with Exception') {
@@ -735,7 +743,7 @@ export class AllLcsComponent implements OnInit {
     }
     const elapsed = this.getElapsedMinutes(r);
     if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
-    if (elapsed <= sla.slaMaxMinutes) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
+    if (elapsed <= maxSla) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
     return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
   }
 

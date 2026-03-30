@@ -1,7 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
 export interface SlaConfig {
-  slaMaxMinutes: number;
+  importSlaMaxMinutes: number;
+  exportSlaMaxMinutes: number;
+  bgSlaMaxMinutes: number;
 }
 
 export interface CreateLCOrderRequest {
@@ -39,7 +41,7 @@ const MOCK_ROLE_KEY = 'shila_mock_role';
 const EXEC_DASHBOARD_RANGE_KEY = 'shila_exec_date_range';
 const OPS_DASHBOARD_RANGE_KEY = 'shila_ops_date_range';
 
-const DEFAULT_SLA: SlaConfig = { slaMaxMinutes: 120 };
+const DEFAULT_SLA: SlaConfig = { importSlaMaxMinutes: 120, exportSlaMaxMinutes: 120, bgSlaMaxMinutes: 120 };
 
 export type MockRole =
   | 'super_admin'
@@ -47,12 +49,14 @@ export type MockRole =
   | 'import_officer'
   | 'import_staff'
   | 'export_officer'
-  | 'export_staff';
+  | 'export_staff'
+  | 'bg_officer'
+  | 'bg_staff';
 
 export interface RoleOption {
   value: MockRole;
   label: string;
-  scope: 'All' | 'Import' | 'Export';
+  scope: 'All' | 'Import' | 'Export' | 'Bank Guarantee';
 }
 
 export type DateRangePreset = 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month' | 'custom';
@@ -71,6 +75,8 @@ const ROLE_OPTIONS: RoleOption[] = [
   { value: 'import_staff', label: 'Import Staff', scope: 'Import' },
   { value: 'export_officer', label: 'Export Officer', scope: 'Export' },
   { value: 'export_staff', label: 'Export Staff', scope: 'Export' },
+  { value: 'bg_officer', label: 'BG Officer', scope: 'Bank Guarantee' },
+  { value: 'bg_staff', label: 'BG Staff', scope: 'Bank Guarantee' },
 ];
 
 function parseStoredRole(raw: string | null): MockRole {
@@ -122,7 +128,7 @@ export class DataStoreService {
     return ROLE_OPTIONS.find((role) => role.value === this.currentRole()) || ROLE_OPTIONS[0];
   }
 
-  get currentScope(): 'All' | 'Import' | 'Export' {
+  get currentScope(): 'All' | 'Import' | 'Export' | 'Bank Guarantee' {
     return this.currentRoleOption.scope;
   }
 
@@ -143,6 +149,9 @@ export class DataStoreService {
       case 'export_officer':
       case 'export_staff':
         return '/export';
+      case 'bg_officer':
+      case 'bg_staff':
+        return '/bg';
       default:
         return '/';
     }
@@ -178,7 +187,7 @@ export class DataStoreService {
     return this.currentScope.toLowerCase() === transactionType.toLowerCase();
   }
 
-  canAccessMenu(menu: 'exec' | 'import' | 'export' | 'assignee-master' | 'officer-master' | 'sla' | 'eventlog'): boolean {
+  canAccessMenu(menu: 'exec' | 'import' | 'export' | 'bg' | 'assignee-master' | 'officer-master' | 'sla' | 'eventlog'): boolean {
     const role = this.currentRole();
     if (role === 'super_admin') return true;
     if (role === 'executive') {
@@ -188,7 +197,8 @@ export class DataStoreService {
     if (menu === 'exec') return true;
     if (menu === 'import') return role === 'import_officer' || role === 'import_staff';
     if (menu === 'export') return role === 'export_officer' || role === 'export_staff';
-    if (menu === 'assignee-master') return role === 'import_officer' || role === 'export_officer';
+    if (menu === 'bg') return role === 'bg_officer' || role === 'bg_staff';
+    if (menu === 'assignee-master') return role === 'import_officer' || role === 'export_officer' || role === 'bg_officer';
     if (menu === 'officer-master' || menu === 'sla' || menu === 'eventlog') return false;
     return false;
   }
@@ -202,14 +212,15 @@ export class DataStoreService {
       return normalizedPath === '/' || normalizedPath === '/eventlog';
     }
 
-    if (normalizedPath === '/' || normalizedPath.startsWith('/import') || normalizedPath.startsWith('/export')) {
+    if (normalizedPath === '/' || normalizedPath.startsWith('/import') || normalizedPath.startsWith('/export') || normalizedPath.startsWith('/bg')) {
       if (normalizedPath.startsWith('/import')) return this.canAccessTransaction('Import');
       if (normalizedPath.startsWith('/export')) return this.canAccessTransaction('Export');
+      if (normalizedPath.startsWith('/bg')) return this.canAccessTransaction('Bank Guarantee');
       return true;
     }
 
     if (normalizedPath === '/assignee-master') {
-      return role === 'import_officer' || role === 'export_officer';
+      return role === 'import_officer' || role === 'export_officer' || role === 'bg_officer';
     }
     if (normalizedPath === '/officer-registration' || normalizedPath === '/sla' || normalizedPath === '/eventlog') {
       return false;
@@ -244,13 +255,13 @@ export class DataStoreService {
       case 'create_lc':
       case 'update_status':
       case 'update_lc':
-        return role === 'import_officer' || role === 'import_staff' || role === 'export_officer' || role === 'export_staff';
+        return role === 'import_officer' || role === 'import_staff' || role === 'export_officer' || role === 'export_staff' || role === 'bg_officer' || role === 'bg_staff';
       case 'delete_lc':
         return false;
       case 'release_lc':
-        return role === 'import_officer' || role === 'export_officer';
+        return role === 'import_officer' || role === 'export_officer' || role === 'bg_officer';
       case 'manage_assignee':
-        return role === 'import_officer' || role === 'export_officer';
+        return role === 'import_officer' || role === 'export_officer' || role === 'bg_officer';
       case 'manage_officer':
       case 'manage_sla':
       case 'reset_data':
@@ -476,7 +487,7 @@ export class DataStoreService {
     };
   }
 
-  async fetchLCsForRange(range: DashboardDateRange, options: { transactionType?: 'Import' | 'Export' } = {}): Promise<any[]> {
+  async fetchLCsForRange(range: DashboardDateRange, options: { transactionType?: 'Import' | 'Export' | 'Bank Guarantee' } = {}): Promise<any[]> {
     const params = new URLSearchParams('limit=500&offset=0');
     const dateQuery = this.buildDateQueryFromRange(range);
 
@@ -593,7 +604,7 @@ export class DataStoreService {
     localStorage.setItem(OFFICER_KEY, JSON.stringify(this.officers()));
   }
 
-  async refreshData(options: { transactionType?: 'Import' | 'Export' } = {}): Promise<void> {
+  async refreshData(options: { transactionType?: 'Import' | 'Export' | 'Bank Guarantee' } = {}): Promise<void> {
     try {
       const context = this.activeDashboardContext();
       const dateQuery = this.buildDateQuery(context);
@@ -678,17 +689,17 @@ export class DataStoreService {
     await this.refreshData();
   }
 
-  async createAssignee(data: { name: string }): Promise<void> {
+  async createAssignee(data: { name: string, section: string }): Promise<void> {
     await this.apiRequest('/assignees', { method: 'POST', body: JSON.stringify(data) });
     await this.refreshData();
   }
 
-  async createOfficer(data: { name: string }): Promise<void> {
+  async createOfficer(data: { name: string, section: string }): Promise<void> {
     await this.apiRequest('/officers', { method: 'POST', body: JSON.stringify(data) });
     await this.refreshData();
   }
 
-  async updateAssignee(id: number, data: { name?: string, isActive?: boolean }): Promise<void> {
+  async updateAssignee(id: number, data: { name?: string, section?: string, isActive?: boolean }): Promise<void> {
     await this.apiRequest(`/assignees/${id}`, { method: 'PUT', body: JSON.stringify(data) });
     await this.refreshData();
   }
@@ -698,7 +709,7 @@ export class DataStoreService {
     await this.refreshData();
   }
 
-  async updateOfficer(id: number, data: { name?: string, isActive?: boolean }): Promise<void> {
+  async updateOfficer(id: number, data: { name?: string, section?: string, isActive?: boolean }): Promise<void> {
     await this.apiRequest(`/officers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
     await this.refreshData();
   }

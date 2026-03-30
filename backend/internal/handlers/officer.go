@@ -13,16 +13,17 @@ import (
 )
 
 type createOfficerRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name    string `json:"name" binding:"required"`
+	Section string `json:"section" binding:"required"`
 }
 
 func (h *Handler) ListOfficers(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff); !ok {
 		return
 	}
 
 	var records []models.Officer
-	if err := h.db.Where("is_active = ?", true).Order("name asc").Find(&records).Error; err != nil {
+	if err := h.db.Where("is_active = ?", true).Order("section asc, name asc").Find(&records).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -31,7 +32,7 @@ func (h *Handler) ListOfficers(c *gin.Context) {
 }
 
 func (h *Handler) CreateOfficer(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleBgOfficer); !ok {
 		return
 	}
 
@@ -46,8 +47,13 @@ func (h *Handler) CreateOfficer(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
 		return
 	}
+	section := strings.TrimSpace(req.Section)
+	if section == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "section is required"})
+		return
+	}
 
-	officer := models.Officer{Name: name, IsActive: true}
+	officer := models.Officer{Name: name, Section: section, IsActive: true}
 	if err := h.db.Create(&officer).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			c.JSON(http.StatusConflict, gin.H{"error": "officer already exists"})
@@ -91,11 +97,12 @@ func (h *Handler) GetOfficerByID(c *gin.Context) {
 
 type updateOfficerRequest struct {
 	Name     *string `json:"name"`
+	Section  *string `json:"section"`
 	IsActive *bool   `json:"isActive"`
 }
 
 func (h *Handler) UpdateOfficer(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleBgOfficer); !ok {
 		return
 	}
 
@@ -130,13 +137,21 @@ func (h *Handler) UpdateOfficer(c *gin.Context) {
 		}
 		officer.Name = name
 	}
+	if req.Section != nil {
+		section := strings.TrimSpace(*req.Section)
+		if section == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "section cannot be empty"})
+			return
+		}
+		officer.Section = section
+	}
 	if req.IsActive != nil {
 		officer.IsActive = *req.IsActive
 	}
 
-	if err := h.db.Model(&officer).Select("Name", "IsActive").Updates(officer).Error; err != nil {
+	if err := h.db.Model(&officer).Select("Name", "Section", "IsActive").Updates(officer).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(strings.ToLower(err.Error()), "duplicate") {
-			c.JSON(http.StatusConflict, gin.H{"error": "officer name already exists"})
+			c.JSON(http.StatusConflict, gin.H{"error": "officer name and section already exists"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
