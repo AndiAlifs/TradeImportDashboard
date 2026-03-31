@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DashboardDateRange, DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel, getTimelineLabel } from '../utils/stage-duration';
+import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel, getTimelineLabel, getChartLabel } from '../utils/stage-duration';
 
 type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 
@@ -554,6 +554,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 })
 export class ExecDashboardComponent implements OnInit {
   getTimelineLabel = getTimelineLabel;
+  getChartLabel = getChartLabel;
 
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
@@ -707,10 +708,10 @@ export class ExecDashboardComponent implements OnInit {
     const bg = this.mapStagesForComparison(this.bgStageAverages());
     const stageMax = (a: number, b: number, c: number) => Math.max(1, a, b, c);
     return [
-      { label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox, bgVal: bg.inbox, stageMax: stageMax(imp.inbox, exp.inbox, bg.inbox) },
-      { label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting, bgVal: bg.drafting, stageMax: stageMax(imp.drafting, exp.drafting, bg.drafting) },
-      { label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking, bgVal: bg.checking, stageMax: stageMax(imp.checking, exp.checking, bg.checking) },
-      { label: 'chart.total', importVal: imp.total, exportVal: exp.total, bgVal: bg.total, stageMax: stageMax(imp.total, exp.total, bg.total) },
+      { key: 'inbox', label: 'chart.inbox', importVal: imp.inbox, exportVal: exp.inbox, bgVal: bg.inbox, stageMax: stageMax(imp.inbox, exp.inbox, bg.inbox) },
+      { key: 'drafting', label: 'chart.drafting', importVal: imp.drafting, exportVal: exp.drafting, bgVal: bg.drafting, stageMax: stageMax(imp.drafting, exp.drafting, bg.drafting) },
+      { key: 'checking', label: 'chart.checking', importVal: imp.checking, exportVal: exp.checking, bgVal: bg.checking, stageMax: stageMax(imp.checking, exp.checking, bg.checking) },
+      { key: 'total', label: 'chart.total', importVal: imp.total, exportVal: exp.total, bgVal: bg.total, stageMax: stageMax(imp.total, exp.total, bg.total) },
     ];
   });
 
