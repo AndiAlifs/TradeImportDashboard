@@ -9,6 +9,7 @@ export interface StageDuration {
 const MS_PER_MINUTE = 60000;
 
 type StageRecord = {
+  transactionType?: string;
   status?: string;
   receivedAt?: string;
   draftingStartedAt?: string;
@@ -17,6 +18,27 @@ type StageRecord = {
   exceptionStartedAt?: string;
   exceptionTotalMinutes?: number;
 };
+
+export function getStageKeyType(transactionType?: string): string {
+  if (!transactionType) return 'import';
+  const t = transactionType.toLowerCase().replace(' ', '_');
+  return t === 'bank_guarantee' ? 'bank_guarantee' : t;
+}
+
+export function getChartLabel(transactionType: string | undefined, stageGroup: string): string {
+  if (stageGroup === 'exception') return 'timeline.exception';
+  return `chart.${getStageKeyType(transactionType)}.${stageGroup}`;
+}
+
+export function getTimelineLabel(transactionType: string | undefined, stageGroup: string): string {
+  if (stageGroup === 'exception') return 'timeline.exception';
+  return `timeline.${getStageKeyType(transactionType)}.${stageGroup}`;
+}
+
+export function getActionLabel(transactionType: string | undefined, actionGroup: string): string {
+  if (actionGroup === 'release') return 'action.release'; // global
+  return `action.${getStageKeyType(transactionType)}.${actionGroup}`;
+}
 
 function parseTime(value?: string): number | null {
   if (!value) return null;
@@ -41,24 +63,24 @@ export function computeLcStageDurations(record: StageRecord, nowTs = Date.now())
   const stages: StageDuration[] = [];
 
   if (draftingTs !== null) {
-    stages.push({ key: 'inbox', labelKey: 'chart.inbox', minutes: minsBetween(receivedTs, draftingTs), isActive: false, isLongest: false });
+    stages.push({ key: 'inbox', labelKey: getChartLabel(record.transactionType, 'inbox'), minutes: minsBetween(receivedTs, draftingTs), isActive: false, isLongest: false });
   } else if (status === 'Received') {
-    stages.push({ key: 'inbox', labelKey: 'chart.inbox', minutes: minsBetween(receivedTs, nowTs), isActive: true, isLongest: false });
+    stages.push({ key: 'inbox', labelKey: getChartLabel(record.transactionType, 'inbox'), minutes: minsBetween(receivedTs, nowTs), isActive: true, isLongest: false });
   }
 
   if (draftingTs !== null) {
     if (checkingTs !== null) {
-      stages.push({ key: 'drafting', labelKey: 'chart.drafting', minutes: minsBetween(draftingTs, checkingTs), isActive: false, isLongest: false });
+      stages.push({ key: 'drafting', labelKey: getChartLabel(record.transactionType, 'drafting'), minutes: minsBetween(draftingTs, checkingTs), isActive: false, isLongest: false });
     } else if (status === 'Drafting') {
-      stages.push({ key: 'drafting', labelKey: 'chart.drafting', minutes: minsBetween(draftingTs, nowTs), isActive: true, isLongest: false });
+      stages.push({ key: 'drafting', labelKey: getChartLabel(record.transactionType, 'drafting'), minutes: minsBetween(draftingTs, nowTs), isActive: true, isLongest: false });
     }
   }
 
   if (checkingTs !== null) {
     if (releasedTs !== null) {
-      stages.push({ key: 'checking', labelKey: 'chart.checking', minutes: minsBetween(checkingTs, releasedTs), isActive: false, isLongest: false });
+      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: minsBetween(checkingTs, releasedTs), isActive: false, isLongest: false });
     } else if (status === 'Checking Underlying' || status === 'Breached') {
-      stages.push({ key: 'checking', labelKey: 'chart.checking', minutes: minsBetween(checkingTs, nowTs), isActive: true, isLongest: false });
+      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: minsBetween(checkingTs, nowTs), isActive: true, isLongest: false });
     }
   }
 
@@ -83,10 +105,11 @@ export function computeLcStageDurations(record: StageRecord, nowTs = Date.now())
 }
 
 export function computeAverageStageDurations(records: StageRecord[]): StageDuration[] {
+  const sampleType = records.length > 0 ? records[0].transactionType : undefined;
   const totals: Record<StageDuration['key'], { sum: number; count: number; labelKey: string }> = {
-    inbox: { sum: 0, count: 0, labelKey: 'chart.inbox' },
-    drafting: { sum: 0, count: 0, labelKey: 'chart.drafting' },
-    checking: { sum: 0, count: 0, labelKey: 'chart.checking' },
+    inbox: { sum: 0, count: 0, labelKey: getChartLabel(sampleType, 'inbox') },
+    drafting: { sum: 0, count: 0, labelKey: getChartLabel(sampleType, 'drafting') },
+    checking: { sum: 0, count: 0, labelKey: getChartLabel(sampleType, 'checking') },
     exception: { sum: 0, count: 0, labelKey: 'timeline.exception' },
   };
 

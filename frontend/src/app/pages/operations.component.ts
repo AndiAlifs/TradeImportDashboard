@@ -4,6 +4,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
+import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
 
 @Component({
   selector: 'app-operations',
@@ -61,15 +62,15 @@ import { TranslationService } from '../services/translation.service';
         <div class="stage-chart">
           <h3>{{ 'chart.title' | translate }}</h3>
           <div class="bar-row">
-            <span class="bar-label">{{ 'chart.inbox' | translate }}</span>
+            <span class="bar-label">{{ getChartLabel(type, 'inbox') | translate }}</span>
             <div class="bar-track"><div class="bar-fill purple" [style.width.%]="barPct(stageAvgs().inbox)">{{ stageAvgs().inbox }} min</div></div>
           </div>
           <div class="bar-row">
-            <span class="bar-label">{{ 'chart.drafting' | translate }}</span>
+            <span class="bar-label">{{ getChartLabel(type, 'drafting') | translate }}</span>
             <div class="bar-track"><div class="bar-fill amber" [style.width.%]="barPct(stageAvgs().drafting)">{{ stageAvgs().drafting }} min</div></div>
           </div>
           <div class="bar-row">
-            <span class="bar-label">{{ 'chart.checking' | translate }}</span>
+            <span class="bar-label">{{ getChartLabel(type, 'checking') | translate }}</span>
             <div class="bar-track"><div class="bar-fill indigo" [style.width.%]="barPct(stageAvgs().checking)">{{ stageAvgs().checking }} min</div></div>
           </div>
           <div class="bar-row">
@@ -162,7 +163,7 @@ import { TranslationService } from '../services/translation.service';
               <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.received' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
                 </div>
@@ -170,7 +171,7 @@ import { TranslationService } from '../services/translation.service';
               <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.drafting' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
                 </div>
@@ -178,7 +179,7 @@ import { TranslationService } from '../services/translation.service';
               <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.checking' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
                 </div>
@@ -205,7 +206,7 @@ import { TranslationService } from '../services/translation.service';
               <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
                 </div>
@@ -219,6 +220,8 @@ import { TranslationService } from '../services/translation.service';
   `
 })
 export class OperationsComponent implements OnInit {
+  getTimelineLabel = getTimelineLabel;
+  getChartLabel = getChartLabel;
   private dataStore = inject(DataStoreService);
   private route = inject(ActivatedRoute);
   private ts = inject(TranslationService);

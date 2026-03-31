@@ -18,7 +18,7 @@ import (
 type createLCRequest struct {
 	URN             string `json:"urn" binding:"required,max=32"`
 	Subject         string `json:"subject" binding:"required"`
-	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export 'Bank Guarantee'"`
+	TransactionType string `json:"transactionType" binding:"required"`
 	AssignedTo      string `json:"assignedTo"`
 	ReceivedAt      string `json:"receivedAt" binding:"required"`
 }
@@ -35,11 +35,27 @@ type updateStatusRequest struct {
 type updateLCRequest struct {
 	URN             string  `json:"urn" binding:"required,max=32"`
 	Subject         string  `json:"subject" binding:"required"`
-	TransactionType string  `json:"transactionType" binding:"required,oneof=Import Export 'Bank Guarantee'"`
+	TransactionType string  `json:"transactionType" binding:"required"`
 	AssignedTo      string  `json:"assignedTo"`
 	ReceivedAt      string  `json:"receivedAt" binding:"required"`
 	ExceptionReason *string `json:"exceptionReason"`
 	ApprovedBy      *string `json:"approvedBy"`
+}
+
+var transactionTypeAliases = map[string]string{
+	"import":         ScopeImport,
+	"export":         ScopeExport,
+	"bank guarantee": ScopeBg,
+	"bg":             ScopeBg,
+}
+
+func normalizeTransactionType(raw string) (string, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", false
+	}
+	canonical, ok := transactionTypeAliases[strings.ToLower(value)]
+	return canonical, ok
 }
 
 var errInvalidTransition = errors.New("invalid status transition")
@@ -55,6 +71,12 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	canonicalType, ok := normalizeTransactionType(req.TransactionType)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "transactionType must be one of Import, Export, Bank Guarantee"})
+		return
+	}
+	req.TransactionType = canonicalType
 	if !actor.CanAccessTransaction(req.TransactionType) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "forbidden: transaction type is out of scope"})
 		return
@@ -392,6 +414,12 @@ func (h *Handler) UpdateLC(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	canonicalType, ok := normalizeTransactionType(req.TransactionType)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "transactionType must be one of Import, Export, Bank Guarantee"})
+		return
+	}
+	req.TransactionType = canonicalType
 
 	req.URN = strings.TrimSpace(req.URN)
 	if req.URN == "" {
@@ -526,7 +554,7 @@ func (h *Handler) DeleteLC(c *gin.Context) {
 			return errors.New("forbidden: transaction type is out of scope")
 		}
 
-		if err := tx.Delete(&lc).Error; err != nil {
+		if err := tx.Unscoped().Delete(&lc).Error; err != nil {
 			return err
 		}
 
@@ -537,7 +565,7 @@ func (h *Handler) DeleteLC(c *gin.Context) {
 			Action:     "Delete Order",
 			FromStatus: lc.Status,
 			ToStatus:   "Deleted",
-			Notes:      "Soft deleted L/C record",
+			Notes:      "Hard deleted L/C record",
 			OccurredAt: now,
 		}
 		if err := tx.Create(&event).Error; err != nil {

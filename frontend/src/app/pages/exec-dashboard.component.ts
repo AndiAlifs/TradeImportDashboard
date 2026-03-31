@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DashboardDateRange, DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
+import { StageDuration, computeAverageStageDurations, computeLcStageDurations, findLongestStage, formatMinutesLabel, getTimelineLabel } from '../utils/stage-duration';
 
 type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 
@@ -123,15 +123,24 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <div class="comparison-label">{{ stage.label | translate }}</div>
               <div class="comparison-bars">
                 <div class="comparison-bar-row">
-                  <span class="comp-type-label import-label">{{ 'exec.import_label' | translate }}</span>
+                  <span class="comp-type-label import-label">
+                    {{ 'exec.import_label' | translate }}
+                    <small style="display:block;font-size:0.75em;opacity:0.8;margin-top:2px;line-height:1">{{ getChartLabel('Import', stage.key) | translate }}</small>
+                  </span>
                   <div class="bar-track"><div class="bar-fill purple" [style.width.%]="barPctByStage(stage.importVal, stage.stageMax)">{{ stage.importVal }} min</div></div>
                 </div>
                 <div class="comparison-bar-row">
-                  <span class="comp-type-label export-label">{{ 'exec.export_label' | translate }}</span>
+                  <span class="comp-type-label export-label">
+                    {{ 'exec.export_label' | translate }}
+                    <small style="display:block;font-size:0.75em;opacity:0.8;margin-top:2px;line-height:1">{{ getChartLabel('Export', stage.key) | translate }}</small>
+                  </span>
                   <div class="bar-track"><div class="bar-fill teal" [style.width.%]="barPctByStage(stage.exportVal, stage.stageMax)">{{ stage.exportVal }} min</div></div>
                 </div>
                 <div class="comparison-bar-row">
-                  <span class="comp-type-label bg-label" style="color:var(--info);border-color:var(--info);background:transparent">{{ 'exec.bg_label' | translate }}</span>
+                  <span class="comp-type-label bg-label" style="color:var(--info);border-color:var(--info);background:transparent">
+                    {{ 'exec.bg_label' | translate }}
+                    <small style="display:block;font-size:0.75em;opacity:0.8;margin-top:2px;line-height:1">{{ getChartLabel('Bank Guarantee', stage.key) | translate }}</small>
+                  </span>
                   <div class="bar-track"><div class="bar-fill info" [style.width.%]="barPctByStage(stage.bgVal, stage.stageMax)">{{ stage.bgVal }} min</div></div>
                 </div>
               </div>
@@ -379,7 +388,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.received' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
                 </div>
@@ -387,7 +396,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.drafting' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
                 </div>
@@ -395,7 +404,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.checking' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
                 </div>
@@ -422,7 +431,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
                 </div>
@@ -544,6 +553,8 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
   `
 })
 export class ExecDashboardComponent implements OnInit {
+  getTimelineLabel = getTimelineLabel;
+
   private dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
   private readonly comparisonMetricStorageKey = 'shila_exec_sla_compare_metric';

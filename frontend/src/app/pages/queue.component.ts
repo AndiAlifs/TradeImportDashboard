@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
+import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel, getActionLabel, getTimelineLabel } from '../utils/stage-duration';
 
 @Component({
   selector: 'app-queue',
@@ -57,13 +57,13 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <td>
                   <ng-container [ngSwitch]="r.status">
                     <ng-container *ngSwitchCase="'Received'">
-                      <button class="action-btn primary" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-drafting')">{{ 'action.start_drafting' | translate }}</button>
+                      <button class="action-btn primary" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-drafting')">{{ getActionLabel(r.transactionType, 'start_drafting') | translate }}</button>
                       <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Drafting'">
-                      <button class="action-btn warning" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-checking')">{{ 'action.start_checking' | translate }}</button>
+                      <button class="action-btn warning" [disabled]="!canUpdate()" (click)="handleAction(r, 'start-checking')">{{ getActionLabel(r.transactionType, 'start_checking') | translate }}</button>
                         <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
-                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Received')">{{ 'action.return_to' | translate }} {{ 'timeline.received' | translate }}</button>
+                        <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary);margin-top:4px" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Received')">{{ 'action.return_to' | translate }} {{ getTimelineLabel(r.transactionType, 'received') | translate }}</button>
                     </ng-container>
                     <ng-container *ngSwitchCase="'Checking Underlying'">
                       <div style="display:flex;flex-direction:column;gap:4px">
@@ -71,9 +71,9 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                           <option value="" disabled>{{ 'officer_release.select_officer' | translate }}</option>
                           <option *ngFor="let o of officers()" [value]="o.name">{{ o.name }}</option>
                         </select>
-                        <button class="action-btn success" [disabled]="!canRelease()" (click)="handleRelease(r)">{{ 'action.release' | translate }}</button>
+                        <button class="action-btn success" [disabled]="!canRelease()" (click)="handleRelease(r)">{{ getActionLabel(r.transactionType, 'release') | translate }}</button>
                           <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptMarkException(r)">{{ 'action.mark_exception' | translate }}</button>
-                          <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Drafting')">{{ 'action.return_to' | translate }} {{ 'timeline.drafting' | translate }}</button>
+                          <button class="action-btn" style="background:var(--bg-secondary,#f1f5f9);color:var(--text-secondary)" [disabled]="!canUpdate()" (click)="promptReturnStatus(r, 'Drafting')">{{ 'action.return_to' | translate }} {{ getTimelineLabel(r.transactionType, 'drafting') | translate }}</button>
                       </div>
                     </ng-container>
                     <span *ngSwitchCase="'Released'" class="action-btn completed">{{ 'action.completed' | translate }}</span>
@@ -109,7 +109,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.received' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
                 </div>
@@ -117,7 +117,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.drafting' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
                 </div>
@@ -125,7 +125,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.checking' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
                 </div>
@@ -152,7 +152,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
                 </div>
@@ -255,9 +255,9 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
             <div>
               <label style="display:block;font-size:0.8rem;font-weight:600;margin-bottom:0.25rem">{{ 'action.return_to' | translate }}</label>
               <select class="search-input" style="width:100%" [(ngModel)]="resolutionNextStatus">
-                <option value="Drafting">{{ 'timeline.drafting' | translate }}</option>
-                <option value="Checking Underlying">{{ 'timeline.checking' | translate }}</option>
-                <option value="Received">{{ 'timeline.received' | translate }}</option>
+                <option value="Drafting">{{ getTimelineLabel(resolvingExceptionLc!.transactionType, 'drafting') | translate }}</option>
+                <option value="Checking Underlying">{{ getTimelineLabel(resolvingExceptionLc!.transactionType, 'checking') | translate }}</option>
+                <option value="Received">{{ getTimelineLabel(resolvingExceptionLc!.transactionType, 'received') | translate }}</option>
               </select>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:0.5rem">
@@ -318,6 +318,9 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
   `
 })
 export class QueueComponent implements OnInit {
+  getActionLabel = getActionLabel;
+  getTimelineLabel = getTimelineLabel;
+
   dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
   private route = inject(ActivatedRoute);
@@ -342,7 +345,7 @@ export class QueueComponent implements OnInit {
   returnTargetStatus: string = '';
   returnNote: string = '';
 
-  officers = computed(() => this.dataStore.officers());
+  officers = computed(() => this.dataStore.officers().filter(o => o.section === this.transactionType()));
   canUpdate = computed(() => this.dataStore.canAccessAction('update_status', this.transactionType()));
   canRelease = computed(() => this.dataStore.canAccessAction('release_lc', this.transactionType()));
 

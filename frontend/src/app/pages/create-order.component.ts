@@ -62,7 +62,7 @@ export class CreateOrderComponent implements OnInit {
   private ts = inject(TranslationService);
   private route = inject(ActivatedRoute);
 
-  assigneeList = computed(() => this.dataStore.assignees());
+  assigneeList = computed(() => this.dataStore.assignees().filter(a => a.section === this.transactionType()));
   canCreate = computed(() => this.dataStore.canAccessAction('create_lc', this.transactionType()));
 
   transactionType = signal<string>('Import');

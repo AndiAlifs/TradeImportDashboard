@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService, UpdateLCRequest } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel } from '../utils/stage-duration';
+import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel, getTimelineLabel } from '../utils/stage-duration';
 
 @Component({
   selector: 'app-all-lcs',
@@ -112,7 +112,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.received' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
                 </div>
@@ -120,7 +120,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.drafting' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
                 </div>
@@ -128,7 +128,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.checking' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
                 </div>
@@ -155,7 +155,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
               <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.released' | translate }}</div>
+                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
                   <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
                 </div>
@@ -294,6 +294,8 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
   `
 })
 export class AllLcsComponent implements OnInit {
+  getTimelineLabel = getTimelineLabel;
+
   dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
   private route = inject(ActivatedRoute);
