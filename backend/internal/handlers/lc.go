@@ -18,7 +18,7 @@ import (
 type createLCRequest struct {
 	URN             string `json:"urn" binding:"required,max=32"`
 	Subject         string `json:"subject" binding:"required"`
-	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export"`
+	TransactionType string `json:"transactionType" binding:"required,oneof=Import Export 'Bank Guarantee'"`
 	AssignedTo      string `json:"assignedTo"`
 	ReceivedAt      string `json:"receivedAt" binding:"required"`
 }
@@ -35,7 +35,7 @@ type updateStatusRequest struct {
 type updateLCRequest struct {
 	URN             string  `json:"urn" binding:"required,max=32"`
 	Subject         string  `json:"subject" binding:"required"`
-	TransactionType string  `json:"transactionType" binding:"required,oneof=Import Export"`
+	TransactionType string  `json:"transactionType" binding:"required,oneof=Import Export 'Bank Guarantee'"`
 	AssignedTo      string  `json:"assignedTo"`
 	ReceivedAt      string  `json:"receivedAt" binding:"required"`
 	ExceptionReason *string `json:"exceptionReason"`
