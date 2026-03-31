@@ -269,8 +269,7 @@ export class OperationsComponent implements OnInit {
 
     return this.filteredData().filter(r => {
       const elapsed = this.getElapsedMinutes(r);
-      return (elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') ||
-             r.status === 'Breached' || r.status === 'Breached with Exception';
+      return elapsed > maxSla || r.status === 'Breached' || r.status === 'Breached with Exception';
     }).length;
   });
   avgTime = computed(() => {

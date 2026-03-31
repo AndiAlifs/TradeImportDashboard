@@ -630,7 +630,7 @@ export class ExecDashboardComponent implements OnInit {
       if (r.transactionType === 'Export') localSlaMinutes = sla.exportSlaMaxMinutes;
       if (r.transactionType === 'Bank Guarantee') localSlaMinutes = sla.bgSlaMaxMinutes;
 
-      const isBreached = (elapsed > localSlaMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      const isBreached = elapsed > localSlaMinutes || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
         stats.breaches++;
         stats.breachedLcs.push(r);
@@ -654,7 +654,7 @@ export class ExecDashboardComponent implements OnInit {
       if (r.transactionType === 'Export') localSlaMinutes = sla.exportSlaMaxMinutes;
       if (r.transactionType === 'Bank Guarantee') localSlaMinutes = sla.bgSlaMaxMinutes;
 
-      const isBreached = (elapsed > localSlaMinutes && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception';
+      const isBreached = elapsed > localSlaMinutes || r.status === 'Breached' || r.status === 'Breached with Exception';
       if (isBreached) {
         stats.breaches++;
         stats.breachedLcs.push(r);
@@ -821,8 +821,7 @@ export class ExecDashboardComponent implements OnInit {
   private countBreaches(records: any[], maxSla: number): number {
     return records.filter(r => {
       const elapsed = this.getElapsedMinutes(r);
-      return (elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') ||
-             r.status === 'Breached' || r.status === 'Breached with Exception';
+      return elapsed > maxSla || r.status === 'Breached' || r.status === 'Breached with Exception';
     }).length;
   }
 
@@ -849,7 +848,7 @@ export class ExecDashboardComponent implements OnInit {
           if (r.transactionType === 'Bank Guarantee') maxSla = this.sla().bgSlaMaxMinutes;
           
           const elapsed = this.getElapsedMinutes(r);
-          if ((elapsed > maxSla && r.status !== 'Released' && r.status !== 'Exception') || r.status === 'Breached' || r.status === 'Breached with Exception') {
+          if (elapsed > maxSla || r.status === 'Breached' || r.status === 'Breached with Exception') {
               breaches++;
           }
       });
