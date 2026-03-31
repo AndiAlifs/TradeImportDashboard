@@ -90,6 +90,15 @@ import { TranslationService } from '../../services/translation.service';
                 <span>{{ 'nav.export_dashboard' | translate }}</span>
             </div>
 
+            <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/queue" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.export_queue' | translate }}</span>
+            </div>
+
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/all" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -98,15 +107,6 @@ import { TranslationService } from '../../services/translation.service';
                 </span>
                 <span>{{ 'nav.export_all' | translate }}</span>
                 <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
-            </div>
-
-            <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/queue" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.export_queue' | translate }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/create" routerLinkActive="active">
@@ -129,6 +129,15 @@ import { TranslationService } from '../../services/translation.service';
                 <span>{{ 'nav.bg' | translate }}</span>
             </div>
 
+            <div class="nav-item" *ngIf="dataStore.canAccessMenu('bg')" routerLink="/bg/queue" routerLinkActive="active">
+                <span class="nav-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span>{{ 'nav.bg_queue' | translate }}</span>
+            </div>
+
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('bg')" routerLink="/bg/all" routerLinkActive="active">
                 <span class="nav-icon">
                     <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -137,15 +146,6 @@ import { TranslationService } from '../../services/translation.service';
                 </span>
                 <span>{{ 'nav.bg_all' | translate }}</span>
                 <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
-            </div>
-
-            <div class="nav-item" *ngIf="dataStore.canAccessMenu('bg')" routerLink="/bg/queue" routerLinkActive="active">
-                <span class="nav-icon">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                </span>
-                <span>{{ 'nav.bg_queue' | translate }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('bg')" routerLink="/bg/create" routerLinkActive="active">
