@@ -2,6 +2,15 @@ const LANG_KEY = 'shila_lang';
 
 const translations: any = {
   en: {
+    'timeline.bank_guarantee.received': 'Inbox',
+'timeline.bank_guarantee.drafting': 'Process',
+'timeline.bank_guarantee.checking': 'Checking',
+'timeline.bank_guarantee.released': 'Release',
+'chart.bank_guarantee.inbox': 'Inbox',
+'chart.bank_guarantee.drafting': 'Process',
+'chart.bank_guarantee.checking': 'Checking',
+'action.bank_guarantee.start_drafting': '▶ Start Process',
+'action.bank_guarantee.start_checking': '🔍 Start Checking',
     'nav.main_menu': 'Main Menu',
     'timeline.export.received': 'Inbox',
     'timeline.export.drafting': 'Checking Analyst',
