@@ -38,7 +38,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
         <div class="kpi-card accent">
           <div class="kpi-icon">📋</div>
           <div class="kpi-value">{{ activeCount() }}</div>
-          <div class="kpi-label">{{ 'kpi.active' | translate }}</div>
+          <div class="kpi-label">{{ getTranslatedText('kpi.active') }}</div>
         </div>
         <div class="kpi-card success">
           <div class="kpi-icon">✅</div>
@@ -99,7 +99,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+                  <td colspan="2" style="text-align:center;color:var(--text-muted);padding:2rem">{{ getTranslatedText('recent.empty') }}</td>
                 </tr>
               }
             </tbody>
@@ -110,7 +110,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
       <!-- Summary Table -->
       <div class="data-table-wrapper" style="margin-top:1.25rem">
         <div class="table-header">
-          <h3>{{ 'summary.title' | translate }}</h3>
+          <h3>{{ getTranslatedText('summary.title') }}</h3>
         </div>
         <div class="table-scroll">
           <table class="data-table">
@@ -140,7 +140,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+                  <td colspan="8" style="text-align:center;color:var(--text-muted);padding:2rem">{{ getTranslatedText('recent.empty') }}</td>
                 </tr>
               }
             </tbody>
@@ -165,7 +165,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
                 <div class="timeline-content">
                   <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
+                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.received', selectedLc.transactionType) }}</div>
                 </div>
               </div>
               <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
@@ -173,7 +173,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
                 <div class="timeline-content">
                   <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
+                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.drafting', selectedLc.transactionType) }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
                 </div>
               </div>
               <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
@@ -208,7 +208,7 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
                 <div class="timeline-content">
                   <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
+                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.released', selectedLc.transactionType) }}</div>
                 </div>
               </div>
             </div>
@@ -238,6 +238,34 @@ export class OperationsComponent implements OnInit {
   customFrom = '';
   customTo = '';
   range = computed(() => this.dataStore.operationsDateRange());
+
+  getDocumentName(type: string): string {
+    switch (type) {
+      case 'Bank Guarantee':
+        return 'BG STD';
+      case 'Export':
+        return 'Document';
+      case 'Import':
+      default:
+        return 'L/C';
+    }
+  }
+
+  getTranslatedText(key: string, customType?: string): string {
+    const targetType = customType || this.type;
+    const docName = this.getDocumentName(targetType);
+    let text = this.ts.translate(key);
+
+    if (docName !== 'L/C') {
+      text = text
+        .replace(/L\/Cs/g, `${docName}s`)
+        .replace(/L\/C/g, docName)
+        .replace(/documentary credit/gi, docName)
+        .replace(/kredit dokumenter/gi, docName);
+    }
+
+    return text;
+  }
 
   ngOnInit() {
     this.type = this.route.snapshot.data['type'] || 'Import';

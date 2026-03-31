@@ -321,7 +321,9 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
                 @for (r of selectedVolumeStats.relatedLcs; track r.id || r.urn) {
                   <tr>
                     <td style="padding:0.6rem 1rem"><a class="urn-link" (click)="showLcDetails(r)"><strong>{{ r.urn }}</strong></a></td>
-                    <td style="padding:0.6rem 1rem">{{ r.transactionType || '—' }}</td>
+                    <td style="padding:0.6rem 1rem">
+                      {{ r.transactionType === 'Bank Guarantee' ? ('type.bg' | translate) : ('type.' + (r.transactionType | lowercase) | translate) || '—' }}
+                    </td>
                     <td style="padding:0.6rem 1rem"><span class="status-badge" [ngClass]="statusClass(r.status)"><span class="dot"></span>{{ r.status }}</span></td>
                     <td style="padding:0.6rem 1rem">{{ r.assignedTo || '—' }}</td>
                     <td style="padding:0.6rem 1rem">{{ r.approvedBy || '—' }}</td>
@@ -379,7 +381,9 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
           <div class="modal-header">
             <div>
               <h3>{{ selectedLc.urn }}</h3>
-              <div style="font-size:0.75rem;color:var(--text-secondary)">[{{ selectedLc.transactionType }}] {{ selectedLc.subject }}</div>
+              <div style="font-size:0.75rem;color:var(--text-secondary)">
+                [{{ selectedLc.transactionType === 'Bank Guarantee' ? ('type.bg' | translate) : ('type.' + (selectedLc.transactionType | lowercase) | translate) }}] {{ selectedLc.subject }}
+              </div>
             </div>
             <button class="modal-close" (click)="selectedLc = null">×</button>
           </div>
