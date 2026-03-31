@@ -57,7 +57,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                 </span>
-                <span>{{ 'nav.queue' | translate }}</span>
+                <span>{{ 'nav.import_queue' | translate }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('import')" routerLink="/import/all" routerLinkActive="active">
@@ -66,7 +66,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
                     </svg>
                 </span>
-                <span>{{ 'nav.all_lcs' | translate }}</span>
+                <span>{{ 'nav.import_all' | translate }}</span>
                 <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
             </div>
 
@@ -76,7 +76,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                 </span>
-                <span>{{ 'nav.create' | translate }}</span>
+                <span>{{ 'nav.import_create' | translate }}</span>
             </div>
 
             <div class="nav-section-label" *ngIf="dataStore.canAccessMenu('export')">Export Operations</div>
@@ -96,7 +96,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
                     </svg>
                 </span>
-                <span>{{ 'nav.all_lcs' | translate }}</span>
+                <span>{{ 'nav.export_all' | translate }}</span>
                 <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
             </div>
 
@@ -106,7 +106,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                 </span>
-                <span>{{ 'nav.queue' | translate }}</span>
+                <span>{{ 'nav.export_queue' | translate }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('export')" routerLink="/export/create" routerLinkActive="active">
@@ -115,7 +115,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                 </span>
-                <span>{{ 'nav.create' | translate }}</span>
+                <span>{{ 'nav.export_create' | translate }}</span>
             </div>
 
             <div class="nav-section-label" *ngIf="dataStore.canAccessMenu('bg')">Bank Guarantee</div>
@@ -135,7 +135,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 12h18M3 20h18" />
                     </svg>
                 </span>
-                <span>{{ 'nav.all_lcs' | translate }}</span>
+                <span>{{ 'nav.bg_all' | translate }}</span>
                 <span class="badge range-menu-badge">{{ allLcsRangeBadge() }}</span>
             </div>
 
@@ -145,7 +145,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                 </span>
-                <span>{{ 'nav.queue' | translate }}</span>
+                <span>{{ 'nav.bg_queue' | translate }}</span>
             </div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('bg')" routerLink="/bg/create" routerLinkActive="active">
@@ -154,7 +154,7 @@ import { TranslationService } from '../../services/translation.service';
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
                 </span>
-                <span>{{ 'nav.create' | translate }}</span>
+                <span>{{ 'nav.bg_create' | translate }}</span>
             </div>
 
             <div class="nav-section-label" *ngIf="dataStore.canAccessMenu('assignee-master') || dataStore.canAccessMenu('officer-master') || dataStore.canAccessMenu('sla') || dataStore.canAccessMenu('eventlog')">{{ 'nav.master_data' | translate }}</div>
