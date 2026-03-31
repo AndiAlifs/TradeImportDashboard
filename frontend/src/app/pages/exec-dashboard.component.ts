@@ -269,14 +269,14 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <tr>
                 <td><strong>{{ s.name }}</strong></td>
                 <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
-                <td>
+                <td [style.background]="'linear-gradient(to right, var(--accent-glow) ' + (s.volume / maxStaffVolume() * 100) + '%, transparent 0)'" style="background-clip: padding-box;">
                   <a class="urn-link" (click)="showVolumeDetails(s)"><strong>{{ s.volume }}</strong></a>
                 </td>
                 <td style="cursor: pointer" (click)="showBreachDetails(s)" [style.color]="s.breaches > 0 ? 'var(--danger)' : 'var(--text-secondary)'">
                   <strong *ngIf="s.breaches > 0" style="text-decoration:underline">{{ s.breaches }}</strong>
                   <span *ngIf="s.breaches === 0">{{ s.breaches }}</span>
                 </td>
-                <td [style.color]="s.compliancePct < 90 ? 'var(--danger)' : 'var(--success)'"><strong>{{ s.compliancePct }}%</strong></td>
+                <td [style.color]="s.compliancePct < 90 ? 'var(--danger)' : 'var(--success)'" [style.background]="s.compliancePct < 90 ? 'linear-gradient(to right, rgba(239, 68, 68, 0.1) ' + s.compliancePct + '%, transparent 0)' : 'linear-gradient(to right, rgba(16, 185, 129, 0.1) ' + s.compliancePct + '%, transparent 0)'" style="background-clip: padding-box;"><strong>{{ s.compliancePct }}%</strong></td>
                 <td>{{ s.avgTime > 0 ? s.avgTime + 'm' : '—' }}</td>
               </tr>
             } @empty {
@@ -672,6 +672,12 @@ export class ExecDashboardComponent implements OnInit {
         avgTime: s.timeCount > 0 ? Math.round(s.totalMins / s.timeCount) : 0
       };
     }).sort((a,b) => b.volume - a.volume);
+  });
+
+  maxStaffVolume = computed(() => {
+    const staff = this.staffPerformance();
+    if (staff.length === 0) return 1;
+    return Math.max(...staff.map(s => s.volume));
   });
 
   recentEvents = computed(() => this.dataStore.events().slice(0, 8));
