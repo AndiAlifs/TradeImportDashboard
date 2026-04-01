@@ -75,42 +75,68 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
         </div>
       </div>
 
-      <!-- Executive KPI Cards -->
-      <div class="kpi-grid exec-kpi-grid">
-        <div class="kpi-card accent">
-          <div class="kpi-icon">📦</div>
-          <div class="kpi-value">{{ importProcessed() }}</div>
-          <div class="kpi-label">{{ 'exec.import_processed' | translate }}</div>
+      <div class="exec-section-group">
+        <h3 class="exec-section-title">Global Health</h3>
+        <div class="kpi-grid exec-global-grid">
+          <div class="kpi-card accent">
+            <div class="kpi-icon">📋</div>
+            <div class="kpi-value">{{ totalTransactions() }}</div>
+            <div class="kpi-label">{{ 'exec.total_transactions' | translate }}</div>
+          </div>
+          <div class="kpi-card warning">
+            <div class="kpi-icon">⏱️</div>
+            <div class="kpi-value">{{ avgCycleTime() }}m</div>
+            <div class="kpi-label">{{ 'exec.avg_time' | translate }}</div>
+          </div>
+          <div class="kpi-card danger">
+            <div class="kpi-icon">🚨</div>
+            <div class="kpi-value">{{ totalBreaches() }}</div>
+            <div class="kpi-label">{{ 'exec.total_breaches' | translate }}</div>
+          </div>
         </div>
-        <div class="kpi-card info">
-          <div class="kpi-icon">🚢</div>
-          <div class="kpi-value">{{ exportProcessed() }}</div>
-          <div class="kpi-label">{{ 'exec.export_processed' | translate }}</div>
+      </div>
+
+      <div class="exec-product-row">
+        <div class="exec-section-group">
+          <h3 class="exec-section-title">{{ 'exec.import_section' | translate }}</h3>
+          <div class="kpi-grid product-grid">
+            <div class="kpi-card accent-alt">
+              <div class="kpi-value">{{ importProcessed() }}</div>
+              <div class="kpi-label">{{ 'exec.import_processed' | translate }}</div>
+            </div>
+            <div class="kpi-card success">
+              <div class="kpi-value">{{ importSla() }}%</div>
+              <div class="kpi-label">{{ 'exec.import_sla' | translate }}</div>
+            </div>
+          </div>
         </div>
-        <div class="kpi-card success">
-          <div class="kpi-icon">📊</div>
-          <div class="kpi-value">{{ importSla() }}%</div>
-          <div class="kpi-label">{{ 'exec.import_sla' | translate }}</div>
+
+        <div class="exec-section-group">
+          <h3 class="exec-section-title">{{ 'exec.export_section' | translate }}</h3>
+          <div class="kpi-grid product-grid">
+            <div class="kpi-card info-alt">
+              <div class="kpi-value">{{ exportProcessed() }}</div>
+              <div class="kpi-label">{{ 'exec.export_processed' | translate }}</div>
+            </div>
+            <div class="kpi-card success">
+              <div class="kpi-value">{{ exportSla() }}%</div>
+              <div class="kpi-label">{{ 'exec.export_sla' | translate }}</div>
+            </div>
+          </div>
         </div>
-        <div class="kpi-card success">
-          <div class="kpi-icon">📈</div>
-          <div class="kpi-value">{{ exportSla() }}%</div>
-          <div class="kpi-label">{{ 'exec.export_sla' | translate }}</div>
-        </div>
-        <div class="kpi-card success" style="grid-column: span 1.5;">
-          <div class="kpi-icon">🛡️</div>
-          <div class="kpi-value">{{ bgSla() }}%</div>
-          <div class="kpi-label">{{ 'exec.bg_sla' | translate }}</div>
-        </div>
-        <div class="kpi-card danger">
-          <div class="kpi-icon">🚨</div>
-          <div class="kpi-value">{{ totalBreaches() }}</div>
-          <div class="kpi-label">{{ 'exec.total_breaches' | translate }}</div>
-        </div>
-        <div class="kpi-card warning">
-          <div class="kpi-icon">⏱️</div>
-          <div class="kpi-value">{{ avgCycleTime() }}m</div>
-          <div class="kpi-label">{{ 'exec.avg_time' | translate }}</div>
+
+        <div class="exec-section-group">
+          <h3 class="exec-section-title">{{ 'exec.bg_section' | translate }}</h3>
+          <div class="kpi-grid product-grid">
+            <div class="kpi-card warning-alt">
+              <div class="kpi-value">{{ bgProcessed() }}</div>
+              <div class="kpi-label">{{ 'exec.bg_processed' | translate }}</div>
+            </div>
+            <div class="kpi-card success">
+              <div class="kpi-value">{{ bgSla() }}%</div>
+              <div class="kpi-label">{{ 'exec.bg_sla' | translate }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -660,6 +686,7 @@ export class ExecDashboardComponent implements OnInit {
   importProcessed = computed(() => this.importData().length);
   exportProcessed = computed(() => this.exportData().length);
   bgProcessed = computed(() => this.bgData().length);
+  totalTransactions = computed(() => this.importProcessed() + this.exportProcessed() + this.bgProcessed());
 
   importBreachCount = computed(() => this.countBreaches(this.importData(), this.sla().importSlaMaxMinutes));
   exportBreachCount = computed(() => this.countBreaches(this.exportData(), this.sla().exportSlaMaxMinutes));
