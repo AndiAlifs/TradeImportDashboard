@@ -14,7 +14,7 @@ import { TranslationService } from '../../services/translation.service';
   template: `
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
-            <div class="logo-icon">⚡</div>
+            <img class="logo-icon" src="logo_mandiri.png" alt="Mandiri Logo" style="background: white; object-fit: contain; padding: 4px;" />
             <div>
                 <h1>Shila Dashboard</h1>
                 <div class="subtitle">Trade Finance Ops</div>
