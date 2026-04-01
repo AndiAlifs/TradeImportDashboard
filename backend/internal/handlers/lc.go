@@ -61,7 +61,7 @@ func normalizeTransactionType(raw string) (string, bool) {
 var errInvalidTransition = errors.New("invalid status transition")
 
 func (h *Handler) CreateLC(c *gin.Context) {
-	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}
@@ -162,7 +162,7 @@ func parseClientReceivedAt(raw string) (time.Time, error) {
 }
 
 func (h *Handler) ListLCs(c *gin.Context) {
-	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}
@@ -221,7 +221,7 @@ func (h *Handler) ListLCs(c *gin.Context) {
 }
 
 func (h *Handler) GetLCByID(c *gin.Context) {
-	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}
@@ -250,7 +250,7 @@ func (h *Handler) GetLCByID(c *gin.Context) {
 }
 
 func (h *Handler) GetLCExceptions(c *gin.Context) {
-	_, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	_, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}
@@ -271,7 +271,7 @@ func (h *Handler) GetLCExceptions(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLCStatus(c *gin.Context) {
-	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}
@@ -400,7 +400,7 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 }
 
 func (h *Handler) UpdateLC(c *gin.Context) {
-	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff)
+	actor, ok := RequireRole(c, RoleSuperAdmin, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff)
 	if !ok {
 		return
 	}

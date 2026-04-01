@@ -60,7 +60,7 @@ func (h *Handler) ListEvents(c *gin.Context) {
 }
 
 func (h *Handler) StreamLCUpdates(c *gin.Context) {
-	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff); !ok {
+	if _, ok := RequireRole(c, RoleSuperAdmin, RoleExecutive, RoleImportOfficer, RoleImportStaff, RoleExportOfficer, RoleExportStaff, RoleBgOfficer, RoleBgStaff); !ok {
 		return
 	}
 
