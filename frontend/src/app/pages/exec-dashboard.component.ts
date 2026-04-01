@@ -261,10 +261,24 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
       <div class="data-table-wrapper" style="margin-top:1.25rem">
         <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
           <h3>{{ 'exec.staff_performance_title' | translate }}</h3>
-          <div class="table-filters" style="display:flex; gap:0.5rem;">
-            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'All'" (click)="staffRoleFilter.set('All')">All</button>
-            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Staff'" (click)="staffRoleFilter.set('Staff')">Staff</button>
-            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Officer'" (click)="staffRoleFilter.set('Officer')">Officer</button>
+          <div class="table-filters" style="display:flex; gap:1.5rem; align-items:center;">
+            <div style="display:flex; gap:0.5rem;">
+              <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'All'" (click)="staffRoleFilter.set('All')">All</button>
+              <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Staff'" (click)="staffRoleFilter.set('Staff')">Staff</button>
+              <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Officer'" (click)="staffRoleFilter.set('Officer')">Officer</button>
+            </div>
+
+            <div style="display:flex; gap:0.75rem; font-size:0.85rem; align-items:center; color:var(--text-secondary);">
+              <label style="display:flex; align-items:center; gap:0.25rem; cursor:pointer;">
+                <input type="checkbox" [checked]="staffSectionFilters().import" (change)="toggleSectionFilter('import')" /> Import
+              </label>
+              <label style="display:flex; align-items:center; gap:0.25rem; cursor:pointer;">
+                <input type="checkbox" [checked]="staffSectionFilters().export" (change)="toggleSectionFilter('export')" /> Export
+              </label>
+              <label style="display:flex; align-items:center; gap:0.25rem; cursor:pointer;">
+                <input type="checkbox" [checked]="staffSectionFilters().bg" (change)="toggleSectionFilter('bg')" /> BG
+              </label>
+            </div>
           </div>
         </div>
 
@@ -296,6 +310,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
             <tr>
               <th>{{ 'exec.col_name' | translate }}</th>
               <th>{{ 'exec.col_role' | translate }}</th>
+              <th>Section</th>
               <th>{{ 'exec.col_volume' | translate }}</th>
               <th>{{ 'exec.col_breaches' | translate }}</th>
               <th>{{ 'exec.col_compliance' | translate }}</th>
@@ -307,6 +322,15 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <tr>
                 <td><strong>{{ s.name }}</strong></td>
                 <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
+
+                <td>
+                  <div style="display:flex; gap:0.25rem; flex-wrap:wrap;">
+                    <span *ngFor="let sec of s.sections" class="status-badge" [ngClass]="sec === 'Import' ? 'drafting' : (sec === 'Export' ? 'received' : 'checking')">
+                      {{ sec === 'Bank Guarantee' ? 'BG' : sec }}
+                    </span>
+                  </div>
+                </td>
+
                 <td [style.background]="'linear-gradient(to right, var(--accent-glow) ' + (s.volume / maxStaffVolume() * 100) + '%, transparent 0)'" style="background-clip: padding-box;">
                   <a class="urn-link" (click)="showVolumeDetails(s)"><strong>{{ s.volume }}</strong></a>
                 </td>
@@ -319,7 +343,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               </tr>
             } @empty {
               <tr>
-                <td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
+                <td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem">{{ 'recent.empty' | translate }}</td>
               </tr>
             }
           </tbody>
@@ -598,6 +622,11 @@ export class ExecDashboardComponent implements OnInit {
   selectedLc: any = null;
   exceptionHistory: any[] = [];
   staffRoleFilter = signal<'All' | 'Staff' | 'Officer'>('All');
+  staffSectionFilters = signal({ import: true, export: true, bg: true });
+
+  toggleSectionFilter(section: 'import' | 'export' | 'bg') {
+    this.staffSectionFilters.update(f => ({ ...f, [section]: !f[section] }));
+  }
 
   readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
     { value: 'today', labelKey: 'date.today' },
@@ -667,9 +696,10 @@ export class ExecDashboardComponent implements OnInit {
     lcs.forEach(r => {
       if (!r.assignedTo) return;
       const key = `Staff-${r.assignedTo}`;
-      if (!map.has(key)) map.set(key, { name: r.assignedTo, role: 'Staff', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [] });
+      if (!map.has(key)) map.set(key, { name: r.assignedTo, role: 'Staff', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [], sections: new Set<string>() });
       const stats = map.get(key);
       stats.volume++;
+      stats.sections.add(r.transactionType);
       stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
       let localSlaMinutes = sla.importSlaMaxMinutes;
@@ -691,9 +721,10 @@ export class ExecDashboardComponent implements OnInit {
     lcs.forEach(r => {
       if (!r.approvedBy) return;
       const key = `Officer-${r.approvedBy}`;
-      if (!map.has(key)) map.set(key, { name: r.approvedBy, role: 'Officer', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [] });
+      if (!map.has(key)) map.set(key, { name: r.approvedBy, role: 'Officer', volume: 0, breaches: 0, totalMins: 0, timeCount: 0, breachedLcs: [], relatedLcs: [], sections: new Set<string>() });
       const stats = map.get(key);
       stats.volume++;
+      stats.sections.add(r.transactionType);
       stats.relatedLcs.push(r);
       const elapsed = this.getElapsedMinutes(r);
       let localSlaMinutes = sla.importSlaMaxMinutes;
@@ -714,6 +745,7 @@ export class ExecDashboardComponent implements OnInit {
     return Array.from(map.values()).map(s => {
       return {
         ...s,
+        sections: Array.from(s.sections),
         compliancePct: s.volume > 0 ? Math.round(((s.volume - s.breaches) / s.volume) * 100) : 100,
         avgTime: s.timeCount > 0 ? Math.round(s.totalMins / s.timeCount) : 0
       };
@@ -721,10 +753,22 @@ export class ExecDashboardComponent implements OnInit {
   });
 
   filteredStaffPerformance = computed(() => {
-    const filter = this.staffRoleFilter();
+    const roleFilter = this.staffRoleFilter();
+    const secFilter = this.staffSectionFilters();
     const all = this.staffPerformance();
-    if (filter === 'All') return all;
-    return all.filter(s => s.role === filter);
+
+    const activeSecs: string[] = [];
+    if (secFilter.import) activeSecs.push('Import');
+    if (secFilter.export) activeSecs.push('Export');
+    if (secFilter.bg) activeSecs.push('Bank Guarantee');
+
+    if (activeSecs.length === 0) return [];
+
+    return all.filter(s => {
+      const roleMatch = roleFilter === 'All' || s.role === roleFilter;
+      const sectionMatch = s.sections.some((sec: string) => activeSecs.includes(sec));
+      return roleMatch && sectionMatch;
+    });
   });
 
   staffSummaryStats = computed(() => {
