@@ -30,6 +30,7 @@ interface LCUpdateStreamEvent {
   toStatus: string;
   updatedBy: string;
   occurredAt: string;
+  lc?: any;
 }
 
 const STORAGE_KEY = 'shila_lc_data';
@@ -363,22 +364,33 @@ export class DataStoreService {
       return;
     }
 
-    // OPTIMIZED: Update the signal locally instead of fetching the whole list
+    // Handle deletions instantly
+    if (payload.toStatus === 'Deleted') {
+      this.lcs.update(currentRecords => currentRecords.filter(r => r.id !== payload.lcId));
+      return;
+    }
+
     this.lcs.update(currentRecords => {
       const idx = currentRecords.findIndex(lc => lc.id === payload.lcId);
+
+      // If the record exists, update it
       if (idx > -1) {
         const updatedList = [...currentRecords];
-        updatedList[idx] = {
-          ...updatedList[idx],
-          status: payload.toStatus,
-          // Update any other fields provided by the stream event
-        };
+        if (payload.lc) {
+          updatedList[idx] = payload.lc;
+        } else {
+          updatedList[idx] = { ...updatedList[idx], status: payload.toStatus };
+        }
         return updatedList;
       }
-      
-      // Fallback: If the record isn't in local state (e.g., brand new creation), 
-      // fetch only the missing record or trigger a debounced refresh
-      this.scheduleSilentRefresh(); 
+
+      // If the record is NEW and we have the full payload, insert it instantly
+      if (payload.lc) {
+        return [payload.lc, ...currentRecords];
+      }
+
+      // Fallback
+      this.scheduleSilentRefresh();
       return currentRecords;
     });
   }

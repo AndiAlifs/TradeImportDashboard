@@ -3,16 +3,19 @@ package handlers
 import (
 	"sync"
 	"time"
+
+	"trade-import-dashboard/backend/internal/models"
 )
 
 type LCUpdateEvent struct {
-	LCID            uint64    `json:"lcId"`
-	URN             string    `json:"urn"`
-	TransactionType string    `json:"transactionType"`
-	FromStatus      string    `json:"fromStatus"`
-	ToStatus        string    `json:"toStatus"`
-	UpdatedBy       string    `json:"updatedBy"`
-	OccurredAt      time.Time `json:"occurredAt"`
+	LCID            uint64     `json:"lcId"`
+	URN             string     `json:"urn"`
+	TransactionType string     `json:"transactionType"`
+	FromStatus      string     `json:"fromStatus"`
+	ToStatus        string     `json:"toStatus"`
+	UpdatedBy       string     `json:"updatedBy"`
+	OccurredAt      time.Time  `json:"occurredAt"`
+	LC              *models.LC `json:"lc,omitempty"`
 }
 
 type LCUpdateBroadcaster struct {

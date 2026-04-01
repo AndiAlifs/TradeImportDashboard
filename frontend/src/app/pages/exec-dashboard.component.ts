@@ -259,9 +259,38 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 
       <!-- Staff & Officer Performance -->
       <div class="data-table-wrapper" style="margin-top:1.25rem">
-        <div class="table-header">
+        <div class="table-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
           <h3>{{ 'exec.staff_performance_title' | translate }}</h3>
+          <div class="table-filters" style="display:flex; gap:0.5rem;">
+            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'All'" (click)="staffRoleFilter.set('All')">All</button>
+            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Staff'" (click)="staffRoleFilter.set('Staff')">Staff</button>
+            <button type="button" class="range-pill" [class.active]="staffRoleFilter() === 'Officer'" (click)="staffRoleFilter.set('Officer')">Officer</button>
+          </div>
         </div>
+
+        <div class="insight-chip-grid" style="margin: 0 1.25rem 1rem 1.25rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));" *ngIf="staffSummaryStats() as stats">
+          <div class="insight-chip">
+            <div class="insight-chip-label">Total Members</div>
+            <div class="insight-chip-value">{{ stats.totalMembers }}</div>
+          </div>
+          <div class="insight-chip">
+            <div class="insight-chip-label">Total Volume</div>
+            <div class="insight-chip-value">{{ stats.totalVolume }}</div>
+          </div>
+          <div class="insight-chip">
+            <div class="insight-chip-label">Total Breaches</div>
+            <div class="insight-chip-value" [style.color]="stats.totalBreaches > 0 ? 'var(--danger)' : 'inherit'">
+              {{ stats.totalBreaches }}
+            </div>
+          </div>
+          <div class="insight-chip">
+            <div class="insight-chip-label">Avg Compliance</div>
+            <div class="insight-chip-value" [style.color]="stats.avgCompliance < 90 ? 'var(--danger)' : 'var(--success)'">
+              {{ stats.avgCompliance }}%
+            </div>
+          </div>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>
@@ -274,7 +303,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
             </tr>
           </thead>
           <tbody>
-            @for (s of staffPerformance(); track s.name) {
+            @for (s of filteredStaffPerformance(); track s.name) {
               <tr>
                 <td><strong>{{ s.name }}</strong></td>
                 <td><span class="status-badge" [ngClass]="s.role === 'Officer' ? 'checking' : 'received'">{{ s.role }}</span></td>
@@ -568,6 +597,7 @@ export class ExecDashboardComponent implements OnInit {
   selectedBreachStats: any = null;
   selectedLc: any = null;
   exceptionHistory: any[] = [];
+  staffRoleFilter = signal<'All' | 'Staff' | 'Officer'>('All');
 
   readonly presets: Array<{ value: 'today' | 'yesterday' | 'last7days' | 'last14days' | 'last1month'; labelKey: string }> = [
     { value: 'today', labelKey: 'date.today' },
@@ -690,8 +720,31 @@ export class ExecDashboardComponent implements OnInit {
     }).sort((a,b) => b.volume - a.volume);
   });
 
+  filteredStaffPerformance = computed(() => {
+    const filter = this.staffRoleFilter();
+    const all = this.staffPerformance();
+    if (filter === 'All') return all;
+    return all.filter(s => s.role === filter);
+  });
+
+  staffSummaryStats = computed(() => {
+    const staff = this.filteredStaffPerformance();
+    if (staff.length === 0) return { totalMembers: 0, totalVolume: 0, totalBreaches: 0, avgCompliance: 0 };
+
+    const totalVolume = staff.reduce((sum, s) => sum + s.volume, 0);
+    const totalBreaches = staff.reduce((sum, s) => sum + s.breaches, 0);
+    const avgCompliance = Math.round(staff.reduce((sum, s) => sum + s.compliancePct, 0) / staff.length);
+
+    return {
+      totalMembers: staff.length,
+      totalVolume,
+      totalBreaches,
+      avgCompliance
+    };
+  });
+
   maxStaffVolume = computed(() => {
-    const staff = this.staffPerformance();
+    const staff = this.filteredStaffPerformance();
     if (staff.length === 0) return 1;
     return Math.max(...staff.map(s => s.volume));
   });

@@ -128,6 +128,7 @@ func (h *Handler) CreateLC(c *gin.Context) {
 		broadcastEvent.LCID = lc.ID
 		broadcastEvent.URN = lc.URN
 		broadcastEvent.TransactionType = lc.TransactionType
+		broadcastEvent.LC = &lc
 		return tx.Create(&event).Error
 	}); err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") && strings.Contains(strings.ToLower(err.Error()), "urn") {
@@ -372,6 +373,7 @@ func (h *Handler) UpdateLCStatus(c *gin.Context) {
 			ToStatus:        lc.Status,
 			UpdatedBy:       fallbackUser(actor.User),
 			OccurredAt:      now,
+			LC:              &lc,
 		}
 		updated = lc
 		return nil
@@ -506,6 +508,7 @@ func (h *Handler) UpdateLC(c *gin.Context) {
 			ToStatus:        lc.Status,
 			UpdatedBy:       fallbackUser(actor.User),
 			OccurredAt:      now,
+			LC:              &lc,
 		}
 		updated = lc
 		return nil

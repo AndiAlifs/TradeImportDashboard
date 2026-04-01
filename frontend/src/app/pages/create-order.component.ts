@@ -109,8 +109,8 @@ export class CreateOrderComponent implements OnInit {
         assignedTo: '',
         receivedAt: this.nowForDateTimeLocal(),
       };
-      const currentType = this.transactionType();
-      const routePrefix = currentType === 'Bank Guarantee' ? 'bg' : currentType.toLowerCase();
+      const type = this.transactionType().trim();
+      const routePrefix = (type === 'Bank Guarantee' || type.toLowerCase() === 'bg') ? 'bg' : type.toLowerCase();
       this.router.navigate([`/${routePrefix}/queue`]);
     } catch (e: any) {
       this.showToast('info', e.message || 'Failed to create order');
