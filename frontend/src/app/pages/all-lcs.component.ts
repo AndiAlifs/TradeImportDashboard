@@ -231,6 +231,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
                 <select [(ngModel)]="editForm.transactionType">
                   <option value="Import">Import</option>
                   <option value="Export">Export</option>
+                  <option value="Bank Guarantee">Bank Guarantee</option>
                 </select>
               </label>
               <label style="grid-column:1 / -1">
@@ -583,7 +584,9 @@ export class AllLcsComponent implements OnInit {
     this.editForm = {
       urn: String(record?.urn || ''),
       subject: String(record?.subject || ''),
-      transactionType: record?.transactionType === 'Export' ? 'Export' : 'Import',
+      transactionType: ['Import', 'Export', 'Bank Guarantee'].includes(record?.transactionType)
+        ? record.transactionType
+        : 'Import',
       assignedTo: String(record?.assignedTo || ''),
       receivedAt: this.toDateTimeLocal(record?.receivedAt),
     };
