@@ -201,6 +201,8 @@ func (h *Handler) ListLCs(c *gin.Context) {
 		query = query.Where("transaction_type = ?", ScopeImport)
 	} else if actor.Scope == ScopeExport {
 		query = query.Where("transaction_type = ?", ScopeExport)
+	} else if actor.Scope == ScopeBg {
+		query = query.Where("transaction_type = ?", ScopeBg)
 	} else if transactionType != "" {
 		query = query.Where("transaction_type = ?", transactionType)
 	}

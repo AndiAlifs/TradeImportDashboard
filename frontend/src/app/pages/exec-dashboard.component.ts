@@ -163,7 +163,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
                   <div class="bar-track"><div class="bar-fill teal" [style.width.%]="barPctByStage(stage.exportVal, stage.stageMax)">{{ stage.exportVal }} min</div></div>
                 </div>
                 <div class="comparison-bar-row">
-                  <span class="comp-type-label bg-label" style="color:var(--info);border-color:var(--info);background:transparent">
+                  <span class="comp-type-label bg-label">
                     {{ 'exec.bg_label' | translate }}
                     <small style="display:block;font-size:0.75em;opacity:0.8;margin-top:2px;line-height:1">{{ getChartLabel('Bank Guarantee', stage.key) | translate }}</small>
                   </span>

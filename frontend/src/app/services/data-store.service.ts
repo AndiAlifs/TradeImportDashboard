@@ -620,22 +620,41 @@ export class DataStoreService {
     try {
       const context = this.activeDashboardContext();
       const dateQuery = this.buildDateQuery(context);
-      const lcParams = new URLSearchParams('limit=500&offset=0');
       const eventParams = new URLSearchParams('limit=500&offset=0');
 
-      if (options.transactionType) {
-        lcParams.set('transactionType', options.transactionType);
-      }
       if (dateQuery) {
         const parsed = new URLSearchParams(dateQuery);
         parsed.forEach((value, key) => {
-          lcParams.set(key, value);
           eventParams.set(key, value);
         });
       }
 
+      // Executive dashboard needs complete data for every transaction type so that
+      // the cross-type comparison (Import vs Export vs BG) is reliable.  Fetch each
+      // type separately to avoid one type being pushed out of the result set by
+      // pagination when another type has many more records.
+      let lcFetchPromise: Promise<any>;
+      if (context === 'executive' && !options.transactionType) {
+        const types: Array<'Import' | 'Export' | 'Bank Guarantee'> = ['Import', 'Export', 'Bank Guarantee'];
+        lcFetchPromise = Promise.all(
+          types.map(type => {
+            const p = new URLSearchParams('limit=500&offset=0');
+            p.set('transactionType', type);
+            if (dateQuery) new URLSearchParams(dateQuery).forEach((v, k) => p.set(k, v));
+            return this.apiRequest(`/lc?${p.toString()}`).catch(() => ({ data: [] }));
+          })
+        ).then(responses => ({
+          data: responses.flatMap((r: any) => Array.isArray(r?.data) ? r.data : [])
+        }));
+      } else {
+        const lcParams = new URLSearchParams('limit=500&offset=0');
+        if (options.transactionType) lcParams.set('transactionType', options.transactionType);
+        if (dateQuery) new URLSearchParams(dateQuery).forEach((v, k) => lcParams.set(k, v));
+        lcFetchPromise = this.apiRequest(`/lc?${lcParams.toString()}`);
+      }
+
       const [lcResp, slaResp, eventResp, assigneeResp, officerResp] = await Promise.allSettled([
-        this.apiRequest(`/lc?${lcParams.toString()}`),
+        lcFetchPromise,
         this.apiRequest('/sla'),
         this.apiRequest(`/events?${eventParams.toString()}`),
         this.apiRequest('/assignees'),
