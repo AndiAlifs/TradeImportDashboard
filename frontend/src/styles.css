@@ -968,7 +968,8 @@ body {
 }
 
 .bar-fill.info {
-  background: linear-gradient(90deg, #d97706, #fbbf24);
+  background: linear-gradient(90deg, #ca8a04, #fde047);
+  color: #1a1a0a;
 }
 
 /* ---------- SLA Settings Form ---------- */
@@ -1722,7 +1723,7 @@ body {
 }
 
 .comp-type-label.bg-label {
-  color: #d97706;
+  color: #ca8a04;
 }
 
 /* ---------- AI Summary Card ---------- */
