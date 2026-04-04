@@ -5,12 +5,13 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService, UpdateLCRequest } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutesLabel, getTimelineLabel } from '../utils/stage-duration';
+import { getTimelineLabel } from '../utils/stage-duration';
+import { LcDetailModalComponent } from '../components/lc-detail-modal/lc-detail-modal.component';
 
 @Component({
   selector: 'app-all-lcs',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, TranslatePipe, LcDetailModalComponent],
   template: `
     <div class="page-content">
       <div class="date-range-toolbar">
@@ -97,119 +98,7 @@ import { StageDuration, computeLcStageDurations, findLongestStage, formatMinutes
         </div>
       </div>
 
-      <!-- LC Detail Modal -->
-      <div class="modal-overlay" [class.active]="!!selectedLc" (click)="selectedLc = null">
-        <div class="modal-container" *ngIf="selectedLc" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <div>
-              <h3>{{ selectedLc.urn }}</h3>
-              <div style="font-size:0.75rem;color:var(--text-secondary)">[{{ selectedLc.transactionType }}] {{ selectedLc.subject }}</div>
-            </div>
-            <button class="modal-close" (click)="selectedLc = null">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="timeline">
-              <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.received' | translate }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.exceptionStartedAt || selectedLc.exceptionTotalMinutes > 0" class="timeline-item" [ngClass]="selectedLc.status === 'Exception' ? 'exception active' : 'exception completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
-                  <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
-                  <div class="timeline-desc">
-                    <span *ngIf="selectedLc.exceptionReason" style="display:block;margin-bottom:0.4rem">{{ selectedLc.exceptionReason }}</span>
-                    <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
-                    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.25rem;font-size:0.82em;color:var(--text-muted)">
-                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</span>
-                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="selectedLc.status !== 'Exception' && selectedLc.exceptionResolvedAt">{{ formatDateTime(selectedLc.exceptionResolvedAt) }}</ng-container><ng-container *ngIf="selectedLc.status === 'Exception'"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="selectedLc.status !== 'Exception' && !selectedLc.exceptionResolvedAt">—</ng-container></span>
-                      <span *ngIf="selectedLc.exceptionTotalMinutes > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</span>
-                    </div>
-                    <ng-container *ngIf="selectedLc.status !== 'Exception'">
-                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}</span>
-                    </ng-container>
-                  </div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.released' | translate }}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="stage-duration-card" *ngIf="selectedLc">
-              <div class="stage-duration-header">
-                <h4>{{ 'timeline.stage_duration' | translate }}</h4>
-                <span *ngIf="getLcBottleneck(selectedLc) as bottleneck" class="stage-duration-pill">
-                  {{ 'timeline.longest_stage' | translate }}: {{ bottleneck.labelKey | translate }} ({{ formatMinutesLabel(bottleneck.minutes) }})
-                </span>
-              </div>
-
-              <div *ngIf="getLcStageDurations(selectedLc).length === 0" class="stage-duration-empty">
-                {{ 'timeline.no_stage_duration' | translate }}
-              </div>
-
-              <div class="stage-share-wrap" *ngIf="getLcStageDurations(selectedLc).length > 0">
-                <div class="stage-share-title">{{ 'timeline.stage_share' | translate }}</div>
-                <div class="stage-share-bar">
-                  <div
-                    *ngFor="let segment of getStageShareSegments(selectedLc)"
-                    class="stage-share-segment"
-                    [ngClass]="segment.className"
-                    [style.width.%]="segment.percent"
-                    [title]="(segment.labelKey | translate) + ' ' + formatPercent(segment.percent) + ' (' + formatMinutesLabel(segment.minutes) + ')'">
-                  </div>
-                </div>
-                <div class="stage-share-legend">
-                  <span class="stage-share-item" *ngFor="let segment of getStageShareSegments(selectedLc)">
-                    <span class="stage-share-dot" [ngClass]="segment.className"></span>
-                    <span>{{ segment.labelKey | translate }}</span>
-                    <strong>{{ formatPercent(segment.percent) }}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div class="stage-duration-list" *ngIf="getLcStageDurations(selectedLc).length > 0">
-                <div class="stage-duration-row" *ngFor="let stage of getLcStageDurations(selectedLc)">
-                  <div class="stage-duration-label">
-                    {{ stage.labelKey | translate }}
-                    <span *ngIf="stage.isActive" class="stage-live-tag">{{ 'timeline.live' | translate }}</span>
-                  </div>
-                  <div class="stage-duration-track">
-                    <div class="stage-duration-fill" [class.longest]="stage.isLongest" [style.width.%]="stageWidth(stage.minutes, selectedLc)"></div>
-                  </div>
-                  <div class="stage-duration-value">{{ formatMinutesLabel(stage.minutes) }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <app-lc-detail-modal [lc]="selectedLc" [exceptionHistory]="[]" (closed)="selectedLc = null"></app-lc-detail-modal>
 
       <div class="modal-overlay" [class.active]="!!editingLc" (click)="closeEditModal()">
         <div class="modal-container" *ngIf="editingLc" (click)="$event.stopPropagation()" style="max-width:640px">
@@ -696,12 +585,6 @@ export class AllLcsComponent implements OnInit {
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   }
 
-  formatExceptionDuration(minutes: number): string {
-    if (!minutes || minutes <= 0) return '—';
-    if (minutes < 60) return `${minutes}m`;
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-  }
-
   formatElapsed(r: any): string {
     const mins = this.getElapsedMinutes(r);
     if (mins < 60) return `${mins}m`;
@@ -762,51 +645,6 @@ export class AllLcsComponent implements OnInit {
       total = Math.round((Date.now() - new Date(r.receivedAt).getTime()) / 60000);
     }
     return Math.max(0, total - (r.exceptionTotalMinutes || 0));
-  }
-
-  getLcStageDurations(r: any): StageDuration[] {
-    return computeLcStageDurations(r);
-  }
-
-  getLcBottleneck(r: any): StageDuration | null {
-    return findLongestStage(this.getLcStageDurations(r));
-  }
-
-  stageWidth(minutes: number, r: any): number {
-    const stages = this.getLcStageDurations(r);
-    const maxMinutes = stages.reduce((max, stage) => Math.max(max, stage.minutes), 0);
-    if (maxMinutes <= 0) return 0;
-    return Math.max(8, Math.round((minutes / maxMinutes) * 100));
-  }
-
-  formatMinutesLabel(minutes: number): string {
-    return formatMinutesLabel(minutes);
-  }
-
-  getStageShareSegments(r: any): Array<{ labelKey: string; percent: number; className: string; minutes: number }> {
-    const stages = this.getLcStageDurations(r);
-    const total = stages.reduce((sum, stage) => sum + stage.minutes, 0);
-    if (total <= 0) return [];
-    return stages.map((stage) => ({
-      labelKey: stage.labelKey,
-      percent: Math.round((stage.minutes / total) * 1000) / 10,
-      className: this.stageShareClass(stage.key),
-      minutes: stage.minutes,
-    }));
-  }
-
-  formatPercent(value: number): string {
-    return `${value.toFixed(1)}%`;
-  }
-
-  private stageShareClass(key: StageDuration['key']): string {
-    const map: Record<StageDuration['key'], string> = {
-      inbox: 'stage-share-inbox',
-      drafting: 'stage-share-drafting',
-      checking: 'stage-share-checking',
-      exception: 'stage-share-exception',
-    };
-    return map[key];
   }
 
   private syncInputsFromRange(): void {

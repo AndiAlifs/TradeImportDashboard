@@ -4,12 +4,13 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
+import { getChartLabel } from '../utils/stage-duration';
+import { LcDetailModalComponent } from '../components/lc-detail-modal/lc-detail-modal.component';
 
 @Component({
   selector: 'app-operations',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule, TranslatePipe, LcDetailModalComponent],
   template: `
     <div class="page-content">
 
@@ -148,79 +149,12 @@ import { getTimelineLabel, getChartLabel } from '../utils/stage-duration';
         </div>
       </div>
 
-      <!-- LC Detail Modal -->
-      <div class="modal-overlay" [class.active]="!!selectedLc" (click)="selectedLc = null">
-        <div class="modal-container" *ngIf="selectedLc" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <div>
-              <h3>{{ selectedLc.urn }}</h3>
-              <div style="font-size:0.75rem;color:var(--text-secondary)">[{{ selectedLc.transactionType }}] {{ selectedLc.subject }}</div>
-            </div>
-            <button class="modal-close" (click)="selectedLc = null">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="timeline">
-              <div *ngIf="selectedLc.receivedAt" class="timeline-item completed">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'received') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.receivedAt) }}</div>
-                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.received', selectedLc.transactionType) }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.draftingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Drafting' ? 'active' : 'completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'drafting') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.draftingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.drafting', selectedLc.transactionType) }}{{ selectedLc.assignedTo ? ' by ' + selectedLc.assignedTo : '' }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.checkingStartedAt" class="timeline-item" [ngClass]="selectedLc.status === 'Checking Underlying' ? 'active' : 'completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'checking') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.checkingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.exceptionStartedAt || selectedLc.exceptionTotalMinutes > 0" class="timeline-item" [ngClass]="selectedLc.status === 'Exception' ? 'exception active' : 'exception completed'">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="selectedLc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
-                  <div class="timeline-time">{{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</div>
-                  <div class="timeline-desc">
-                    <span *ngIf="selectedLc.exceptionReason" style="display:block;margin-bottom:0.4rem">{{ selectedLc.exceptionReason }}</span>
-                    <span *ngIf="!selectedLc.exceptionReason && selectedLc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
-                    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.25rem;font-size:0.82em;color:var(--text-muted)">
-                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ selectedLc.exceptionStartedAt ? formatDateTime(selectedLc.exceptionStartedAt) : '—' }}</span>
-                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="selectedLc.status !== 'Exception' && selectedLc.exceptionResolvedAt">{{ formatDateTime(selectedLc.exceptionResolvedAt) }}</ng-container><ng-container *ngIf="selectedLc.status === 'Exception'"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="selectedLc.status !== 'Exception' && !selectedLc.exceptionResolvedAt">—</ng-container></span>
-                      <span *ngIf="selectedLc.exceptionTotalMinutes > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(selectedLc.exceptionTotalMinutes) }}</span>
-                    </div>
-                    <ng-container *ngIf="selectedLc.status !== 'Exception'">
-                      <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}</span>
-                    </ng-container>
-                  </div>
-                </div>
-              </div>
-              <div *ngIf="selectedLc.releasedAt" class="timeline-item completed">
-                <div class="timeline-marker"></div>
-                <div class="timeline-content">
-                  <div class="timeline-title">{{ getTimelineLabel(selectedLc!.transactionType, 'released') | translate }}</div>
-                  <div class="timeline-time">{{ formatDateTime(selectedLc.releasedAt) }}</div>
-                  <div class="timeline-desc">{{ getTranslatedText('timeline.desc.released', selectedLc.transactionType) }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <app-lc-detail-modal [lc]="selectedLc" [exceptionHistory]="[]" (closed)="selectedLc = null"></app-lc-detail-modal>
 
     </div>
   `
 })
 export class OperationsComponent implements OnInit {
-  getTimelineLabel = getTimelineLabel;
   getChartLabel = getChartLabel;
   private dataStore = inject(DataStoreService);
   private route = inject(ActivatedRoute);
@@ -332,17 +266,6 @@ export class OperationsComponent implements OnInit {
   formatTime(iso: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  formatDateTime(iso: string): string {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-
-  formatExceptionDuration(minutes: number): string {
-    if (!minutes || minutes <= 0) return '—';
-    if (minutes < 60) return `${minutes}m`;
-    return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
   }
 
   formatElapsed(r: any): string {
