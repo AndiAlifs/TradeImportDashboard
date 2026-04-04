@@ -85,20 +85,20 @@ import {
                   <div class="timeline-desc">{{ 'timeline.desc.checking' | translate }}</div>
                 </div>
               </div>
-              <div *ngIf="item.type === 'exception'" class="timeline-item" [ngClass]="lc.status === 'Exception' ? 'exception active' : 'exception completed'">
+              <div *ngIf="item.type === 'exception'" class="timeline-item" [ngClass]="item.exceptionData?.isActive ? 'exception active' : 'exception completed'">
                 <div class="timeline-marker"></div>
                 <div class="timeline-content">
-                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="lc.status !== 'Exception'"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
-                  <div class="timeline-time">{{ lc.exceptionStartedAt ? formatDateTime(lc.exceptionStartedAt) : (lc.exceptionResolvedAt && lc.exceptionTotalMinutes > 0 ? '~' + formatDateTime(estimateExceptionStart(lc)) : '—') }}</div>
+                  <div class="timeline-title">{{ 'timeline.exception' | translate }}<ng-container *ngIf="!item.exceptionData?.isActive"> · <span style="color:var(--success,#16a34a);font-size:0.8em">{{ 'timeline.exception_resolved_label' | translate }}</span></ng-container></div>
+                  <div class="timeline-time">{{ formatDateTime(item.exceptionData?.startedAt ?? '') }}</div>
                   <div class="timeline-desc">
-                    <span *ngIf="lc.exceptionReason" style="display:block;margin-bottom:0.4rem">{{ lc.exceptionReason }}</span>
-                    <span *ngIf="!lc.exceptionReason && lc.status === 'Exception'">{{ 'timeline.desc.exception_active' | translate }}</span>
+                    <span *ngIf="item.exceptionData?.reason" style="display:block;margin-bottom:0.4rem">{{ item.exceptionData?.reason }}</span>
+                    <span *ngIf="!item.exceptionData?.reason && item.exceptionData?.isActive">{{ 'timeline.desc.exception_active' | translate }}</span>
                     <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.25rem;font-size:0.82em;color:var(--text-muted)">
-                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ lc.exceptionStartedAt ? formatDateTime(lc.exceptionStartedAt) : '—' }}</span>
-                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="lc.status !== 'Exception' && lc.exceptionResolvedAt">{{ formatDateTime(lc.exceptionResolvedAt) }}</ng-container><ng-container *ngIf="lc.status === 'Exception'"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="lc.status !== 'Exception' && !lc.exceptionResolvedAt">—</ng-container></span>
-                      <span *ngIf="lc.exceptionTotalMinutes > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(lc.exceptionTotalMinutes) }}</span>
+                      <span><strong>{{ 'timeline.exception_start' | translate }}:</strong> {{ formatDateTime(item.exceptionData?.startedAt ?? '') }}</span>
+                      <span><strong>{{ 'timeline.exception_end' | translate }}:</strong> <ng-container *ngIf="!item.exceptionData?.isActive && item.exceptionData?.resolvedAt">{{ formatDateTime(item.exceptionData?.resolvedAt ?? '') }}</ng-container><ng-container *ngIf="item.exceptionData?.isActive"><span style="color:var(--warning,#d97706)">{{ 'timeline.live' | translate }}</span></ng-container><ng-container *ngIf="!item.exceptionData?.isActive && !item.exceptionData?.resolvedAt">—</ng-container></span>
+                      <span *ngIf="item.exceptionData?.resolutionMinutes && item.exceptionData!.resolutionMinutes! > 0"><strong>{{ 'timeline.exception_duration' | translate }}:</strong> {{ formatExceptionDuration(item.exceptionData!.resolutionMinutes!) }}</span>
                     </div>
-                    <ng-container *ngIf="lc.status !== 'Exception'">
+                    <ng-container *ngIf="!item.exceptionData?.isActive">
                       <span style="color:var(--text-muted);font-size:0.85em;">{{ 'timeline.desc.exception_resolved' | translate }}</span>
                     </ng-container>
                   </div>
@@ -209,7 +209,7 @@ export class LcDetailModalComponent {
   }
 
   getTimelineItems(lc: any) {
-    return buildLcTimelineItems(lc);
+    return buildLcTimelineItems(lc, this.exceptionHistory);
   }
 
   estimateExceptionStart(lc: any): string {

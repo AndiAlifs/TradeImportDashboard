@@ -153,10 +153,21 @@ export function formatMinutesLabel(minutes: number): string {
 
 export type TimelineItemType = 'received' | 'drafting' | 'checking' | 'exception' | 'released';
 
+export interface LcExceptionData {
+  startedAt: string;
+  reason?: string;
+  resolvedAt?: string;
+  resolutionMinutes?: number;
+  resolvedToStatus?: string;
+  isActive: boolean;
+}
+
 export interface LcTimelineItem {
   type: TimelineItemType;
   /** epoch ms used for sorting */
   ts: number;
+  /** populated for type === 'exception' items */
+  exceptionData?: LcExceptionData;
 }
 
 /**
@@ -164,6 +175,9 @@ export interface LcTimelineItem {
  * timestamps.  For resolved exceptions where `exceptionStartedAt` has been
  * cleared by the backend, the start time is estimated from
  * `exceptionResolvedAt − exceptionTotalMinutes`.
+ *
+ * When `exceptionHistory` is supplied, one timeline item is emitted per
+ * history entry so that all exceptions appear individually in the timeline.
  */
 export function buildLcTimelineItems(lc: {
   receivedAt?: string | null;
@@ -173,7 +187,15 @@ export function buildLcTimelineItems(lc: {
   exceptionStartedAt?: string | null;
   exceptionResolvedAt?: string | null;
   exceptionTotalMinutes?: number;
-}): LcTimelineItem[] {
+  status?: string;
+  exceptionReason?: string;
+}, exceptionHistory?: Array<{
+  startedAt: string;
+  reason?: string;
+  resolvedAt?: string;
+  resolutionMinutes?: number;
+  resolvedToStatus?: string;
+}>): LcTimelineItem[] {
   const items: LcTimelineItem[] = [];
 
   if (lc.receivedAt) {
@@ -186,24 +208,58 @@ export function buildLcTimelineItems(lc: {
     items.push({ type: 'checking', ts: new Date(lc.checkingStartedAt).getTime() });
   }
 
-  const hasException = !!(lc.exceptionStartedAt) || (lc.exceptionTotalMinutes ?? 0) > 0;
-  if (hasException) {
-    let exTs: number;
-    if (lc.exceptionStartedAt) {
-      exTs = new Date(lc.exceptionStartedAt).getTime();
-    } else if (lc.exceptionResolvedAt && (lc.exceptionTotalMinutes ?? 0) > 0) {
-      // Estimate start from resolved time minus total duration
-      exTs = new Date(lc.exceptionResolvedAt).getTime() - (lc.exceptionTotalMinutes! * 60_000);
-    } else {
-      // Fallback: place it after the last known non-released milestone
-      const lastKnown = Math.max(
-        lc.checkingStartedAt ? new Date(lc.checkingStartedAt).getTime() : 0,
-        lc.draftingStartedAt ? new Date(lc.draftingStartedAt).getTime() : 0,
-        lc.receivedAt ? new Date(lc.receivedAt).getTime() : 0,
-      );
-      exTs = lastKnown + 1;
+  if (exceptionHistory && exceptionHistory.length > 0) {
+    // Emit one timeline item per historical exception entry
+    for (const ex of exceptionHistory) {
+      const exTs = ex.startedAt ? new Date(ex.startedAt).getTime() : 0;
+      if (exTs > 0) {
+        items.push({
+          type: 'exception',
+          ts: exTs,
+          exceptionData: {
+            startedAt: ex.startedAt,
+            reason: ex.reason,
+            resolvedAt: ex.resolvedAt,
+            resolutionMinutes: ex.resolutionMinutes,
+            resolvedToStatus: ex.resolvedToStatus,
+            isActive: !ex.resolvedAt,
+          },
+        });
+      }
     }
-    items.push({ type: 'exception', ts: exTs });
+  } else {
+    // Fallback: use the LC-level exception fields as a single item
+    const hasException = !!(lc.exceptionStartedAt) || (lc.exceptionTotalMinutes ?? 0) > 0;
+    if (hasException) {
+      let exTs: number;
+      let startedAt: string;
+      if (lc.exceptionStartedAt) {
+        exTs = new Date(lc.exceptionStartedAt).getTime();
+        startedAt = lc.exceptionStartedAt;
+      } else if (lc.exceptionResolvedAt && (lc.exceptionTotalMinutes ?? 0) > 0) {
+        exTs = new Date(lc.exceptionResolvedAt).getTime() - (lc.exceptionTotalMinutes! * 60_000);
+        startedAt = new Date(exTs).toISOString();
+      } else {
+        const lastKnown = Math.max(
+          lc.checkingStartedAt ? new Date(lc.checkingStartedAt).getTime() : 0,
+          lc.draftingStartedAt ? new Date(lc.draftingStartedAt).getTime() : 0,
+          lc.receivedAt ? new Date(lc.receivedAt).getTime() : 0,
+        );
+        exTs = lastKnown + 1;
+        startedAt = new Date(exTs).toISOString();
+      }
+      items.push({
+        type: 'exception',
+        ts: exTs,
+        exceptionData: {
+          startedAt,
+          reason: lc.exceptionReason,
+          resolvedAt: lc.exceptionResolvedAt ?? undefined,
+          resolutionMinutes: lc.exceptionTotalMinutes,
+          isActive: lc.status === 'Exception',
+        },
+      });
+    }
   }
 
   if (lc.releasedAt) {
