@@ -16,6 +16,7 @@ type Config struct {
 	DBPassword    string
 	DBName        string
 	AllowedOrigin string
+	SeedData      bool
 }
 
 func Load() (Config, error) {
@@ -29,6 +30,7 @@ func Load() (Config, error) {
 		DBPassword:    os.Getenv("DB_PASSWORD"),
 		DBName:        os.Getenv("DB_NAME"),
 		AllowedOrigin: getEnv("ALLOWED_ORIGIN", "*"),
+		SeedData:      os.Getenv("SEED_DATA") == "true",
 	}
 
 	if err := cfg.validate(); err != nil {

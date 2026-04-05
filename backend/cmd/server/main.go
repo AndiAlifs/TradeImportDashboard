@@ -30,8 +30,10 @@ func main() {
 	if err := database.Migrate(db); err != nil {
 		log.Fatalf("db migration: %v", err)
 	}
-	if err := database.SeedDefaults(db); err != nil {
-		log.Fatalf("db seed defaults: %v", err)
+	if cfg.SeedData {
+		if err := database.SeedDefaults(db); err != nil {
+			log.Fatalf("db seed defaults: %v", err)
+		}
 	}
 
 	broadcaster := handlers.NewLCUpdateBroadcaster(16)

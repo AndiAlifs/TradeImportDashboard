@@ -62,9 +62,7 @@ import { LcDetailModalComponent } from '../lc-detail-modal/lc-detail-modal.compo
         <button class="lang-toggle-btn" (click)="toggleLang()" title="Switch Language">
             {{ 'lang.label' | translate }}
         </button>
-        <button class="reset-btn" (click)="handleReset()" title="Reset all data and regenerate" [disabled]="!dataStore.canAccessAction('reset_data')">
-            {{ 'topbar.reset' | translate }}
-        </button>
+
         <div style="font-size:0.8rem;color:var(--text-muted)">{{ clock }}</div>
       </div>
     </header>
