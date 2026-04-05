@@ -287,7 +287,7 @@ const translations = {
         'queue.title': 'Antrian Proses L/C',
         'queue.search': 'Cari URN atau pengirim…',
         'queue.filter_all': 'Semua',
-        'queue.filter_exception': 'Pengecualian',
+        'queue.filter_exception': 'Eksepsi',
         'queue.col_num': '#',
         'queue.col_urn': 'URN',
         'queue.col_sender': 'Pengirim',
@@ -309,20 +309,20 @@ const translations = {
         'action.release': '✅ Release',
         'action.completed': 'Selesai',
         'action.resume': '▶ Lanjutkan',
-        'action.mark_exception': '⏸ Pengecualian',
-        'action.resolve_exception': '▶ Selesaikan Pengecualian',
+        'action.mark_exception': '⏸ Eksepsi',
+        'action.resolve_exception': '▶ Selesaikan Eksepsi',
 
         // Timeline (L/C Details Modal)
         'timeline.received': 'Diterima',
         'timeline.drafting': 'Drafting',
         'timeline.checking': 'Pemeriksaan Underlying',
-        'timeline.exception': 'Pengecualian',
+        'timeline.exception': 'Eksepsi',
         'timeline.released': 'Dirilis',
         'timeline.desc.received': 'Aplikasi L/C diterima di sistem.',
         'timeline.desc.drafting': 'Mulai menyusun dokumen kredit',
         'timeline.desc.checking': 'Memeriksa dokumen dan kepatuhan perdagangan.',
-        'timeline.desc.exception_active': 'Sedang dijeda karena pengecualian.',
-        'timeline.desc.exception_resolved': 'Pengecualian telah diselesaikan.',
+        'timeline.desc.exception_active': 'Sedang dijeda karena eksepsi.',
+        'timeline.desc.exception_resolved': 'Eksepsi telah diselesaikan.',
         'timeline.desc.released': 'L/C telah dirilis melalui SWIFT.',
 
         // SLA Settings
@@ -366,10 +366,10 @@ const translations = {
         'note.start_drafting': 'Petugas mulai drafting L/C.',
         'note.start_checking': 'Draft selesai, lanjut ke checking.',
         'note.release': 'L/C berhasil di-release.',
-        'note.mark_exception': 'Ditandai sebagai Pengecualian (SLA dijeda)',
-        'note.resolve_exception': 'Pengecualian selesai. Proses dilanjutkan.',
-        'prompt.mark_exception': 'Masukkan alasan pengecualian (misalnya: menghubungi nasabah, kendala pembiayaan):',
-        'prompt.resolve_exception': 'Masukkan total menit yang dihabiskan untuk pengecualian ini (Dihitung otomatis: {0}m):',
+        'note.mark_exception': 'Ditandai sebagai Eksepsi (SLA dijeda)',
+        'note.resolve_exception': 'Eksepsi selesai. Proses dilanjutkan.',
+        'prompt.mark_exception': 'Masukkan alasan eksepsi (misalnya: menghubungi nasabah, kendala pembiayaan):',
+        'prompt.resolve_exception': 'Masukkan total menit yang dihabiskan untuk eksepsi ini (Dihitung otomatis: {0}m):',
 
         // Lang toggle
         'lang.label': '🇮🇩 ID',
@@ -423,3 +423,4 @@ function applyStaticTranslations() {
         }
     });
 }
+
