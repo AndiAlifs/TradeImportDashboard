@@ -1,0 +1,301 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-summarizer-trade-shila",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -320,
+        -32
+      ],
+      "id": "fff74efc-da23-4521-a8f0-d34bf387cd7d",
+      "name": "Webhook",
+      "webhookId": "d5034b38-8652-4890-a0b7-7355f0aaae75"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Waktu sekarang: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}.\n\nAnalisis antrian trade operations saat ini dan buat ringkasan eksekutif. Ikuti langkah-langkah ini secara berurutan:\n\n1. Panggil get_sla_config untuk mengetahui batas SLA per jenis transaksi.\n2. Panggil get_lc_queue untuk mengambil semua L/C hari ini.\n3. Identifikasi L/C yang BREACH (elapsed > SLA max) dan yang PERINGATAN (elapsed ≥ 75% SLA max).\n4. Untuk setiap L/C yang breach atau peringatan, panggil get_lc_events dengan URN-nya untuk menelusuri riwayat proses.\n5. Untuk L/C yang memiliki exception, panggil get_lc_exceptions dengan ID numeriknya.\n6. Panggil get_staff_assignees untuk melihat daftar staf.\n7. Panggil get_officers untuk melihat daftar officer.\n8. Hitung beban kerja per staf dengan mencocokkan field assignedTo dari data L/C dengan daftar staf.\n9. Hasilkan ringkasan eksekutif sesuai format yang ditentukan.\n\nRUMUS ELAPSED TIME:\n- L/C aktif (Received/Drafting/Checking): elapsed = ({{ $now.format('yyyy-MM-dd HH:mm:ss') }} - receivedAt) dalam menit, dikurangi exceptionTotalMinutes\n- L/C Exception: elapsed = (exceptionStartedAt - receivedAt) dalam menit, dikurangi exceptionTotalMinutes\n- L/C Released: elapsed = (releasedAt - receivedAt) dalam menit, dikurangi exceptionTotalMinutes\n- L/C Breached: SUDAH breach, langsung masukkan ke daftar kritis",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Anda adalah Senior Trade Operations Executive Analyst yang ahli dalam analisis SLA dan operasi Letter of Credit.\n\n## TUGAS ANDA\nAnalisis antrian L/C saat ini, identifikasi breach dan risiko SLA, selidiki akar penyebab, evaluasi beban kerja staf, dan hasilkan ringkasan eksekutif yang ringkas dan actionable.\n\n## DATA YANG TERSEDIA\n\n### Model L/C (dari get_lc_queue)\nSetiap L/C memiliki field:\n- id (numerik), urn (contoh: LC-20260402-001)\n- status: Received → Drafting → Checking Underlying → Released (flow normal)\n  Status lain: Exception, Breached, Breached with Exception\n- transactionType: Import, Export, atau Bank Guarantee\n- assignedTo: nama staf yang menangani\n- approvedBy: nama officer yang menyetujui (bisa null)\n- receivedAt, draftingStartedAt, checkingStartedAt, releasedAt: timestamp tiap tahap\n- exceptionStartedAt, exceptionResolvedAt, exceptionTotalMinutes: data exception\n- exceptionReason: alasan exception\n\n### Model Event (dari get_lc_events)\nSetiap event mencatat perubahan status:\n- urn, action, from (status asal), to (status tujuan), user, notes, timestamp\n\n### Model Exception (dari get_lc_exceptions)\nDetail exception per L/C:\n- reason, startedAt, resolvedAt, resolutionMinutes, resolvedBy\n\n### SLA Config (dari get_sla_config)\n- importSlaMaxMinutes (default 120)\n- exportSlaMaxMinutes (default 120)\n- bgSlaMaxMinutes (default 120)\n- Warning threshold: 75% dari max\n\n## PERHITUNGAN\n- Elapsed time (menit) = (waktu_acuan - receivedAt) - exceptionTotalMinutes\n- Warning: elapsed ≥ 75% SLA max DAN ≤ SLA max\n- Breach: elapsed > SLA max ATAU status = 'Breached'/'Breached with Exception'\n- Beban kerja staf: hitung berapa L/C aktif (non-Released) per assignedTo\n\n## FORMAT OUTPUT (WAJIB)\n\nOutput HANYA berisi ringkasan berikut, TANPA proses berpikir:\n\n---\n\n# 📊 Ringkasan Eksekutif Trade Operations\n**Waktu:** [datetime]\n\n## Status Operasi: [🟢 BAIK / 🟡 PERLU PERHATIAN / 🔴 DARURAT]\n\n### Ikhtisar\n| Metrik | Import | Export | Bank Guarantee | Total |\n|--------|--------|--------|----------------|-------|\n| L/C Aktif | X | X | X | X |\n| Selesai (Released) | X | X | X | X |\n| 🔴 Breach | X | X | X | X |\n| 🟡 Peringatan | X | X | X | X |\n| ✅ Aman | X | X | X | X |\n| SLA Compliance | X% | X% | X% | X% |\n\n### 🔴 L/C Kritis (Breach SLA)\n[Untuk setiap L/C yang breach:]\n- **[URN]** ([Type]) — Status: [status], Staf: [assignedTo], Officer: [approvedBy]\n  - Elapsed: [X]m / SLA: [X]m (melampaui [X] menit)\n  - Bottleneck: [tahap mana yang paling lama]\n  - Akar Penyebab: [analisis berdasarkan event log dan exception]\n  - 💡 Rekomendasi: [aksi spesifik]\n\n### 🟡 L/C Berisiko (Warning)\n[Untuk setiap L/C yang mendekati breach:]\n- **[URN]** ([Type]) — Elapsed: [X]m / SLA: [X]m (sisa [X] menit)\n  - Staf: [assignedTo] | Tahap: [current stage]\n  - 💡 Rekomendasi: [aksi spesifik]\n\n### 👥 Beban Kerja Staf\n| Staf | Section | L/C Aktif | Breach | Peringatan | Status |\n|------|---------|-----------|--------|------------|--------|\n| [nama] | [section] | X | X | X | 🔴 Overload / ✅ Normal |\n\n### 💡 Rekomendasi Utama\n1. [Rekomendasi paling penting dengan dampak tertinggi]\n2. [Rekomendasi kedua]\n3. [Rekomendasi ketiga]\n\n---\n\n# 📊 Executive Summary — Trade Operations\n**Time:** [datetime]\n\n## Operations Status: [🟢 GOOD / 🟡 ATTENTION NEEDED / 🔴 CRITICAL]\n\n[Full English translation of the above with identical structure and data]\n\n---\n\nATURAN KRITIS:\n- JANGAN tampilkan chain-of-thought, reasoning, atau data mentah\n- HANYA output ringkasan terformat di atas\n- Gunakan DATA ASLI dari API, jangan mengarang angka\n- Jika tidak ada breach/warning, tetap tampilkan tabel dengan angka 0\n- Hitung beban kerja staf dari data L/C, BUKAN dari API assignees saja"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        280,
+        -32
+      ],
+      "id": "b239641f-3238-47da-b515-7b2c8625fe6d",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-pro-preview",
+        "options": {
+          "temperature": 0.15
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        32,
+        192
+      ],
+      "id": "9965c110-99f8-44ac-8acf-4c4e2ff9a5c8",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nd4lUloGZrBY1qLZ",
+          "name": "PaidTier"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen3.5:397b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        192
+      ],
+      "id": "33da754a-29ab-4749-96bb-326b01318ce8",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "LYzofx7qnUPnxACa",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil daftar semua Letter of Credit (L/C) dari dashboard. Mendukung query params: status (filter by status), transactionType (Import/Export/Bank Guarantee), limit (max records, default 100), offset, fromDate (YYYY-MM-DD), toDate (YYYY-MM-DD). Mengembalikan JSON { data: [...], total: N }. Setiap L/C memiliki field: id, urn, senderEmail, subject, transactionType, status, assignedTo, approvedBy, receivedAt, draftingStartedAt, checkingStartedAt, releasedAt, exceptionStartedAt, exceptionResolvedAt, exceptionTotalMinutes, exceptionReason, previousStatus.",
+        "url": "=http://localhost:8081/api/lc?limit=500&fromDate={{$fromAI(\"fromDate\",\"Tanggal mulai dalam format YYYY-MM-DD, gunakan tanggal hari ini\")}}&toDate={{$fromAI(\"toDate\",\"Tanggal akhir dalam format YYYY-MM-DD, gunakan tanggal hari ini\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        160,
+        192
+      ],
+      "id": "6138e76c-0c56-47d1-a1b5-0b2e6ef970e1",
+      "name": "get_lc_queue"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil riwayat event/log perubahan status untuk L/C tertentu berdasarkan URN (contoh: LC-20260402-001). Setiap event berisi: id, lcId, urn, user (siapa yang melakukan), action (apa yang dilakukan), from (status sebelumnya), to (status baru), notes (catatan), timestamp. Gunakan untuk menelusuri kronologi proses dan menemukan di tahap mana terjadi keterlambatan. Mendukung query params: urn, limit, offset, fromDate, toDate.",
+        "url": "=http://localhost:8081/api/events?limit=500&urn={{$fromAI(\"urn\",\"URN dari L/C, contoh: LC-20260402-001\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        288,
+        192
+      ],
+      "id": "d53bd7ec-8f0e-40d8-94f0-8a0997874812",
+      "name": "get_lc_events"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil riwayat exception detail untuk L/C tertentu berdasarkan ID NUMERIK (bukan URN). Mengembalikan array exception dengan field: id, lcId, reason (alasan exception), startedAt, resolvedAt, resolutionMinutes (berapa menit exception berlangsung), resolvedToStatus (status setelah resolve), resolvedBy (siapa yang resolve). Gunakan untuk mengetahui detail penyebab delay dan berapa lama exception berlangsung.",
+        "url": "=http://localhost:8081/api/lc/{{$fromAI(\"lcId\",\"ID numerik dari L/C (bukan URN), contoh: 1, 2, 3\")}}/exceptions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        416,
+        192
+      ],
+      "id": "9b8fa4db-2e33-4279-9220-9ca4e7e80ef5",
+      "name": "get_lc_exceptions"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil daftar staf operasi trade (assignees). Mengembalikan JSON { data: [...], total: N }. Setiap staf memiliki: id, name, section (Import/Export/Bank Guarantee), isActive. Gunakan untuk mengetahui struktur tim dan mencocokkan dengan field assignedTo di data L/C untuk menghitung beban kerja aktual.",
+        "url": "http://localhost:8081/api/assignees",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        544,
+        192
+      ],
+      "id": "8815b7c9-ad05-408e-afb3-c91a5be68296",
+      "name": "get_staff_assignees"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil daftar officer (atasan/penyetuju) trade operations. Mengembalikan JSON { data: [...], total: N }. Setiap officer memiliki: id, name, section, isActive. Officer adalah pihak yang menyetujui dan mengawasi proses L/C. Cocokkan dengan field approvedBy di data L/C.",
+        "url": "http://localhost:8081/api/officers",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        192
+      ],
+      "id": "2eccb2a2-00f4-42cb-9897-637ffa6453bf",
+      "name": "get_officers"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil konfigurasi SLA saat ini. Mengembalikan: importSlaMaxMinutes (SLA untuk Import), exportSlaMaxMinutes (SLA untuk Export), bgSlaMaxMinutes (SLA untuk Bank Guarantee). Default semua 120 menit. Warning threshold adalah 75% dari max. SELALU panggil ini PERTAMA sebelum menganalisis breach.",
+        "url": "http://localhost:8081/api/sla",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        192
+      ],
+      "id": "274c9e85-5963-49a3-bc79-c2603588a855",
+      "name": "get_sla_config"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        -32
+      ],
+      "id": "2d3e1bd4-32ae-4a5d-b8db-1135b67178cd",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_queue": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_events": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_exceptions": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_staff_assignees": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_officers": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_sla_config": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cdd8f1f9eaafccb6d93bda724216a7abf955561c2b30a779a60d6ac156c6734f"
+  }
+}

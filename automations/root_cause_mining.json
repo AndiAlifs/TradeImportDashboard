@@ -1,0 +1,361 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -944,
+        176
+      ],
+      "id": "2ff737d7-b4b2-47c7-97db-232f27c51ee2",
+      "name": "Weekly Monday 7AM"
+    },
+    {
+      "parameters": {
+        "path": "root-cause-mining",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -944,
+        352
+      ],
+      "id": "9bd8da7b-d5f5-4d62-917b-3ba30ec1607d",
+      "name": "Manual Trigger Webhook",
+      "webhookId": "root-cause-mining-webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Today is {{ $now.format('yyyy-MM-dd') }}. Analyze the past 7 days of trade operations data.\n\nSTEP-BY-STEP INSTRUCTIONS:\n1. First, call get_sla_config to know the current SLA thresholds.\n2. Call get_all_lcs with fromDate={{ $now.minus(7, 'days').format('yyyy-MM-dd') }} and toDate={{ $now.format('yyyy-MM-dd') }} to get all L/Cs from the past week.\n3. From the results, identify ALL L/Cs with status 'Breached' or 'Breached with Exception'.\n4. For EACH breached L/C, call get_lc_exceptions with the L/C id to get exception history and root cause details.\n5. Call get_all_events with fromDate={{ $now.minus(7, 'days').format('yyyy-MM-dd') }} and toDate={{ $now.format('yyyy-MM-dd') }} to get the full event timeline.\n6. Call get_staff_workload to understand current staff distribution.\n7. Perform your pattern analysis and produce the final report.\n\nYour FINAL OUTPUT must follow the exact format specified in your system instructions.",
+        "options": {
+          "systemMessage": "You are a Senior Trade Operations Intelligence Analyst specializing in root cause analysis and process mining.\n\nYour mission: Analyze 7 days of L/C processing data to discover SYSTEMIC PATTERNS causing SLA breaches — not just list individual incidents.\n\n## ANALYSIS FRAMEWORK\n\nPerform these analyses using the data you collect:\n\n### 1. BOTTLENECK STAGE ANALYSIS\n- Calculate average dwell time per stage: Received→Drafting, Drafting→Checking Underlying, Checking→Released\n- Use the timestamps: receivedAt, draftingStartedAt, checkingStartedAt, releasedAt\n- Identify which stage transition consistently takes the longest\n- Flag stages where dwell time exceeds 50% of total SLA budget\n\n### 2. EXCEPTION PATTERN MINING\n- Group all exceptions by their 'reason' field from lc_exceptions\n- Calculate: frequency count, average resolution time (resolutionMinutes), repeat offender L/Cs\n- Identify the TOP 3 most common exception reasons\n- Check if certain exception types cluster at specific times of day\n\n### 3. STAFF WORKLOAD CORRELATION\n- Cross-reference breached L/Cs with their assignedTo field\n- Calculate breach rate per staff member: (breached / total assigned) × 100\n- Identify if breaches correlate with staff who have too many concurrent assignments\n- Check if certain staff-to-transaction-type pairings perform worse\n\n### 4. TEMPORAL PATTERN DETECTION\n- Group breaches by day-of-week and hour-of-day (from receivedAt)\n- Identify if certain receiving times correlate with higher breach rates\n- Check if breaches cluster around specific days (e.g., Monday morning backlog)\n\n### 5. TRANSACTION TYPE BREAKDOWN\n- Compare SLA compliance rates: Import vs Export vs Bank Guarantee\n- Identify if one transaction type has disproportionately more breaches\n- Cross-reference with the different SLA thresholds per type\n\n## OUTPUT FORMAT (STRICT)\n\nYour output MUST follow this exact structure:\n\n---\n\n# 📊 Weekly Root Cause Analysis Report\n**Period:** [fromDate] — [toDate]\n**Generated:** [current datetime]\n\n## 📈 Executive Summary\n[3 sentences: total L/Cs processed, breach count & rate, the single biggest systemic issue found]\n\n## 🔴 Key Findings\n\n### 1. Primary Bottleneck\n- **Stage:** [stage name]\n- **Average Dwell Time:** [X minutes]\n- **Impact:** [how many breaches this caused]\n- **Evidence:** [specific URNs and data points]\n\n### 2. Top Exception Patterns\n| Rank | Exception Reason | Count | Avg Resolution (min) | Affected Staff |\n|------|-----------------|-------|---------------------|----------------|\n| 1 | ... | ... | ... | ... |\n| 2 | ... | ... | ... | ... |\n| 3 | ... | ... | ... | ... |\n\n### 3. Staff Performance Matrix\n| Staff | Total Assigned | Breached | Breach Rate | Avg Processing Time |\n|-------|---------------|----------|-------------|--------------------|\n| ... | ... | ... | ... | ... |\n\n### 4. Temporal Hotspots\n- **Worst Day:** [day] ([X]% of weekly breaches)\n- **Worst Hour Window:** [HH:00 - HH:00]\n- **Pattern:** [description]\n\n### 5. Transaction Type Health\n| Type | Total | Breached | Compliance Rate | SLA Threshold |\n|------|-------|----------|----------------|---------------|\n| Import | ... | ... | ... | ... min |\n| Export | ... | ... | ... | ... min |\n| Bank Guarantee | ... | ... | ... | ... min |\n\n## 💡 Strategic Recommendations\n1. **[Action 1]:** [Specific, measurable recommendation with expected impact]\n2. **[Action 2]:** [Specific, measurable recommendation with expected impact]\n3. **[Action 3]:** [Specific, measurable recommendation with expected impact]\n\n## 🔄 Trend vs Previous Period\n[If data allows, note whether breach rate is improving or worsening]\n\n---\n\n# 📊 Laporan Analisis Akar Penyebab Mingguan\n[Full Bahasa Indonesia translation of the above report with identical structure]\n\n---\n\nCRITICAL RULES:\n- DO NOT output your internal reasoning, chain-of-thought, or data dumps\n- DO NOT include raw JSON responses in your output\n- ONLY output the formatted report above\n- Use REAL data from the API calls, never fabricate numbers\n- If data is insufficient for an analysis section, state 'Insufficient data' rather than guessing"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -432,
+        176
+      ],
+      "id": "a0e205dd-1d08-435f-9a57-6daef3a8f9e0",
+      "name": "Root Cause Mining Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        416
+      ],
+      "id": "aff492d0-b988-457d-88e7-b50868c0a05a",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nd4lUloGZrBY1qLZ",
+          "name": "PaidTier"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "qwen3.5:397b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        416
+      ],
+      "id": "495a80e5-6122-44d7-ac67-9cb6914aaa9a",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "LYzofx7qnUPnxACa",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches all L/Cs within a date range. Supports query params: status, transactionType, limit, offset, fromDate, toDate. Use limit=500 to get all records. Returns array of L/C objects with fields: id, urn, status, assignedTo, transactionType, receivedAt, draftingStartedAt, checkingStartedAt, releasedAt, exceptionTotalMinutes, exceptionReason, approvedBy.",
+        "url": "=http://localhost:8081/api/lc?limit=500&fromDate={{$fromAI(\"fromDate\",\"Start date in YYYY-MM-DD format\")}}&toDate={{$fromAI(\"toDate\",\"End date in YYYY-MM-DD format\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -352,
+        416
+      ],
+      "id": "ef803214-1389-428a-82be-f795dd965235",
+      "name": "get_all_lcs"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches all event logs within a date range. Events track every status change for every L/C. Each event has: id, lcId, urn, user, action, from (previous status), to (new status), notes, timestamp. Use limit=500 and provide fromDate and toDate to get a full week of events.",
+        "url": "=http://localhost:8081/api/events?limit=500&fromDate={{$fromAI(\"fromDate\",\"Start date in YYYY-MM-DD format\")}}&toDate={{$fromAI(\"toDate\",\"End date in YYYY-MM-DD format\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -208,
+        416
+      ],
+      "id": "e7f0caa5-b208-4e4e-b031-7cc8f96106ef",
+      "name": "get_all_events"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches the exception history for a specific L/C by its numeric ID. Returns an array of exception objects with: id, lcId, reason, startedAt, resolvedAt, resolutionMinutes, resolvedToStatus, resolvedBy. Use this to investigate WHY a specific L/C was delayed. Requires the L/C numeric ID (not URN).",
+        "url": "=http://localhost:8081/api/lc/{{$fromAI(\"lcId\",\"The numeric ID of the L/C\")}}/exceptions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -64,
+        416
+      ],
+      "id": "1e2205a4-94d7-4427-9acd-44f9a2ea90f5",
+      "name": "get_lc_exceptions"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches the list of trade operations staff (assignees) and their section. Returns array with fields: id, name, section, isActive. Use this to understand team structure and cross-reference with breach data to find overloaded staff.",
+        "url": "http://localhost:8081/api/assignees",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        80,
+        416
+      ],
+      "id": "d5b5736e-105a-4f49-88cd-30cfd36934ab",
+      "name": "get_staff_workload"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Fetches the current SLA configuration. Returns: importSlaMaxMinutes (default 120), exportSlaMaxMinutes, bgSlaMaxMinutes. Use this to know the threshold for each transaction type.",
+        "url": "http://localhost:8081/api/sla",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        416
+      ],
+      "id": "2597a3fd-f061-4e84-a72a-9c7c4e44b200",
+      "name": "get_sla_config"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "report",
+              "name": "report",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "generatedAt",
+              "name": "generatedAt",
+              "value": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -32,
+        176
+      ],
+      "id": "9923de2a-8705-48cd-8ab6-f3e04b0461c5",
+      "name": "Format Output"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.report }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        304,
+        240
+      ],
+      "id": "ea45c946-690c-43ed-909c-cf676954a158",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "subject": "=📊 Weekly Root Cause Analysis Report - {{ $now.format('yyyy-MM-dd') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        64
+      ],
+      "id": "3e7baa9f-f1e6-450b-b9aa-c21a1926e38f",
+      "name": "Email Report",
+      "webhookId": "6a2015f8-c045-4b03-864d-86d11c09f0bd",
+      "credentials": {
+        "smtp": {
+          "id": "sr7PXWZ0CV2MSSdM",
+          "name": "SMTP account"
+        }
+      },
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Weekly Monday 7AM": {
+      "main": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger Webhook": {
+      "main": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Root Cause Mining Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_all_lcs": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_all_events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_exceptions": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_staff_workload": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_sla_config": {
+      "ai_tool": [
+        [
+          {
+            "node": "Root Cause Mining Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Output": {
+      "main": [
+        [
+          {
+            "node": "Email Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "cdd8f1f9eaafccb6d93bda724216a7abf955561c2b30a779a60d6ac156c6734f"
+  }
+}

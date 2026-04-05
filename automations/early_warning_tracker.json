@@ -1,0 +1,555 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1568,
+        464
+      ],
+      "id": "bc79783b-1127-42f5-94f7-b782161ec18c",
+      "name": "Every 10 Minutes"
+    },
+    {
+      "parameters": {
+        "path": "early-warning-trade-shila",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1568,
+        656
+      ],
+      "id": "5483e303-5fcd-46c1-92c2-bbed8d4eee16",
+      "name": "Manual Trigger",
+      "webhookId": "early-warning-trade-shila"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Waktu sekarang: {{ $now.format('yyyy-MM-dd HH:mm:ss') }}.\n\nLakukan analisis peringatan dini SLA. Ikuti langkah-langkah berikut:\n\n1. Panggil get_sla_config untuk mendapatkan batas SLA tiap jenis transaksi.\n2. Panggil get_active_lcs untuk mendapatkan semua L/C aktif (belum Released).\n3. Dari hasil tersebut, identifikasi:\n   - 🔴 KRITIS: L/C yang sudah BREACH (elapsed > SLA max) dengan status selain Released\n   - 🟡 PERINGATAN: L/C yang mendekati breach (elapsed >= 75% dari SLA max tapi belum melebihi)\n   - ⚪ AMAN: L/C lainnya (elapsed < 75% SLA max)\n4. Untuk setiap L/C yang KRITIS atau PERINGATAN, panggil get_lc_events dengan URN-nya untuk melihat riwayat proses dan mencari akar penyebab keterlambatan.\n5. Untuk setiap L/C KRITIS yang memiliki exception, panggil get_lc_exceptions dengan ID-nya.\n6. Panggil get_staff_workload untuk melihat beban kerja staf saat ini.\n7. Hasilkan laporan peringatan dini sesuai format yang ditentukan dalam system instructions.\n\nPENTING: Hitung elapsed time dengan rumus:\n- Untuk L/C aktif: (waktu_sekarang - receivedAt - exceptionTotalMinutes) dalam menit\n- Untuk L/C Exception: (exceptionStartedAt - receivedAt - exceptionTotalMinutes) dalam menit\n- Warning threshold = 75% dari SLA max per jenis transaksi",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "Anda adalah Sistem Peringatan Dini SLA (Early Warning System) untuk operasi Trade Finance.\n\nTugas Anda: Memantau semua L/C aktif, mendeteksi yang berisiko breach SLA, menganalisis akar penyebab, dan menghasilkan peringatan yang actionable.\n\n## ATURAN PERHITUNGAN ELAPSED TIME\n\nGunakan rumus berikut PERSIS seperti ini:\n- L/C aktif (Received/Drafting/Checking): elapsed = (NOW - receivedAt - exceptionTotalMinutes)\n- L/C Exception: elapsed = (exceptionStartedAt - receivedAt - exceptionTotalMinutes)  \n- L/C Released: SKIP (tidak perlu diperiksa)\n- L/C Breached/Breached with Exception: SUDAH breach, masukkan ke kategori KRITIS\n\nSLA Threshold per jenis:\n- Import: importSlaMaxMinutes (default 120)\n- Export: exportSlaMaxMinutes (default 120)  \n- Bank Guarantee: bgSlaMaxMinutes (default 120)\n- Warning = 75% dari max\n\n## KLASIFIKASI\n\n🔴 KRITIS (Harus segera ditindaklanjuti):\n- Status = 'Breached' atau 'Breached with Exception'\n- ATAU elapsed > SLA max DAN status bukan Released\n\n🟡 PERINGATAN (Berisiko breach dalam 30 menit):\n- elapsed >= 75% SLA max DAN elapsed <= SLA max\n- Status aktif (Received, Drafting, Checking Underlying, Exception)\n\n## ANALISIS AKAR PENYEBAB\n\nUntuk setiap L/C kritis/peringatan, analisis:\n1. Di tahap mana L/C paling lama tertahan? (Received→Drafting vs Drafting→Checking vs Checking→Released)\n2. Apakah ada exception yang memperlambat?\n3. Apakah staf yang menangani sedang overload?\n4. Berapa sisa waktu sebelum breach? (untuk kategori Peringatan)\n\n## FORMAT OUTPUT (WAJIB DIIKUTI)\n\nOutput HARUS dalam format JSON yang valid dengan struktur berikut:\n\n```json\n{\n  \"alertLevel\": \"KRITIS\" | \"PERINGATAN\" | \"AMAN\",\n  \"timestamp\": \"2026-04-02T07:00:00Z\",\n  \"summary\": {\n    \"totalActive\": 0,\n    \"critical\": 0,\n    \"warning\": 0,\n    \"safe\": 0,\n    \"overallHealth\": \"BAIK\" | \"PERLU PERHATIAN\" | \"DARURAT\"\n  },\n  \"criticalAlerts\": [\n    {\n      \"urn\": \"LC-2026-0001\",\n      \"transactionType\": \"Import\",\n      \"status\": \"Breached\",\n      \"assignedTo\": \"Rina Hartono\",\n      \"approvedBy\": \"Budi Santoso\",\n      \"elapsedMinutes\": 145,\n      \"slaMaxMinutes\": 120,\n      \"breachMinutes\": 25,\n      \"currentStage\": \"Checking Underlying\",\n      \"bottleneck\": \"Tertahan 80 menit di tahap Drafting\",\n      \"rootCause\": \"Staf Rina Hartono sedang menangani 5 L/C secara bersamaan. Exception 'Menunggu konfirmasi beneficiary' menambah 15 menit delay.\",\n      \"recommendation\": \"Segera eskalasi ke officer. Pertimbangkan redistribusi 2 L/C Rina ke staf lain yang lebih senggang.\"\n    }\n  ],\n  \"warningAlerts\": [\n    {\n      \"urn\": \"LC-2026-0005\",\n      \"transactionType\": \"Export\",\n      \"status\": \"Drafting\",\n      \"assignedTo\": \"Siti Aminah\",\n      \"approvedBy\": null,\n      \"elapsedMinutes\": 95,\n      \"slaMaxMinutes\": 120,\n      \"remainingMinutes\": 25,\n      \"currentStage\": \"Drafting\",\n      \"riskFactor\": \"Rata-rata waktu Drafting→Checking adalah 40 menit. Dengan sisa 25 menit, L/C ini sangat berisiko breach.\",\n      \"recommendation\": \"Prioritaskan L/C ini. Minta Siti segera selesaikan drafting dan lanjut ke checking.\"\n    }\n  ],\n  \"staffWorkloadAnalysis\": [\n    {\n      \"name\": \"Rina Hartono\",\n      \"section\": \"Import\",\n      \"activeCount\": 5,\n      \"atRiskCount\": 2,\n      \"isOverloaded\": true,\n      \"recommendation\": \"Kurangi beban kerja. Redistribusi 2 L/C ke staf lain.\"\n    }\n  ],\n  \"executiveSummaryId\": \"Ringkasan untuk Executive: [total] L/C aktif, [critical] dalam status KRITIS, [warning] dalam PERINGATAN. Bottleneck utama: [deskripsi]. Rekomendasi: [aksi].\",\n  \"executiveSummaryEn\": \"Executive Summary: [total] active L/Cs, [critical] CRITICAL, [warning] WARNING. Main bottleneck: [description]. Recommendation: [action].\",\n  \"notificationMessages\": {\n    \"executive\": {\n      \"subject\": \"🚨 [ALERT_LEVEL] Peringatan SLA Trade Operations - [DATE]\",\n      \"body\": \"Full formatted message in Bahasa Indonesia for executive with all critical and warning details, root cause, and recommendations.\"\n    },\n    \"officer\": {\n      \"subject\": \"⚠️ [ALERT_LEVEL] L/C Membutuhkan Perhatian Segera - [DATE]\",\n      \"body\": \"Full formatted message in Bahasa Indonesia for officer with specific L/Cs they need to act on, root cause per item, and step-by-step recommendations.\"\n    }\n  }\n}\n```\n\nATURAN KRITIS:\n- JANGAN tampilkan proses berpikir atau reasoning\n- JANGAN tampilkan data mentah JSON dari API\n- HANYA output JSON yang terformat sesuai struktur di atas\n- Gunakan DATA ASLI dari API, jangan mengarang angka\n- Semua teks dalam Bahasa Indonesia kecuali executiveSummaryEn\n- Jika tidak ada alert (semua aman), tetap output JSON dengan alertLevel='AMAN' dan array kosong"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -992,
+        560
+      ],
+      "id": "519ef4d6-76dd-4ed7-abdd-1e4cc064758b",
+      "name": "Early Warning AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-pro",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        784
+      ],
+      "id": "78771c51-bc24-488a-8bd5-f0d579993e69",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "nd4lUloGZrBY1qLZ",
+          "name": "PaidTier"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI output JSON\nconst rawOutput = $input.first().json.output;\nlet parsed;\ntry {\n  // Try to extract JSON from the output (handle markdown code blocks)\n  const jsonMatch = rawOutput.match(/```json\\n?([\\s\\S]*?)\\n?```/) || rawOutput.match(/\\{[\\s\\S]*\\}/);\n  const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : rawOutput;\n  parsed = JSON.parse(jsonStr);\n} catch (e) {\n  parsed = {\n    alertLevel: 'ERROR',\n    summary: { totalActive: 0, critical: 0, warning: 0, safe: 0, overallHealth: 'ERROR' },\n    criticalAlerts: [],\n    warningAlerts: [],\n    staffWorkloadAnalysis: [],\n    executiveSummaryId: 'Gagal memproses analisis. Silakan coba lagi.',\n    executiveSummaryEn: 'Failed to process analysis. Please try again.',\n    notificationMessages: {\n      executive: { subject: '⚠️ Error Sistem Peringatan Dini', body: 'Terjadi kesalahan dalam memproses data. Silakan periksa secara manual.' },\n      officer: { subject: '⚠️ Error Sistem Peringatan Dini', body: 'Terjadi kesalahan dalam memproses data.' }\n    }\n  };\n}\n\n// Determine if we need to send notifications\nconst hasAlerts = (parsed.summary?.critical > 0) || (parsed.summary?.warning > 0);\nconst alertLevel = parsed.alertLevel || 'AMAN';\n\n// Build rich email body for executive\nlet execBody = `🏦 SISTEM PERINGATAN DINI SLA - TRADE OPERATIONS\\n`;\nexecBody += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n\\n`;\nexecBody += `📅 Waktu: ${parsed.timestamp || new Date().toISOString()}\\n`;\nexecBody += `🚦 Status: ${alertLevel}\\n`;\nexecBody += `📊 Kesehatan Operasi: ${parsed.summary?.overallHealth || 'N/A'}\\n\\n`;\nexecBody += `═══ RINGKASAN ═══\\n`;\nexecBody += `• Total L/C Aktif: ${parsed.summary?.totalActive || 0}\\n`;\nexecBody += `• 🔴 Kritis: ${parsed.summary?.critical || 0}\\n`;\nexecBody += `• 🟡 Peringatan: ${parsed.summary?.warning || 0}\\n`;\nexecBody += `• ✅ Aman: ${parsed.summary?.safe || 0}\\n\\n`;\n\nif (parsed.criticalAlerts?.length > 0) {\n  execBody += `═══ 🔴 ALERT KRITIS ═══\\n\\n`;\n  parsed.criticalAlerts.forEach((a, i) => {\n    execBody += `${i+1}. ${a.urn} [${a.transactionType}]\\n`;\n    execBody += `   Status: ${a.status} | Staf: ${a.assignedTo} | Officer: ${a.approvedBy || '-'}\\n`;\n    execBody += `   Elapsed: ${a.elapsedMinutes}m / SLA: ${a.slaMaxMinutes}m (BREACH ${a.breachMinutes}m)\\n`;\n    execBody += `   Tahap: ${a.currentStage}\\n`;\n    execBody += `   Bottleneck: ${a.bottleneck}\\n`;\n    execBody += `   Akar Penyebab: ${a.rootCause}\\n`;\n    execBody += `   💡 Rekomendasi: ${a.recommendation}\\n\\n`;\n  });\n}\n\nif (parsed.warningAlerts?.length > 0) {\n  execBody += `═══ 🟡 PERINGATAN ═══\\n\\n`;\n  parsed.warningAlerts.forEach((a, i) => {\n    execBody += `${i+1}. ${a.urn} [${a.transactionType}]\\n`;\n    execBody += `   Status: ${a.status} | Staf: ${a.assignedTo}\\n`;\n    execBody += `   Elapsed: ${a.elapsedMinutes}m / SLA: ${a.slaMaxMinutes}m (Sisa: ${a.remainingMinutes}m)\\n`;\n    execBody += `   Tahap: ${a.currentStage}\\n`;\n    execBody += `   Faktor Risiko: ${a.riskFactor}\\n`;\n    execBody += `   💡 Rekomendasi: ${a.recommendation}\\n\\n`;\n  });\n}\n\nif (parsed.staffWorkloadAnalysis?.length > 0) {\n  execBody += `═══ 👥 ANALISIS BEBAN KERJA STAF ═══\\n\\n`;\n  parsed.staffWorkloadAnalysis.forEach(s => {\n    const overloadIcon = s.isOverloaded ? '🔴' : '✅';\n    execBody += `${overloadIcon} ${s.name} (${s.section}): ${s.activeCount} aktif, ${s.atRiskCount} berisiko\\n`;\n    if (s.isOverloaded) execBody += `   ⚠️ ${s.recommendation}\\n`;\n  });\n  execBody += `\\n`;\n}\n\nexecBody += `═══ RINGKASAN EKSEKUTIF ═══\\n`;\nexecBody += `🇮🇩 ${parsed.executiveSummaryId || ''}\\n\\n`;\nexecBody += `🇬🇧 ${parsed.executiveSummaryEn || ''}\\n`;\n\n// Build officer-specific body\nlet officerBody = parsed.notificationMessages?.officer?.body || execBody;\n\nreturn [{\n  json: {\n    hasAlerts,\n    alertLevel,\n    parsed,\n    executiveEmail: {\n      subject: parsed.notificationMessages?.executive?.subject || `🚨 ${alertLevel} Peringatan SLA - ${new Date().toISOString().split('T')[0]}`,\n      body: execBody\n    },\n    officerEmail: {\n      subject: parsed.notificationMessages?.officer?.subject || `⚠️ ${alertLevel} L/C Perlu Perhatian - ${new Date().toISOString().split('T')[0]}`,\n      body: officerBody\n    },\n    slackMessage: execBody,\n    webhookResponse: parsed\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        560
+      ],
+      "id": "eafff6af-4d50-40fd-bdd8-ac4429f30fa9",
+      "name": "Parse & Format Messages"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-alerts",
+              "leftValue": "={{ $json.hasAlerts }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -16,
+        560
+      ],
+      "id": "5bb648da-4be6-4079-831b-b6244374efe7",
+      "name": "Ada Alert?"
+    },
+    {
+      "parameters": {
+        "subject": "={{ $json.executiveEmail.subject }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        96
+      ],
+      "id": "1770ff64-52c7-454c-9105-f87a505ea8ce",
+      "name": "📧 Email ke Executive",
+      "webhookId": "42f723ea-306b-473d-83bf-64a93dbebec9",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "subject": "={{ $json.officerEmail.subject }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        288
+      ],
+      "id": "679d262b-d99e-4117-a68e-41fc3d2713d4",
+      "name": "📧 Email ke Officer",
+      "webhookId": "a5327484-9f43-496b-a589-672ed51fc577",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.slackMessage }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        480
+      ],
+      "id": "6810f527-fa2e-4928-b6aa-8a4742cb621d",
+      "name": "💬 Slack Alert",
+      "webhookId": "7f695599-8e55-4396-abd2-6c07fea719fb",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.webhookResponse) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        656,
+        800
+      ],
+      "id": "91bb6e35-7cef-4136-92b6-dff5276dc932",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ alertLevel: 'AMAN', message: 'Semua L/C dalam batas SLA. Tidak ada peringatan.', timestamp: $now.format('yyyy-MM-dd HH:mm:ss') }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        208,
+        768
+      ],
+      "id": "426f1828-77ca-42b6-a4e6-c32e2a4190df",
+      "name": "Respond AMAN (No Alert)"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil semua L/C aktif dari dashboard. Mendukung query: status, transactionType, limit, offset, fromDate, toDate. Gunakan limit=500 untuk mendapatkan semua data. Mengembalikan array L/C dengan field: id, urn, status, assignedTo, transactionType, receivedAt, draftingStartedAt, checkingStartedAt, releasedAt, exceptionStartedAt, exceptionTotalMinutes, exceptionReason, previousStatus, approvedBy.",
+        "url": "=http://localhost:8081/api/lc?limit=500",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -1088,
+        784
+      ],
+      "id": "d8c34d29-322b-469e-a37d-eeddf86d445a",
+      "name": "get_active_lcs"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil riwayat event/log untuk L/C tertentu berdasarkan URN. Setiap event mencatat perubahan status dengan field: id, lcId, urn, user, action, from (status sebelumnya), to (status baru), notes, timestamp. Gunakan untuk menelusuri akar penyebab keterlambatan.",
+        "url": "=http://localhost:8081/api/events?limit=500&urn={{$fromAI(\"urn\",\"URN dari L/C, contoh: LC-2026-0001\")}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -960,
+        784
+      ],
+      "id": "67a9865b-fab2-4af2-b2ec-a92e67d26593",
+      "name": "get_lc_events"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil riwayat exception untuk L/C tertentu berdasarkan ID numerik (bukan URN). Mengembalikan array exception dengan field: id, lcId, reason, startedAt, resolvedAt, resolutionMinutes, resolvedToStatus, resolvedBy. Gunakan untuk mengetahui detail penyebab delay.",
+        "url": "=http://localhost:8081/api/lc/{{$fromAI(\"lcId\",\"ID numerik dari L/C\")}}/exceptions",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -832,
+        784
+      ],
+      "id": "e54ca61c-8114-4651-85b4-2f4aa5c2f712",
+      "name": "get_lc_exceptions"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil daftar staf operasi trade dan bagian/section mereka. Mengembalikan array dengan field: id, name, section, isActive. Gunakan untuk menganalisis beban kerja dan menemukan staf yang overload.",
+        "url": "http://localhost:8081/api/assignees",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -704,
+        784
+      ],
+      "id": "1ba789f8-83af-4b0c-9154-9584a364e4be",
+      "name": "get_staff_workload"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Mengambil konfigurasi SLA saat ini. Mengembalikan: importSlaMaxMinutes, exportSlaMaxMinutes, bgSlaMaxMinutes (default masing-masing 120 menit). Warning threshold adalah 75% dari max.",
+        "url": "http://localhost:8081/api/sla",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -576,
+        784
+      ],
+      "id": "2cee12de-ddc2-4a6f-892e-85787a97cc50",
+      "name": "get_sla_config"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        784
+      ],
+      "id": "dd398cb7-6edf-4575-a028-5950787bbcad",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "minimax-m2.7",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -1216,
+        784
+      ],
+      "id": "31cb419e-1f55-4a33-be48-ef872266506a",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "LYzofx7qnUPnxACa",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: parsed object from \"Parse & Format Messages\" node\nconst d = $input.first().json.parsed;\nconst ts = d.timestamp ? d.timestamp.substring(0, 16).replace('T', ' ') : new Date().toISOString().substring(0, 16).replace('T', ' ');\n\nconst levelIcon = { KRITIS: '🔴', PERINGATAN: '🟡', AMAN: '🟢', ERROR: '⚠️' };\nconst icon = levelIcon[d.alertLevel] || '⚪';\n\nlet msg = `${icon} *SLA ALERT — Trade Ops*\\n`;\nmsg += `🕐 ${ts}\\n`;\nmsg += `Status: *${d.alertLevel}* | Health: ${d.summary?.overallHealth || '-'}\\n`;\nmsg += `📊 Aktif: ${d.summary?.totalActive || 0} | 🔴 ${d.summary?.critical || 0} | 🟡 ${d.summary?.warning || 0} | ✅ ${d.summary?.safe || 0}\\n\\n`;\n\nif (d.criticalAlerts?.length > 0) {\n  msg += `*🔴 KRITIS:*\\n`;\n  d.criticalAlerts.slice(0, 3).forEach(a => {\n    msg += `• ${a.urn} (${a.transactionType}) — ${a.assignedTo}\\n`;\n    msg += `  ${a.elapsedMinutes}m / ${a.slaMaxMinutes}m, breach +${a.breachMinutes}m\\n`;\n    msg += `  ➤ ${a.recommendation?.substring(0, 80)}...\\n`;\n  });\n  if (d.criticalAlerts.length > 3) msg += `  _...+${d.criticalAlerts.length - 3} lainnya_\\n`;\n  msg += `\\n`;\n}\n\nif (d.warningAlerts?.length > 0) {\n  msg += `*🟡 PERINGATAN:*\\n`;\n  d.warningAlerts.slice(0, 2).forEach(a => {\n    msg += `• ${a.urn} (${a.transactionType}) — sisa ${a.remainingMinutes}m\\n`;\n  });\n  if (d.warningAlerts.length > 2) msg += `  _...+${d.warningAlerts.length - 2} lainnya_\\n`;\n  msg += `\\n`;\n}\n\nconst overloaded = d.staffWorkloadAnalysis?.filter(s => s.isOverloaded) || [];\nif (overloaded.length > 0) {\n  msg += `*👥 Staf Overload:* ${overloaded.map(s => s.name).join(', ')}\\n`;\n}\n\nreturn [{ json: { ...$input.first().json, whatsappMessage: msg.trim() } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        960
+      ],
+      "id": "a817eb88-1059-474a-a76f-a47187e92f07",
+      "name": "For Whatsapp"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        688
+      ],
+      "id": "ea6eed2a-ffd2-4c1f-8578-ff9b0c11b47c",
+      "name": "Merge"
+    }
+  ],
+  "connections": {
+    "Every 10 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Early Warning AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse & Format Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse & Format Messages": {
+      "main": [
+        [
+          {
+            "node": "Ada Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Alert?": {
+      "main": [
+        [
+          {
+            "node": "📧 Email ke Executive",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📧 Email ke Officer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💬 Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "For Whatsapp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond AMAN (No Alert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_active_lcs": {
+      "ai_tool": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_events": {
+      "ai_tool": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_lc_exceptions": {
+      "ai_tool": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_staff_workload": {
+      "ai_tool": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_sla_config": {
+      "ai_tool": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Early Warning AI Agent",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "For Whatsapp": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "cdd8f1f9eaafccb6d93bda724216a7abf955561c2b30a779a60d6ac156c6734f"
+  }
+}
