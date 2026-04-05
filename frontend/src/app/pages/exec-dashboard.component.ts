@@ -984,7 +984,7 @@ export class ExecDashboardComponent implements OnInit {
       inbox: byKey['inbox'] || 0,
       drafting: byKey['drafting'] || 0,
       checking: byKey['checking'] || 0,
-      total: (byKey['inbox'] || 0) + (byKey['drafting'] || 0) + (byKey['checking'] || 0) + (byKey['exception'] || 0),
+      total: (byKey['inbox'] || 0) + (byKey['drafting'] || 0) + (byKey['checking'] || 0),
     };
   }
 
