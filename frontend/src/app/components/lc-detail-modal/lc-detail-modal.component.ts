@@ -33,27 +33,27 @@ import {
           <ng-container *ngIf="getLcSummary(lc) as summary">
             <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.25rem;padding:0.85rem 1rem;background:var(--bg-secondary,#f8f9fa);border-radius:0.5rem;border:1px solid var(--border-color,#e5e7eb)">
               <div style="display:flex;flex-direction:column;gap:0.15rem;min-width:80px">
-                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Total Time</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">{{ 'modal.total_time' | translate }}</div>
                 <div style="font-weight:700;font-size:0.95rem">{{ formatMinutesLabel(summary.totalMinutes) }}</div>
               </div>
               <div style="width:1px;background:var(--border-color,#e5e7eb);align-self:stretch"></div>
               <div style="display:flex;flex-direction:column;gap:0.15rem;min-width:70px">
-                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Status</div>
-                <span [ngClass]="summary.isDone ? 'status-badge released' : 'status-badge drafting'" style="align-self:flex-start;font-size:0.75rem"><span class="dot"></span>{{ summary.isDone ? 'Done' : 'In Progress' }}</span>
+                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">{{ 'modal.status' | translate }}</div>
+                <span [ngClass]="summary.isDone ? 'status-badge released' : 'status-badge drafting'" style="align-self:flex-start;font-size:0.75rem"><span class="dot"></span>{{ (summary.isDone ? 'modal.status_done' : 'modal.status_in_progress') | translate }}</span>
               </div>
               <ng-container *ngIf="summary.exceptionMinutes > 0">
                 <div style="width:1px;background:var(--border-color,#e5e7eb);align-self:stretch"></div>
                 <div style="display:flex;flex-direction:column;gap:0.15rem;min-width:80px">
-                  <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">Exception</div>
+                  <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">{{ 'modal.exception' | translate }}</div>
                   <div style="font-weight:700;font-size:0.95rem;color:var(--danger,#dc2626)">{{ formatMinutesLabel(summary.exceptionMinutes) }}</div>
                 </div>
               </ng-container>
               <div style="width:1px;background:var(--border-color,#e5e7eb);align-self:stretch"></div>
               <div style="display:flex;flex-direction:column;gap:0.2rem;flex:1;min-width:150px">
-                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">SLA · {{ formatMinutesLabel(summary.slaMaxMinutes) }} limit</div>
+                <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em">SLA · {{ formatMinutesLabel(summary.slaMaxMinutes) }} {{ 'modal.sla_limit_suffix' | translate }}</div>
                 <div style="font-weight:700;font-size:0.9rem" [ngStyle]="{'color': summary.slaGapMinutes >= 0 ? 'var(--success,#16a34a)' : 'var(--danger,#dc2626)'}">
-                  <ng-container *ngIf="summary.slaGapMinutes >= 0">{{ formatMinutesLabel(summary.slaGapMinutes) }} remaining · {{ summary.slaUsedPercent }}% used</ng-container>
-                  <ng-container *ngIf="summary.slaGapMinutes < 0">Breached +{{ formatMinutesLabel(-summary.slaGapMinutes) }} · {{ summary.slaUsedPercent }}% used</ng-container>
+                  <ng-container *ngIf="summary.slaGapMinutes >= 0">{{ formatMinutesLabel(summary.slaGapMinutes) }} {{ 'modal.sla_remaining' | translate }} · {{ summary.slaUsedPercent }}{{ 'modal.sla_pct_used' | translate }}</ng-container>
+                  <ng-container *ngIf="summary.slaGapMinutes < 0">{{ 'modal.sla_breached' | translate }}{{ formatMinutesLabel(-summary.slaGapMinutes) }} · {{ summary.slaUsedPercent }}{{ 'modal.sla_pct_used' | translate }}</ng-container>
                 </div>
               </div>
             </div>
@@ -74,7 +74,7 @@ import {
                 <div class="timeline-content">
                   <div class="timeline-title">{{ getTimelineLabel(lc.transactionType, 'drafting') | translate }}</div>
                   <div class="timeline-time">{{ formatDateTime(lc.draftingStartedAt) }}</div>
-                  <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ lc.assignedTo ? ' by ' + lc.assignedTo : '' }}</div>
+                  <div class="timeline-desc">{{ 'timeline.desc.drafting' | translate }}{{ lc.assignedTo ? (' ' + ('modal.assigned_by' | translate) + ' ' + lc.assignedTo) : '' }}</div>
                 </div>
               </div>
               <div *ngIf="item.type === 'checking'" class="timeline-item" [ngClass]="lc.status === 'Checking Underlying' ? 'active' : 'completed'">
