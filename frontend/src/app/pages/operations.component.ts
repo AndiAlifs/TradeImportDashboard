@@ -240,7 +240,7 @@ export class OperationsComponent implements OnInit {
   avgTime = computed(() => {
     const released = this.filteredData().filter(r => r.status === 'Released' && r.releasedAt);
     if (released.length === 0) return 0;
-    const totalMin = released.reduce((sum, r) => sum + Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000), 0);
+    const totalMin = released.reduce((sum, r) => sum + this.getElapsedMinutes(r), 0);
     return Math.round(totalMin / released.length);
   });
 
@@ -253,7 +253,7 @@ export class OperationsComponent implements OnInit {
       if (r.draftingStartedAt) inbox.push((new Date(r.draftingStartedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
       if (r.draftingStartedAt && r.checkingStartedAt) drafting.push((new Date(r.checkingStartedAt).getTime() - new Date(r.draftingStartedAt).getTime()) / 60000);
       if (r.checkingStartedAt && r.releasedAt) checking.push((new Date(r.releasedAt).getTime() - new Date(r.checkingStartedAt).getTime()) / 60000);
-      if (r.releasedAt) total.push((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
+      if (r.releasedAt) total.push(Math.max(0, (new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000 - (r.exceptionTotalMinutes || 0)));
     });
     const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
     return { inbox: avg(inbox), drafting: avg(drafting), checking: avg(checking), total: avg(total) };

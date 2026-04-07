@@ -666,7 +666,7 @@ export class ExecDashboardComponent implements OnInit {
   avgCycleTime = computed(() => {
     const released = this.dataStore.lcs().filter(r => r.status === 'Released' && r.releasedAt);
     if (released.length === 0) return 0;
-    const totalMin = released.reduce((sum, r) => sum + Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000), 0);
+    const totalMin = released.reduce((sum, r) => sum + this.getElapsedMinutes(r), 0);
     return Math.round(totalMin / released.length);
   });
 
@@ -758,7 +758,9 @@ export class ExecDashboardComponent implements OnInit {
     if (staff.length === 0) return { totalMembers: 0, totalVolume: 0, totalBreaches: 0, avgCompliance: 0 };
 
     const totalVolume = staff.reduce((sum, s) => sum + s.volume, 0);
-    const totalBreaches = staff.reduce((sum, s) => sum + s.breaches, 0);
+    const uniqueBreachedIds = new Set<number>();
+    staff.forEach(s => s.breachedLcs.forEach((lc: any) => uniqueBreachedIds.add(lc.id)));
+    const totalBreaches = uniqueBreachedIds.size;
     const avgCompliance = Math.round(staff.reduce((sum, s) => sum + s.compliancePct, 0) / staff.length);
 
     return {
