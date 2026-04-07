@@ -187,8 +187,8 @@ export class QueueComponent implements OnInit {
 
   searchTerm = '';
   currentFilter = signal('all');
-  sortColumn = signal<string>('startDate');
-  sortDirection = signal<'asc' | 'desc'>('desc');
+  sortColumn = signal<string>('timeLeft');
+  sortDirection = signal<'asc' | 'desc'>('asc');
   selectedLc: any = null;
   transactionType = signal<string>('Import');
   officerSelections: Record<number, string> = {};
@@ -236,6 +236,9 @@ export class QueueComponent implements OnInit {
 
     if (filter !== 'all') {
       data = data.filter(r => r.status === filter);
+    } else {
+      // Exclude Released items when showing "all" (show only uncompleted)
+      data = data.filter(r => r.status !== 'Released');
     }
     if (search) {
       data = data.filter(r =>
