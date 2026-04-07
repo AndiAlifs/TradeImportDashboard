@@ -234,6 +234,24 @@
         }
       },
       "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8081/api/root-cause/ingest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"report\": {{ JSON.stringify($json.report) }}, \"generatedAt\": \"{{ $json.generatedAt }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        400
+      ],
+      "id": "b8d1e4a3-7c2f-4a91-b3e0-5f9a2d8c1e6b",
+      "name": "Ingest to Backend"
     }
   ],
   "connections": {
@@ -346,6 +364,11 @@
           },
           {
             "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to Backend",
             "type": "main",
             "index": 0
           }

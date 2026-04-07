@@ -67,6 +67,16 @@ func New(cfg config.Config, h *handlers.Handler) *gin.Engine {
 		api.GET("/sla", h.GetSLA)
 		api.PATCH("/sla", h.UpdateSLA)
 		api.POST("/reset", h.ResetData)
+
+		api.POST("/ai-summary/sync", h.SyncAISummary)
+		api.POST("/ai-summary/webhook", h.WebhookCallback)
+		api.GET("/ai-summary/latest", h.GetLatestAISummary)
+		api.GET("/ai-summary/all", h.GetAllAISummaries)
+
+		api.POST("/root-cause/ingest", h.IngestRootCauseReport)
+		api.POST("/root-cause/sync", h.SyncRootCauseReport)
+		api.GET("/root-cause/latest", h.GetLatestRootCauseReport)
+		api.GET("/root-cause", h.GetRootCauseReports)
 	}
 
 	return r

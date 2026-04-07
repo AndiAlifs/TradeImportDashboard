@@ -255,30 +255,129 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
             <h3>{{ 'exec.ai_title' | translate }}</h3>
             <div style="display:flex;align-items:center;gap:0.5rem">
               <span class="ai-tag">AI Generated</span>
+              <button 
+                type="button" 
+                class="sync-btn" 
+                (click)="syncAISummary()"
+                [disabled]="dataStore.aiSummaryLoading() || dataStore.aiSummary().status === 'Pending'"
+                [title]="getSyncButtonTitle()">
+                {{ getSyncButtonText() }}
+              </button>
             </div>
           </div>
-          <div class="ai-summary-content" *ngIf="aiSummary() as ai">
-            <div class="ai-insight">
-              <div class="ai-health" [ngClass]="ai.healthClass">
-                <span class="health-label">Overall Health:</span>
-                <span class="health-value">{{ ai.healthStatus }}</span>
-                <span class="health-detail">({{ ai.overallCompliance }}% SLA compliance)</span>
+          <div class="ai-summary-content">
+            <!-- Pending State -->
+            <div *ngIf="dataStore.aiSummary().status === 'Pending'" class="ai-pending">
+              <div class="pending-spinner"></div>
+              <p>{{ 'exec.ai_pending' | translate }}</p>
+              <small>{{ 'exec.ai_pending_detail' | translate }}</small>
+            </div>
+            
+            <!-- Loading State (when syncing starts) -->
+            <div *ngIf="dataStore.aiSummaryLoading() && dataStore.aiSummary().status !== 'Pending'" class="ai-loading">
+              <p>{{ 'exec.ai_loading' | translate }}</p>
+            </div>
+            
+            <!-- Failed State -->
+            <div *ngIf="dataStore.aiSummary().status === 'Failed'" class="ai-error">
+              <p>❌ {{ 'exec.ai_failed' | translate }}</p>
+              <p><small>{{ dataStore.aiSummary().errorMsg || ('exec.ai_failed_detail' | translate) }}</small></p>
+              <button class="retry-btn" (click)="syncAISummary()">{{ 'exec.ai_retry' | translate }}</button>
+            </div>
+            
+            <!-- Completed State -->
+            <div *ngIf="dataStore.aiSummary().status === 'Completed' && dataStore.aiSummary().summaryText">
+              <div class="ai-summary-text" [innerHTML]="formatMarkdown(dataStore.aiSummary().summaryText)"></div>
+              <div class="ai-timestamp">
+                <small>{{ 'exec.ai_completed' | translate }}: {{ formatTimestamp(dataStore.aiSummary().updatedAt || dataStore.aiSummary().createdAt) }}</small>
               </div>
             </div>
-            <div class="ai-insight">
-              <strong>📊 Overview:</strong> {{ ai.activeCount }} active L/Cs, {{ ai.releasedCount }} completed today. Average cycle time: <strong>{{ avgCycleTime() }} min</strong> against SLA target of {{ ai.slaTarget }}.
+            
+            <!-- Empty State -->
+            <div *ngIf="!dataStore.aiSummary().status && !dataStore.aiSummaryLoading()" class="ai-empty">
+              <p>{{ 'exec.ai_empty' | translate }}</p>
             </div>
-            <div class="ai-insight">
-              <strong>📦 Import Performance:</strong> SLA compliance at <strong>{{ importSla() }}%</strong> with {{ importBreachCount() }} breach{{ importBreachCount() !== 1 ? 'es' : '' }}. {{ ai.importBottleneckText }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Root Cause Report Card -->
+      <div class="ai-summary-card" style="margin-top:1.25rem">
+        <div class="ai-summary-header">
+          <h3>{{ 'exec.rc_title' | translate }}</h3>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span class="ai-tag">AI Generated</span>
+            <button
+              type="button"
+              class="sync-btn"
+              (click)="syncRootCause()"
+              [disabled]="dataStore.rootCauseLoading()"
+              [title]="'exec.rc_sync_tooltip' | translate">
+              {{ dataStore.rootCauseLoading() ? ('exec.rc_syncing' | translate) : ('exec.rc_sync' | translate) }}
+            </button>
+          </div>
+        </div>
+        <div class="ai-summary-content">
+          <!-- Loading -->
+          <div *ngIf="dataStore.rootCauseLoading()" class="ai-loading">
+            <p>{{ 'exec.rc_loading' | translate }}</p>
+          </div>
+
+          <!-- Error -->
+          <div *ngIf="!dataStore.rootCauseLoading() && rcSyncError()" class="ai-error">
+            <p>❌ {{ rcSyncError() }}</p>
+          </div>
+
+          <!-- Has Report -->
+          <div *ngIf="!dataStore.rootCauseLoading() && !rcSyncError() && dataStore.rootCauseReport().reportMarkdown">
+            <div class="rc-meta" style="display:flex;gap:1rem;align-items:center;margin-bottom:0.75rem;font-size:0.8rem;color:var(--text-muted);">
+              <span *ngIf="dataStore.rootCauseReport().periodStart">{{ 'exec.rc_period' | translate }}: {{ dataStore.rootCauseReport().periodStart }} — {{ dataStore.rootCauseReport().periodEnd }}</span>
+              <span *ngIf="dataStore.rootCauseReport().createdAt">{{ 'exec.rc_generated' | translate }}: {{ formatTimestamp(dataStore.rootCauseReport().createdAt) }}</span>
             </div>
-            <div class="ai-insight">
-              <strong>🚢 Export Performance:</strong> SLA compliance at <strong>{{ exportSla() }}%</strong> with {{ exportBreachCount() }} breach{{ exportBreachCount() !== 1 ? 'es' : '' }}. {{ ai.exportBottleneckText }}
+
+            <!-- Preview: Executive Summary only -->
+            <div *ngIf="!rcExpanded()" class="ai-summary-text" [innerHTML]="formatMarkdown(extractRcSummary(dataStore.rootCauseReport().reportMarkdown))"></div>
+
+            <!-- Full Report -->
+            <div *ngIf="rcExpanded()" class="ai-summary-text rc-full-report" [innerHTML]="formatMarkdown(dataStore.rootCauseReport().reportMarkdown)"></div>
+
+            <div style="display:flex;gap:0.75rem;margin-top:0.75rem;">
+              <button type="button" class="sync-btn" (click)="rcExpanded.set(!rcExpanded())">
+                {{ rcExpanded() ? ('exec.rc_collapse' | translate) : ('exec.rc_view_full' | translate) }}
+              </button>
+              <button type="button" class="sync-btn" (click)="openRcHistory()" style="background:var(--bg-secondary)">
+                {{ 'exec.rc_history' | translate }}
+              </button>
             </div>
-            <div class="ai-insight">
-              <strong>🛡️ BG Performance:</strong> SLA compliance at <strong>{{ bgSla() }}%</strong> with {{ bgBreachCount() }} breach{{ bgBreachCount() !== 1 ? 'es' : '' }}. {{ ai.bgBottleneckText }}
+          </div>
+
+          <!-- Empty -->
+          <div *ngIf="!dataStore.rootCauseLoading() && !rcSyncError() && !dataStore.rootCauseReport().reportMarkdown" class="ai-empty">
+            <p>{{ 'exec.rc_empty' | translate }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Root Cause History Modal -->
+      <div class="modal-overlay" [class.active]="rcHistoryOpen()" (click)="rcHistoryOpen.set(false)">
+        <div class="modal-container form-card" *ngIf="rcHistoryOpen()" (click)="$event.stopPropagation()" style="max-width:900px;max-height:80vh">
+          <div class="modal-header">
+            <h3 style="margin:0;font-size:1rem">{{ 'exec.rc_history_title' | translate }}</h3>
+            <button class="modal-close" (click)="rcHistoryOpen.set(false)">×</button>
+          </div>
+          <div class="modal-body table-scroll" style="max-height:65vh;padding:0">
+            <div *ngIf="dataStore.rootCauseReports().length === 0" style="text-align:center;padding:2rem;color:var(--text-muted)">
+              {{ 'exec.rc_no_history' | translate }}
             </div>
-            <div class="ai-insight">
-              <strong>💡 Recommendation:</strong> {{ ai.recommendation }}
+            <div *ngFor="let report of dataStore.rootCauseReports()" class="rc-history-item" style="border-bottom:1px solid var(--border);padding:1rem 1.25rem;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <span style="font-weight:600;font-size:0.85rem">{{ report.periodStart }} — {{ report.periodEnd }}</span>
+                <span style="font-size:0.75rem;color:var(--text-muted)">{{ formatTimestamp(report.createdAt) }}</span>
+              </div>
+              <div class="ai-summary-text" style="font-size:0.8rem" [innerHTML]="formatMarkdown(rcHistoryExpanded() === report.id ? report.reportMarkdown : extractRcSummary(report.reportMarkdown))"></div>
+              <button type="button" class="sync-btn" style="margin-top:0.5rem;font-size:0.75rem" (click)="rcHistoryExpanded.set(rcHistoryExpanded() === report.id ? 0 : report.id)">
+                {{ rcHistoryExpanded() === report.id ? ('exec.rc_collapse' | translate) : ('exec.rc_view_full' | translate) }}
+              </button>
             </div>
           </div>
         </div>
@@ -490,7 +589,7 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
 export class ExecDashboardComponent implements OnInit {
   getChartLabel = getChartLabel;
 
-  private dataStore = inject(DataStoreService);
+  readonly dataStore = inject(DataStoreService);
   private ts = inject(TranslationService);
   private readonly comparisonMetricStorageKey = 'shila_exec_sla_compare_metric';
 
@@ -500,6 +599,10 @@ export class ExecDashboardComponent implements OnInit {
   exceptionHistory: any[] = [];
   staffRoleFilter = signal<'All' | 'Staff' | 'Officer'>('All');
   staffSectionFilters = signal({ import: true, export: true, bg: true });
+  rcExpanded = signal<boolean>(false);
+  rcSyncError = signal<string>('');
+  rcHistoryOpen = signal<boolean>(false);
+  rcHistoryExpanded = signal<number>(0);
 
   toggleSectionFilter(section: 'import' | 'export' | 'bg') {
     this.staffSectionFilters.update(f => ({ ...f, [section]: !f[section] }));
@@ -526,6 +629,7 @@ export class ExecDashboardComponent implements OnInit {
   range = computed(() => this.dataStore.executiveDateRange());
   comparisonMetric = signal<SlaComparisonMetric>(this.loadComparisonMetric());
   comparisonLoading = signal<boolean>(false);
+  aiSyncError = signal<string>('');
   private comparisonCurrentRecords = signal<any[]>([]);
   private comparisonPreviousRecords = signal<any[]>([]);
 
@@ -745,56 +849,7 @@ export class ExecDashboardComponent implements OnInit {
     return allRows.filter((row) => row.metric === this.comparisonMetric());
   });
 
-  aiSummary = computed(() => {
-    const data = this.dataStore.lcs();
-    const sla = this.sla();
-    const totalBreaches = this.totalBreaches();
-    const activeCount = data.filter(r => r.status !== 'Released').length;
-    const releasedCount = data.filter(r => r.status === 'Released').length;
-    const overallCompliance = data.length > 0 ? Math.round(((data.length - totalBreaches) / data.length) * 100) : 100;
-
-    let healthStatus = '🟢 Excellent';
-    let healthClass = 'health-good';
-    if (overallCompliance < 90) { healthStatus = '🟡 Moderate'; healthClass = 'health-moderate'; }
-    if (overallCompliance < 75) { healthStatus = '🔴 Critical'; healthClass = 'health-critical'; }
-
-    const slaTarget = `Import <= ${sla.importSlaMaxMinutes}m, Export <= ${sla.exportSlaMaxMinutes}m, BG <= ${sla.bgSlaMaxMinutes}m`;
-
-    const importBottleneck = this.importBottleneckStage();
-    const exportBottleneck = this.exportBottleneckStage();
-    const bgBottleneck = this.bgBottleneckStage();
-    const importBottleneckText = importBottleneck
-      ? `Primary bottleneck: ${this.stageName(importBottleneck.labelKey)} (avg ${importBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
-    const exportBottleneckText = exportBottleneck
-      ? `Primary bottleneck: ${this.stageName(exportBottleneck.labelKey)} (avg ${exportBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
-    const bgBottleneckText = bgBottleneck
-      ? `Primary bottleneck: ${this.stageName(bgBottleneck.labelKey)} (avg ${bgBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
-
-    const impVol = this.importData().length;
-    const expVol = this.exportData().length;
-    const bgVol = this.bgData().length;
-    let volumeInsight = `Processing volumes — Import: ${impVol}, Export: ${expVol}, BG: ${bgVol}.`;
-    
-    let recommendation = volumeInsight;
-    if (totalBreaches > 0) {
-      const bCounts = [
-          { type: 'Import', count: this.importBreachCount(), bottleneck: importBottleneck },
-          { type: 'Export', count: this.exportBreachCount(), bottleneck: exportBottleneck },
-          { type: 'Bank Guarantee', count: this.bgBreachCount(), bottleneck: bgBottleneck }
-      ].sort((a,b) => b.count - a.count);
-      
-      const focus = bCounts[0];
-      const focusStage = focus.bottleneck ? this.stageName(focus.bottleneck.labelKey) : this.ts.translate('exec.bottleneck_empty');
-      recommendation += ` Focus on reducing ${focus.type} ${focusStage} times to improve overall SLA compliance.`;
-    } else {
-      recommendation += ' All operations within target — maintain current performance.';
-    }
-
-    return { healthStatus, healthClass, overallCompliance, activeCount, releasedCount, slaTarget, importBottleneckText, exportBottleneckText, bgBottleneckText, recommendation };
-  });
+  // Old client-side AI summary removed - now using database-backed AI summary from n8n
 
   barPct(value: number): number {
     return Math.min(100, Math.max(5, (Math.abs(value) / 180) * 100));
@@ -1087,5 +1142,144 @@ export class ExecDashboardComponent implements OnInit {
     const month = String(value.getMonth() + 1).padStart(2, '0');
     const day = String(value.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  async syncAISummary(): Promise<void> {
+    this.aiSyncError.set('');
+    try {
+      await this.dataStore.syncAISummary();
+    } catch (error: any) {
+      this.aiSyncError.set(error?.message || 'Failed to sync AI summary');
+    }
+  }
+
+  async syncRootCause(): Promise<void> {
+    this.rcSyncError.set('');
+    try {
+      await this.dataStore.syncRootCauseReport();
+    } catch (error: any) {
+      this.rcSyncError.set(error?.message || 'Failed to sync root cause report');
+    }
+  }
+
+  async openRcHistory(): Promise<void> {
+    this.rcHistoryOpen.set(true);
+    this.rcHistoryExpanded.set(0);
+    await this.dataStore.getRootCauseReports();
+  }
+
+  extractRcSummary(markdown: string): string {
+    if (!markdown) return '';
+    const marker = '## 📈 Executive Summary';
+    const markerIdx = markdown.indexOf(marker);
+    if (markerIdx === -1) {
+      const altMarker = '## 📈 Ringkasan Eksekutif';
+      const altIdx = markdown.indexOf(altMarker);
+      if (altIdx === -1) return markdown.substring(0, 500) + '...';
+      const altEnd = markdown.indexOf('\n## ', altIdx + altMarker.length);
+      return markdown.substring(altIdx, altEnd === -1 ? altIdx + 500 : altEnd);
+    }
+    const endIdx = markdown.indexOf('\n## ', markerIdx + marker.length);
+    return markdown.substring(markerIdx, endIdx === -1 ? markerIdx + 500 : endIdx);
+  }
+
+  getSyncButtonText(): string {
+    const status = this.dataStore.aiSummary().status;
+    if (this.dataStore.aiSummaryLoading()) return this.ts.translate('exec.ai_syncing');
+    if (status === 'Pending') return this.ts.translate('exec.ai_processing');
+    return this.ts.translate('exec.ai_sync');
+  }
+
+  getSyncButtonTitle(): string {
+    const status = this.dataStore.aiSummary().status;
+    if (status === 'Pending') return this.ts.translate('exec.ai_pending_tooltip');
+    return this.ts.translate('exec.ai_sync_tooltip');
+  }
+
+  formatMarkdown(text: string): string {
+    if (!text) return '';
+    const lines = text.split('\n');
+    const result: string[] = [];
+    let inTable = false;
+    let inList = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+
+      // Horizontal rule
+      if (/^---+\s*$/.test(line)) {
+        if (inTable) { result.push('</table>'); inTable = false; }
+        if (inList) { result.push('</ul>'); inList = false; }
+        result.push('<hr>');
+        continue;
+      }
+
+      // Table row
+      if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+        const cells = line.split('|').slice(1, -1).map(c => c.trim());
+        // Separator row (|---|---|)
+        if (cells.every(c => /^[-:]+$/.test(c))) continue;
+        if (!inTable) {
+          if (inList) { result.push('</ul>'); inList = false; }
+          result.push('<table class="rc-table">');
+          inTable = true;
+          // First table row is header
+          result.push('<thead><tr>' + cells.map(c => `<th>${this.inlineMarkdown(c)}</th>`).join('') + '</tr></thead><tbody>');
+          continue;
+        }
+        result.push('<tr>' + cells.map(c => `<td>${this.inlineMarkdown(c)}</td>`).join('') + '</tr>');
+        continue;
+      }
+
+      // End table if we're in one and line is not a table row
+      if (inTable) { result.push('</tbody></table>'); inTable = false; }
+
+      // List items
+      if (/^[-*]\s+/.test(line.trim())) {
+        if (!inList) { result.push('<ul>'); inList = true; }
+        result.push(`<li>${this.inlineMarkdown(line.trim().replace(/^[-*]\s+/, ''))}</li>`);
+        continue;
+      }
+      if (inList) { result.push('</ul>'); inList = false; }
+
+      // Numbered list
+      if (/^\d+\.\s+/.test(line.trim())) {
+        result.push(`<p class="rc-numbered">${this.inlineMarkdown(line.trim())}</p>`);
+        continue;
+      }
+
+      // Headers
+      if (line.startsWith('### ')) { result.push(`<h4>${this.inlineMarkdown(line.slice(4))}</h4>`); continue; }
+      if (line.startsWith('## ')) { result.push(`<h3>${this.inlineMarkdown(line.slice(3))}</h3>`); continue; }
+      if (line.startsWith('# ')) { result.push(`<h2>${this.inlineMarkdown(line.slice(2))}</h2>`); continue; }
+
+      // Empty line = paragraph break
+      if (line.trim() === '') { result.push('<br>'); continue; }
+
+      // Regular text
+      result.push(`<p>${this.inlineMarkdown(line)}</p>`);
+    }
+
+    if (inTable) result.push('</tbody></table>');
+    if (inList) result.push('</ul>');
+    return result.join('');
+  }
+
+  private inlineMarkdown(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+  }
+
+  formatTimestamp(iso: string | null): string {
+    if (!iso) return '';
+    const date = new Date(iso);
+    return date.toLocaleString('en-GB', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 }

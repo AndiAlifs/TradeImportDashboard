@@ -168,8 +168,26 @@
     },
     {
       "parameters": {
-        "respondWith": "text",
-        "responseBody": "={{ $json.output }}",
+        "method": "POST",
+        "url": "=http://localhost:8081/api/ai-summary/webhook",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"summaryId\": Number($('Webhook').item.json.query.summaryId), \"output\": $('AI Agent').item.json.output, \"rawResponse\": $('AI Agent').item.json.output } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        -32
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Callback to Backend"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"output\": $json.output } }}",
         "options": {}
       },
       "type": "n8n-nodes-base.respondToWebhook",
@@ -195,6 +213,17 @@
       ]
     },
     "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Callback to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Callback to Backend": {
       "main": [
         [
           {

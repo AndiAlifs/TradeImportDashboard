@@ -38,6 +38,7 @@ func main() {
 
 	broadcaster := handlers.NewLCUpdateBroadcaster(16)
 	h := handlers.New(db, broadcaster)
+	handlers.SetConfig(h, cfg)
 	r := router.New(cfg, h)
 
 	srv := &http.Server{

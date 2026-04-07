@@ -108,6 +108,38 @@ export class DataStoreService {
   executiveDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(EXEC_DASHBOARD_RANGE_KEY));
   operationsDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(OPS_DASHBOARD_RANGE_KEY));
   activeDashboardContext = signal<DashboardContext>('executive');
+  aiSummary = signal<{ 
+    id: number; 
+    status: string; 
+    summaryText: string; 
+    errorMsg: string;
+    createdAt: string | null;
+    updatedAt: string | null;
+  }>({ 
+    id: 0, 
+    status: '', 
+    summaryText: '', 
+    errorMsg: '',
+    createdAt: null,
+    updatedAt: null
+  });
+  aiSummaryLoading = signal<boolean>(false);
+
+  rootCauseReport = signal<{
+    id: number;
+    reportMarkdown: string;
+    periodStart: string;
+    periodEnd: string;
+    createdAt: string | null;
+  }>({
+    id: 0,
+    reportMarkdown: '',
+    periodStart: '',
+    periodEnd: '',
+    createdAt: null
+  });
+  rootCauseLoading = signal<boolean>(false);
+  rootCauseReports = signal<any[]>([]);
 
   constructor() {
     this.loadLocalFallback();
@@ -357,6 +389,12 @@ export class DataStoreService {
     try {
       payload = JSON.parse(rawData) as LCUpdateStreamEvent;
     } catch {
+      return;
+    }
+
+    // Check if this is an AI summary update (URN = "AI_SUMMARY_UPDATE")
+    if (payload.urn === 'AI_SUMMARY_UPDATE') {
+      void this.getLatestAISummary();
       return;
     }
 
@@ -653,15 +691,17 @@ export class DataStoreService {
         lcFetchPromise = this.apiRequest(`/lc?${lcParams.toString()}`);
       }
 
-      const [lcResp, slaResp, eventResp, assigneeResp, officerResp] = await Promise.allSettled([
+      const [lcResp, slaResp, eventResp, assigneeResp, officerResp, aiSummaryResp, rootCauseResp] = await Promise.allSettled([
         lcFetchPromise,
         this.apiRequest('/sla'),
         this.apiRequest(`/events?${eventParams.toString()}`),
         this.apiRequest('/assignees'),
         this.apiRequest('/officers'),
+        this.apiRequest('/ai-summary/latest'),
+        this.apiRequest('/root-cause/latest'),
       ]);
 
-      const anySuccess = [lcResp, slaResp, eventResp, assigneeResp, officerResp].some((r) => r.status === 'fulfilled');
+      const anySuccess = [lcResp, slaResp, eventResp, assigneeResp, officerResp, aiSummaryResp, rootCauseResp].some((r) => r.status === 'fulfilled');
       this.isBackendOnline.set(anySuccess);
 
       if (lcResp.status === 'fulfilled') this.lcs.set(Array.isArray(lcResp.value?.data) ? lcResp.value.data : []);
@@ -672,7 +712,25 @@ export class DataStoreService {
       else this.assignees.set([]);
       if (officerResp.status === 'fulfilled') this.officers.set(Array.isArray(officerResp.value?.data) ? officerResp.value.data : []);
       else this.officers.set([]);
-
+      if (aiSummaryResp.status === 'fulfilled' && aiSummaryResp.value) {
+        this.aiSummary.set({
+          id: aiSummaryResp.value.id || 0,
+          status: aiSummaryResp.value.status || '',
+          summaryText: aiSummaryResp.value.summaryText || '',
+          errorMsg: aiSummaryResp.value.errorMsg || '',
+          createdAt: aiSummaryResp.value.createdAt || null,
+          updatedAt: aiSummaryResp.value.updatedAt || null
+        });
+      }
+      if (rootCauseResp.status === 'fulfilled' && rootCauseResp.value) {
+        this.rootCauseReport.set({
+          id: rootCauseResp.value.id || 0,
+          reportMarkdown: rootCauseResp.value.reportMarkdown || '',
+          periodStart: rootCauseResp.value.periodStart || '',
+          periodEnd: rootCauseResp.value.periodEnd || '',
+          createdAt: rootCauseResp.value.createdAt || null
+        });
+      }
       this.persistLocalCache();
     } catch (e) {
       console.warn("Backend might be offline. Using local cache.");
@@ -753,5 +811,88 @@ export class DataStoreService {
   async resetAllData(): Promise<void> {
     await this.apiRequest('/reset', { method: 'POST' });
     await this.refreshData();
+  }
+
+  async syncAISummary(): Promise<void> {
+    this.aiSummaryLoading.set(true);
+    try {
+      const response = await this.apiRequest('/ai-summary/sync', { method: 'POST' });
+      if (response) {
+        this.aiSummary.set({
+          id: response.id,
+          status: response.status || 'Pending',
+          summaryText: response.summaryText || '',
+          errorMsg: response.errorMsg || '',
+          createdAt: response.createdAt,
+          updatedAt: response.updatedAt
+        });
+      }
+    } finally {
+      this.aiSummaryLoading.set(false);
+    }
+  }
+
+  async getLatestAISummary(): Promise<void> {
+    try {
+      const response = await this.apiRequest('/ai-summary/latest');
+      if (response) {
+        this.aiSummary.set({
+          id: response.id || 0,
+          status: response.status || '',
+          summaryText: response.summaryText || '',
+          errorMsg: response.errorMsg || '',
+          createdAt: response.createdAt || null,
+          updatedAt: response.updatedAt || null
+        });
+      }
+    } catch {
+      // If error, keep existing value
+    }
+  }
+
+  async syncRootCauseReport(): Promise<void> {
+    this.rootCauseLoading.set(true);
+    try {
+      const response = await this.apiRequest('/root-cause/sync', { method: 'POST' });
+      if (response) {
+        this.rootCauseReport.set({
+          id: response.id,
+          reportMarkdown: response.reportMarkdown || '',
+          periodStart: response.periodStart || '',
+          periodEnd: response.periodEnd || '',
+          createdAt: response.createdAt || null
+        });
+      }
+    } finally {
+      this.rootCauseLoading.set(false);
+    }
+  }
+
+  async getLatestRootCauseReport(): Promise<void> {
+    try {
+      const response = await this.apiRequest('/root-cause/latest');
+      if (response) {
+        this.rootCauseReport.set({
+          id: response.id || 0,
+          reportMarkdown: response.reportMarkdown || '',
+          periodStart: response.periodStart || '',
+          periodEnd: response.periodEnd || '',
+          createdAt: response.createdAt || null
+        });
+      }
+    } catch {
+      // keep existing value
+    }
+  }
+
+  async getRootCauseReports(limit = 20, offset = 0): Promise<void> {
+    try {
+      const response = await this.apiRequest(`/root-cause?limit=${limit}&offset=${offset}`);
+      if (response?.data) {
+        this.rootCauseReports.set(response.data);
+      }
+    } catch {
+      // keep existing value
+    }
   }
 }

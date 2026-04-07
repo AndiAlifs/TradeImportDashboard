@@ -20,7 +20,7 @@ func Connect(dsn string) (*gorm.DB, error) {
 }
 
 func Migrate(db *gorm.DB) error {
-	if err := db.AutoMigrate(&models.LC{}, &models.Event{}, &models.SLAConfig{}, &models.Assignee{}, &models.Officer{}, &models.LCException{}); err != nil {
+	if err := db.AutoMigrate(&models.LC{}, &models.Event{}, &models.SLAConfig{}, &models.Assignee{}, &models.Officer{}, &models.LCException{}, &models.AISummary{}, &models.RootCauseReport{}); err != nil {
 		return fmt.Errorf("auto-migrate: %w", err)
 	}
 	return nil

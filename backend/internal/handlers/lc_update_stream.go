@@ -68,3 +68,20 @@ func (b *LCUpdateBroadcaster) Publish(evt LCUpdateEvent) {
 		}
 	}
 }
+
+// BroadcastAISummaryUpdate broadcasts AI summary status changes as LC update events
+// This allows reusing the existing SSE infrastructure
+func (b *LCUpdateBroadcaster) BroadcastAISummaryUpdate(summaryID uint64, status string) {
+	// Create a special LC update event for AI summary changes
+	evt := LCUpdateEvent{
+		LCID:            summaryID,
+		URN:             "AI_SUMMARY_UPDATE",
+		TransactionType: status,
+		FromStatus:      "",
+		ToStatus:        status,
+		UpdatedBy:       "system",
+		OccurredAt:      time.Now().UTC(),
+		LC:              nil,
+	}
+	b.Publish(evt)
+}

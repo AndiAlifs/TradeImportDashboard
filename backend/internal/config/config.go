@@ -15,8 +15,10 @@ type Config struct {
 	DBUser        string
 	DBPassword    string
 	DBName        string
-	AllowedOrigin string
-	SeedData      bool
+	AllowedOrigin            string
+	SeedData                 bool
+	N8NWebhookURL            string
+	N8NRootCauseWebhookURL   string
 }
 
 func Load() (Config, error) {
@@ -31,6 +33,8 @@ func Load() (Config, error) {
 		DBName:        os.Getenv("DB_NAME"),
 		AllowedOrigin: getEnv("ALLOWED_ORIGIN", "*"),
 		SeedData:      os.Getenv("SEED_DATA") == "true",
+		N8NWebhookURL:          os.Getenv("N8N_WEBHOOK_URL"),
+		N8NRootCauseWebhookURL: os.Getenv("N8N_ROOT_CAUSE_WEBHOOK_URL"),
 	}
 
 	if err := cfg.validate(); err != nil {
