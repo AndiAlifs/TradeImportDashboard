@@ -562,7 +562,7 @@ export class ExecDashboardComponent implements OnInit {
   avgCycleTime = computed(() => {
     const released = this.dataStore.lcs().filter(r => r.status === 'Released' && r.releasedAt);
     if (released.length === 0) return 0;
-    const totalMin = released.reduce((sum, r) => sum + Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000), 0);
+    const totalMin = released.reduce((sum, r) => sum + this.getElapsedMinutes(r), 0);
     return Math.round(totalMin / released.length);
   });
 
