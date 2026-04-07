@@ -1797,6 +1797,12 @@ body {
   color: #f1f5f9;
 }
 
+.ai-insight-exception {
+  background: rgba(251, 191, 36, 0.06);
+  border-color: rgba(251, 191, 36, 0.18);
+  padding-left: 1rem;
+}
+
 .ai-insight em {
   color: #fbbf24;
   font-style: normal;

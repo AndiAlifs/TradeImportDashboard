@@ -271,11 +271,20 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
             <div class="ai-insight">
               <strong>📦 Import Performance:</strong> SLA compliance at <strong>{{ importSla() }}%</strong> with {{ importBreachCount() }} breach{{ importBreachCount() !== 1 ? 'es' : '' }}. {{ ai.importBottleneckText }}
             </div>
+            <div class="ai-insight ai-insight-exception" *ngIf="ai.importExStats.exceptionCount > 0">
+              <strong>⚠️ Import Exceptions:</strong> {{ ai.importExStats.exceptionCount }} case{{ ai.importExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.importExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.importExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.importExStats.avgLifecycleWithoutExMins }} min</strong> without.
+            </div>
             <div class="ai-insight">
               <strong>🚢 Export Performance:</strong> SLA compliance at <strong>{{ exportSla() }}%</strong> with {{ exportBreachCount() }} breach{{ exportBreachCount() !== 1 ? 'es' : '' }}. {{ ai.exportBottleneckText }}
             </div>
+            <div class="ai-insight ai-insight-exception" *ngIf="ai.exportExStats.exceptionCount > 0">
+              <strong>⚠️ Export Exceptions:</strong> {{ ai.exportExStats.exceptionCount }} case{{ ai.exportExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.exportExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.exportExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.exportExStats.avgLifecycleWithoutExMins }} min</strong> without.
+            </div>
             <div class="ai-insight">
               <strong>🛡️ BG Performance:</strong> SLA compliance at <strong>{{ bgSla() }}%</strong> with {{ bgBreachCount() }} breach{{ bgBreachCount() !== 1 ? 'es' : '' }}. {{ ai.bgBottleneckText }}
+            </div>
+            <div class="ai-insight ai-insight-exception" *ngIf="ai.bgExStats.exceptionCount > 0">
+              <strong>⚠️ BG Exceptions:</strong> {{ ai.bgExStats.exceptionCount }} case{{ ai.bgExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.bgExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.bgExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.bgExStats.avgLifecycleWithoutExMins }} min</strong> without.
             </div>
             <div class="ai-insight">
               <strong>💡 Recommendation:</strong> {{ ai.recommendation }}
@@ -795,7 +804,11 @@ export class ExecDashboardComponent implements OnInit {
       recommendation += ' All operations within target — maintain current performance.';
     }
 
-    return { healthStatus, healthClass, overallCompliance, activeCount, releasedCount, slaTarget, importBottleneckText, exportBottleneckText, bgBottleneckText, recommendation };
+    const importExStats = this.computeExceptionStats(this.importData());
+    const exportExStats = this.computeExceptionStats(this.exportData());
+    const bgExStats = this.computeExceptionStats(this.bgData());
+
+    return { healthStatus, healthClass, overallCompliance, activeCount, releasedCount, slaTarget, importBottleneckText, exportBottleneckText, bgBottleneckText, recommendation, importExStats, exportExStats, bgExStats };
   });
 
   barPct(value: number): number {
@@ -815,6 +828,16 @@ export class ExecDashboardComponent implements OnInit {
   formatTime(iso: string): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  private computeExceptionStats(records: any[]): { avgExceptionMins: number; avgLifecycleWithExMins: number; avgLifecycleWithoutExMins: number; exceptionCount: number } {
+    const withEx = records.filter(r => (r.exceptionTotalMinutes || 0) > 0);
+    const count = withEx.length;
+    if (count === 0) return { avgExceptionMins: 0, avgLifecycleWithExMins: 0, avgLifecycleWithoutExMins: 0, exceptionCount: 0 };
+    const avgExceptionMins = Math.round(withEx.reduce((sum, r) => sum + (r.exceptionTotalMinutes || 0), 0) / count);
+    const avgLifecycleWithoutExMins = Math.round(withEx.reduce((sum, r) => sum + this.getElapsedMinutes(r), 0) / count);
+    const avgLifecycleWithExMins = Math.round(withEx.reduce((sum, r) => sum + this.getElapsedMinutes(r) + (r.exceptionTotalMinutes || 0), 0) / count);
+    return { avgExceptionMins, avgLifecycleWithExMins, avgLifecycleWithoutExMins, exceptionCount: count };
   }
 
   private countBreaches(records: any[], maxSla: number): number {
