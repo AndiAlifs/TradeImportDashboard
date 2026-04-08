@@ -272,19 +272,19 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
               <strong>📦 Import Performance:</strong> SLA compliance at <strong>{{ importSla() }}%</strong> with {{ importBreachCount() }} breach{{ importBreachCount() !== 1 ? 'es' : '' }}. {{ ai.importBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.importExStats.exceptionCount > 0">
-              <strong>⚠️ Import Exceptions:</strong> {{ ai.importExStats.exceptionCount }} case{{ ai.importExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.importExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.importExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.importExStats.avgLifecycleWithoutExMins }} min</strong> without.
+              <strong>⚠️ Import Exceptions:</strong> {{ ai.importExStats.exceptionCount }} case{{ ai.importExStats.exceptionCount !== 1 ? 's' : '' }} primarily interrupting the <strong>{{ stageGroupLabel(ai.importExStats.primaryAffectedStage) }}</strong> stage — avg exception <strong>{{ ai.importExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.importExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.importExStats.avgLifecycleWithoutExMins }} min</strong> without. (Stage durations above exclude exception time.)
             </div>
             <div class="ai-insight">
               <strong>🚢 Export Performance:</strong> SLA compliance at <strong>{{ exportSla() }}%</strong> with {{ exportBreachCount() }} breach{{ exportBreachCount() !== 1 ? 'es' : '' }}. {{ ai.exportBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.exportExStats.exceptionCount > 0">
-              <strong>⚠️ Export Exceptions:</strong> {{ ai.exportExStats.exceptionCount }} case{{ ai.exportExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.exportExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.exportExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.exportExStats.avgLifecycleWithoutExMins }} min</strong> without.
+              <strong>⚠️ Export Exceptions:</strong> {{ ai.exportExStats.exceptionCount }} case{{ ai.exportExStats.exceptionCount !== 1 ? 's' : '' }} primarily interrupting the <strong>{{ stageGroupLabel(ai.exportExStats.primaryAffectedStage) }}</strong> stage — avg exception <strong>{{ ai.exportExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.exportExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.exportExStats.avgLifecycleWithoutExMins }} min</strong> without. (Stage durations above exclude exception time.)
             </div>
             <div class="ai-insight">
               <strong>🛡️ BG Performance:</strong> SLA compliance at <strong>{{ bgSla() }}%</strong> with {{ bgBreachCount() }} breach{{ bgBreachCount() !== 1 ? 'es' : '' }}. {{ ai.bgBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.bgExStats.exceptionCount > 0">
-              <strong>⚠️ BG Exceptions:</strong> {{ ai.bgExStats.exceptionCount }} case{{ ai.bgExStats.exceptionCount !== 1 ? 's' : '' }} — avg exception <strong>{{ ai.bgExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.bgExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.bgExStats.avgLifecycleWithoutExMins }} min</strong> without.
+              <strong>⚠️ BG Exceptions:</strong> {{ ai.bgExStats.exceptionCount }} case{{ ai.bgExStats.exceptionCount !== 1 ? 's' : '' }} primarily interrupting the <strong>{{ stageGroupLabel(ai.bgExStats.primaryAffectedStage) }}</strong> stage — avg exception <strong>{{ ai.bgExStats.avgExceptionMins }} min</strong>. Avg lifecycle <strong>{{ ai.bgExStats.avgLifecycleWithExMins }} min</strong> with exception vs <strong>{{ ai.bgExStats.avgLifecycleWithoutExMins }} min</strong> without. (Stage durations above exclude exception time.)
             </div>
             <div class="ai-insight">
               <strong>💡 Recommendation:</strong> {{ ai.recommendation }}
@@ -830,14 +830,23 @@ export class ExecDashboardComponent implements OnInit {
     return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   }
 
-  private computeExceptionStats(records: any[]): { avgExceptionMins: number; avgLifecycleWithExMins: number; avgLifecycleWithoutExMins: number; exceptionCount: number } {
-    const withEx = records.filter(r => (r.exceptionTotalMinutes || 0) > 0);
+  private computeExceptionStats(records: any[]): { avgExceptionMins: number; avgLifecycleWithExMins: number; avgLifecycleWithoutExMins: number; exceptionCount: number; primaryAffectedStage: string } {
+    const withEx = records.filter(r => (r.exceptionTotalMinutes || 0) > 0 || r.status === 'Exception');
     const count = withEx.length;
-    if (count === 0) return { avgExceptionMins: 0, avgLifecycleWithExMins: 0, avgLifecycleWithoutExMins: 0, exceptionCount: 0 };
+    if (count === 0) return { avgExceptionMins: 0, avgLifecycleWithExMins: 0, avgLifecycleWithoutExMins: 0, exceptionCount: 0, primaryAffectedStage: '' };
     const avgExceptionMins = Math.round(withEx.reduce((sum, r) => sum + (r.exceptionTotalMinutes || 0), 0) / count);
     const avgLifecycleWithoutExMins = Math.round(withEx.reduce((sum, r) => sum + this.getElapsedMinutes(r), 0) / count);
     const avgLifecycleWithExMins = Math.round(withEx.reduce((sum, r) => sum + this.getElapsedMinutes(r) + (r.exceptionTotalMinutes || 0), 0) / count);
-    return { avgExceptionMins, avgLifecycleWithExMins, avgLifecycleWithoutExMins, exceptionCount: count };
+    // Determine which stage exceptions most commonly interrupted using previousStatus (set when exception begins).
+    const stageCounts: Record<string, number> = { inbox: 0, drafting: 0, checking: 0 };
+    withEx.forEach(r => {
+      const prev = r.previousStatus || r.status;
+      if (prev === 'Received') stageCounts['inbox']++;
+      else if (prev === 'Drafting') stageCounts['drafting']++;
+      else stageCounts['checking']++;
+    });
+    const primaryAffectedStage = Object.entries(stageCounts).sort((a, b) => b[1] - a[1])[0][0];
+    return { avgExceptionMins, avgLifecycleWithExMins, avgLifecycleWithoutExMins, exceptionCount: count, primaryAffectedStage };
   }
 
   private countBreaches(records: any[], maxSla: number): number {
@@ -1021,6 +1030,11 @@ export class ExecDashboardComponent implements OnInit {
 
   private stageName(labelKey: string): string {
     return this.ts.translate(labelKey);
+  }
+
+  stageGroupLabel(group: string): string {
+    const map: Record<string, string> = { inbox: 'Inbox', drafting: 'Drafting', checking: 'Checking' };
+    return map[group] || group;
   }
 
   ngOnInit(): void {

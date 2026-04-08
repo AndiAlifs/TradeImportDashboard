@@ -60,27 +60,36 @@ export function computeLcStageDurations(record: StageRecord, nowTs = Date.now())
 
   if (receivedTs === null) return [];
 
+  // Exception time (already-resolved) that was absorbed into a productive stage's wall-clock.
+  // We subtract this from the last/current productive stage so bottleneck stats reflect
+  // true working time only. The exception bar is still rendered separately for visibility.
+  const exDeduction = Math.max(0, record.exceptionTotalMinutes || 0);
+
   const stages: StageDuration[] = [];
 
   if (draftingTs !== null) {
     stages.push({ key: 'inbox', labelKey: getChartLabel(record.transactionType, 'inbox'), minutes: minsBetween(receivedTs, draftingTs), isActive: false, isLongest: false });
   } else if (status === 'Received') {
-    stages.push({ key: 'inbox', labelKey: getChartLabel(record.transactionType, 'inbox'), minutes: minsBetween(receivedTs, nowTs), isActive: true, isLongest: false });
+    stages.push({ key: 'inbox', labelKey: getChartLabel(record.transactionType, 'inbox'), minutes: Math.max(0, minsBetween(receivedTs, nowTs) - exDeduction), isActive: true, isLongest: false });
   }
 
   if (draftingTs !== null) {
     if (checkingTs !== null) {
+      // Drafting is complete; exception deduction will be applied to the last stage (checking).
       stages.push({ key: 'drafting', labelKey: getChartLabel(record.transactionType, 'drafting'), minutes: minsBetween(draftingTs, checkingTs), isActive: false, isLongest: false });
     } else if (status === 'Drafting') {
-      stages.push({ key: 'drafting', labelKey: getChartLabel(record.transactionType, 'drafting'), minutes: minsBetween(draftingTs, nowTs), isActive: true, isLongest: false });
+      // Active drafting: subtract accumulated resolved-exception minutes so only real work time shows.
+      stages.push({ key: 'drafting', labelKey: getChartLabel(record.transactionType, 'drafting'), minutes: Math.max(0, minsBetween(draftingTs, nowTs) - exDeduction), isActive: true, isLongest: false });
     }
   }
 
   if (checkingTs !== null) {
     if (releasedTs !== null) {
-      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: minsBetween(checkingTs, releasedTs), isActive: false, isLongest: false });
+      // Completed LC: subtract exception deduction from checking (last stage before release).
+      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: Math.max(0, minsBetween(checkingTs, releasedTs) - exDeduction), isActive: false, isLongest: false });
     } else if (status === 'Checking Underlying' || status === 'Breached') {
-      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: minsBetween(checkingTs, nowTs), isActive: true, isLongest: false });
+      // Active checking: subtract accumulated resolved-exception minutes.
+      stages.push({ key: 'checking', labelKey: getChartLabel(record.transactionType, 'checking'), minutes: Math.max(0, minsBetween(checkingTs, nowTs) - exDeduction), isActive: true, isLongest: false });
     }
   }
 
