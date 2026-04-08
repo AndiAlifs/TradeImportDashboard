@@ -254,40 +254,40 @@ type SlaComparisonMetric = 'overall' | 'import' | 'export' | 'bg' | 'all';
           <div class="ai-summary-header">
             <h3>{{ 'exec.ai_title' | translate }}</h3>
             <div style="display:flex;align-items:center;gap:0.5rem">
-              <span class="ai-tag">AI Generated</span>
+              <span class="ai-tag">{{ 'exec.ai_generated_tag' | translate }}</span>
             </div>
           </div>
           <div class="ai-summary-content" *ngIf="aiSummary() as ai">
             <div class="ai-insight">
               <div class="ai-health" [ngClass]="ai.healthClass">
-                <span class="health-label">Overall Health:</span>
+                <span class="health-label">{{ 'exec.ai_overall_health' | translate }}</span>
                 <span class="health-value">{{ ai.healthStatus }}</span>
-                <span class="health-detail">({{ ai.overallCompliance }}% SLA compliance)</span>
+                <span class="health-detail">({{ ai.overallCompliance }}% {{ 'exec.ai_sla_compliance_suffix' | translate }})</span>
               </div>
             </div>
             <div class="ai-insight">
-              <strong>📊 Overview:</strong> {{ ai.activeCount }} active L/Cs, {{ ai.releasedCount }} completed today. Average cycle time: <strong>{{ avgCycleTime() }} min</strong> against SLA target of {{ ai.slaTarget }}.
+              <strong>{{ 'exec.ai_overview_label' | translate }}</strong> {{ ai.activeCount }} {{ 'exec.ai_active_lcs' | translate }} {{ ai.releasedCount }} {{ 'exec.ai_completed_today' | translate }} {{ 'exec.ai_avg_cycle_time' | translate }} <strong>{{ avgCycleTime() }} min</strong> {{ 'exec.ai_against_sla_target' | translate }} {{ ai.slaTarget }}.
             </div>
             <div class="ai-insight">
-              <strong>📦 Import Performance:</strong> SLA compliance at <strong>{{ importSla() }}%</strong> with {{ importBreachCount() }} breach{{ importBreachCount() !== 1 ? 'es' : '' }}. {{ ai.importBottleneckText }}
+              <strong>{{ 'exec.ai_import_perf_label' | translate }}</strong> {{ 'exec.ai_sla_compliance_at' | translate }} <strong>{{ importSla() }}%</strong> {{ 'exec.ai_with' | translate }} {{ importBreachCount() }} {{ importBreachCount() !== 1 ? ('exec.ai_breach_plural' | translate) : ('exec.ai_breach_singular' | translate) }}. {{ ai.importBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.importExStats.exceptionCount > 0">
               <strong>⚠️ {{ 'exec.ai_import_exception_label' | translate }}:</strong> {{ ai.importExStats.exceptionCount }} {{ ai.importExStats.exceptionCount !== 1 ? ('exec.ai_case_plural' | translate) : ('exec.ai_case_singular' | translate) }} {{ 'exec.ai_primarily_interrupting' | translate }} <strong>{{ stageGroupLabel(ai.importExStats.primaryAffectedStage) }}</strong> {{ 'exec.ai_stage_suffix' | translate }} — {{ 'exec.ai_avg_exception' | translate }} <strong>{{ ai.importExStats.avgExceptionMins }} min</strong>. {{ 'exec.ai_avg_lifecycle' | translate }} <strong>{{ ai.importExStats.avgLifecycleWithExMins }} min</strong> {{ 'exec.ai_with_exception' | translate }} <strong>{{ ai.importExStats.avgLifecycleWithoutExMins }} min</strong> {{ 'exec.ai_without_exception' | translate }}.
             </div>
             <div class="ai-insight">
-              <strong>🚢 Export Performance:</strong> SLA compliance at <strong>{{ exportSla() }}%</strong> with {{ exportBreachCount() }} breach{{ exportBreachCount() !== 1 ? 'es' : '' }}. {{ ai.exportBottleneckText }}
+              <strong>{{ 'exec.ai_export_perf_label' | translate }}</strong> {{ 'exec.ai_sla_compliance_at' | translate }} <strong>{{ exportSla() }}%</strong> {{ 'exec.ai_with' | translate }} {{ exportBreachCount() }} {{ exportBreachCount() !== 1 ? ('exec.ai_breach_plural' | translate) : ('exec.ai_breach_singular' | translate) }}. {{ ai.exportBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.exportExStats.exceptionCount > 0">
               <strong>⚠️ {{ 'exec.ai_export_exception_label' | translate }}:</strong> {{ ai.exportExStats.exceptionCount }} {{ ai.exportExStats.exceptionCount !== 1 ? ('exec.ai_case_plural' | translate) : ('exec.ai_case_singular' | translate) }} {{ 'exec.ai_primarily_interrupting' | translate }} <strong>{{ stageGroupLabel(ai.exportExStats.primaryAffectedStage) }}</strong> {{ 'exec.ai_stage_suffix' | translate }} — {{ 'exec.ai_avg_exception' | translate }} <strong>{{ ai.exportExStats.avgExceptionMins }} min</strong>. {{ 'exec.ai_avg_lifecycle' | translate }} <strong>{{ ai.exportExStats.avgLifecycleWithExMins }} min</strong> {{ 'exec.ai_with_exception' | translate }} <strong>{{ ai.exportExStats.avgLifecycleWithoutExMins }} min</strong> {{ 'exec.ai_without_exception' | translate }}.
             </div>
             <div class="ai-insight">
-              <strong>🛡️ BG Performance:</strong> SLA compliance at <strong>{{ bgSla() }}%</strong> with {{ bgBreachCount() }} breach{{ bgBreachCount() !== 1 ? 'es' : '' }}. {{ ai.bgBottleneckText }}
+              <strong>{{ 'exec.ai_bg_perf_label' | translate }}</strong> {{ 'exec.ai_sla_compliance_at' | translate }} <strong>{{ bgSla() }}%</strong> {{ 'exec.ai_with' | translate }} {{ bgBreachCount() }} {{ bgBreachCount() !== 1 ? ('exec.ai_breach_plural' | translate) : ('exec.ai_breach_singular' | translate) }}. {{ ai.bgBottleneckText }}
             </div>
             <div class="ai-insight ai-insight-exception" *ngIf="ai.bgExStats.exceptionCount > 0">
               <strong>⚠️ {{ 'exec.ai_bg_exception_label' | translate }}:</strong> {{ ai.bgExStats.exceptionCount }} {{ ai.bgExStats.exceptionCount !== 1 ? ('exec.ai_case_plural' | translate) : ('exec.ai_case_singular' | translate) }} {{ 'exec.ai_primarily_interrupting' | translate }} <strong>{{ stageGroupLabel(ai.bgExStats.primaryAffectedStage) }}</strong> {{ 'exec.ai_stage_suffix' | translate }} — {{ 'exec.ai_avg_exception' | translate }} <strong>{{ ai.bgExStats.avgExceptionMins }} min</strong>. {{ 'exec.ai_avg_lifecycle' | translate }} <strong>{{ ai.bgExStats.avgLifecycleWithExMins }} min</strong> {{ 'exec.ai_with_exception' | translate }} <strong>{{ ai.bgExStats.avgLifecycleWithoutExMins }} min</strong> {{ 'exec.ai_without_exception' | translate }}.
             </div>
             <div class="ai-insight">
-              <strong>💡 Recommendation:</strong> {{ ai.recommendation }}
+              <strong>{{ 'exec.ai_recommendation_label' | translate }}</strong> {{ ai.recommendation }}
             </div>
           </div>
         </div>
@@ -764,10 +764,10 @@ export class ExecDashboardComponent implements OnInit {
     const releasedCount = data.filter(r => r.status === 'Released').length;
     const overallCompliance = data.length > 0 ? Math.round(((data.length - totalBreaches) / data.length) * 100) : 100;
 
-    let healthStatus = '🟢 Excellent';
+    let healthStatus = this.ts.translate('exec.ai_health_excellent');
     let healthClass = 'health-good';
-    if (overallCompliance < 90) { healthStatus = '🟡 Moderate'; healthClass = 'health-moderate'; }
-    if (overallCompliance < 75) { healthStatus = '🔴 Critical'; healthClass = 'health-critical'; }
+    if (overallCompliance < 90) { healthStatus = this.ts.translate('exec.ai_health_moderate'); healthClass = 'health-moderate'; }
+    if (overallCompliance < 75) { healthStatus = this.ts.translate('exec.ai_health_critical'); healthClass = 'health-critical'; }
 
     const slaTarget = `Import <= ${sla.importSlaMaxMinutes}m, Export <= ${sla.exportSlaMaxMinutes}m, BG <= ${sla.bgSlaMaxMinutes}m`;
 
@@ -775,33 +775,36 @@ export class ExecDashboardComponent implements OnInit {
     const exportBottleneck = this.exportBottleneckStage();
     const bgBottleneck = this.bgBottleneckStage();
     const importBottleneckText = importBottleneck
-      ? `Primary bottleneck: ${this.stageName(importBottleneck.labelKey)} (avg ${importBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
+      ? `${this.ts.translate('exec.ai_primary_bottleneck')} ${this.stageName(importBottleneck.labelKey)} (${this.ts.translate('exec.ai_avg_min')} ${importBottleneck.minutes} min).`
+      : this.ts.translate('exec.ai_insufficient_data');
     const exportBottleneckText = exportBottleneck
-      ? `Primary bottleneck: ${this.stageName(exportBottleneck.labelKey)} (avg ${exportBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
+      ? `${this.ts.translate('exec.ai_primary_bottleneck')} ${this.stageName(exportBottleneck.labelKey)} (${this.ts.translate('exec.ai_avg_min')} ${exportBottleneck.minutes} min).`
+      : this.ts.translate('exec.ai_insufficient_data');
     const bgBottleneckText = bgBottleneck
-      ? `Primary bottleneck: ${this.stageName(bgBottleneck.labelKey)} (avg ${bgBottleneck.minutes} min).`
-      : 'Insufficient data for bottleneck analysis.';
+      ? `${this.ts.translate('exec.ai_primary_bottleneck')} ${this.stageName(bgBottleneck.labelKey)} (${this.ts.translate('exec.ai_avg_min')} ${bgBottleneck.minutes} min).`
+      : this.ts.translate('exec.ai_insufficient_data');
 
     const impVol = this.importData().length;
     const expVol = this.exportData().length;
     const bgVol = this.bgData().length;
-    let volumeInsight = `Processing volumes — Import: ${impVol}, Export: ${expVol}, BG: ${bgVol}.`;
+    const impLabel = this.ts.translate('exec.import_label');
+    const expLabel = this.ts.translate('exec.export_label');
+    const bgLabel = this.ts.translate('exec.bg_label');
+    let volumeInsight = `${this.ts.translate('exec.ai_processing_volumes_prefix')} ${impLabel}: ${impVol}, ${expLabel}: ${expVol}, ${bgLabel}: ${bgVol}.`;
     
     let recommendation = volumeInsight;
     if (totalBreaches > 0) {
       const bCounts = [
-          { type: 'Import', count: this.importBreachCount(), bottleneck: importBottleneck },
-          { type: 'Export', count: this.exportBreachCount(), bottleneck: exportBottleneck },
-          { type: 'Bank Guarantee', count: this.bgBreachCount(), bottleneck: bgBottleneck }
+          { type: impLabel, count: this.importBreachCount(), bottleneck: importBottleneck },
+          { type: expLabel, count: this.exportBreachCount(), bottleneck: exportBottleneck },
+          { type: bgLabel, count: this.bgBreachCount(), bottleneck: bgBottleneck }
       ].sort((a,b) => b.count - a.count);
       
       const focus = bCounts[0];
       const focusStage = focus.bottleneck ? this.stageName(focus.bottleneck.labelKey) : this.ts.translate('exec.bottleneck_empty');
-      recommendation += ` Focus on reducing ${focus.type} ${focusStage} times to improve overall SLA compliance.`;
+      recommendation += ` ${this.ts.translate('exec.ai_focus_reduce')} ${focus.type} ${focusStage} ${this.ts.translate('exec.ai_focus_times')}`;
     } else {
-      recommendation += ' All operations within target — maintain current performance.';
+      recommendation += ` ${this.ts.translate('exec.ai_all_within_target')}`;
     }
 
     const importExStats = this.computeExceptionStats(this.importData());
