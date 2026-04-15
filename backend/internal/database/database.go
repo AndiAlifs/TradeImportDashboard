@@ -37,11 +37,14 @@ func SeedDefaults(db *gorm.DB) error {
 			ImportSLAMaxMinutes: 120,
 			ExportSLAMaxMinutes: 120,
 			BgSLAMaxMinutes:     120,
+			WarningThreshold1:   75,
+			WarningThreshold2:   90,
 		}
 		if err := db.Create(&cfg).Error; err != nil {
 			return fmt.Errorf("seed sla config: %w", err)
 		}
 	}
+
 
 	// Seed assignees and officers before LCs so they can be referenced
 	if err := seedAssignees(db); err != nil {

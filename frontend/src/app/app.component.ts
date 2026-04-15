@@ -4,13 +4,14 @@ import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { TopbarComponent } from './components/topbar/topbar.component';
 import { RoleLoginComponent } from './components/role-login/role-login.component';
+import { EarlyWarningModalComponent } from './components/early-warning-modal/early-warning-modal.component';
 import { DataStoreService } from './services/data-store.service';
 import { TranslatePipe } from './pipes/translate.pipe';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, RoleLoginComponent, TranslatePipe],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, RoleLoginComponent, EarlyWarningModalComponent, TranslatePipe],
   template: `
     <app-role-login *ngIf="!dataStore.isAuthenticated()"></app-role-login>
 
@@ -24,12 +25,16 @@ import { TranslatePipe } from './pipes/translate.pipe';
           <router-outlet></router-outlet>
         </div>
       </main>
+
+      <!-- Global early-warning modal — always active when logged in -->
+      <app-early-warning-modal></app-early-warning-modal>
     </ng-container>
 
     <div id="toast-container" class="toast-container"></div>
   `,
   styleUrls: ['./app.component.css']
 })
+
 export class AppComponent implements OnInit, OnDestroy {
   dataStore = inject(DataStoreService);
 

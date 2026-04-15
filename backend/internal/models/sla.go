@@ -7,6 +7,8 @@ type SLAConfig struct {
 	ImportSLAMaxMinutes int       `json:"importSlaMaxMinutes" gorm:"not null;default:120"`
 	ExportSLAMaxMinutes int       `json:"exportSlaMaxMinutes" gorm:"not null;default:120"`
 	BgSLAMaxMinutes     int       `json:"bgSlaMaxMinutes" gorm:"not null;default:120"`
+	WarningThreshold1   int       `json:"warningThreshold1" gorm:"not null;default:75"`
+	WarningThreshold2   int       `json:"warningThreshold2" gorm:"not null;default:90"`
 	CreatedAt           time.Time `json:"createdAt"`
 	UpdatedAt           time.Time `json:"updatedAt"`
 }

@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataStoreService } from '../../services/data-store.service';
+import { TranslatePipe } from '../../pipes/translate.pipe';
 
 interface WarningEntry {
   lcId: string | number;
@@ -24,12 +25,12 @@ const SESSION_KEY = 'shila_early_warned_ids';
 @Component({
   selector: 'app-early-warning-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   template: `
     <div
       class="ew-overlay"
       [class.ew-overlay--visible]="visible()"
-      [class.ew-overlay--t2]="currentEntry()?.threshold === (dataStore.slaConfig().warningThreshold2 ?? 90)"
+      [class.ew-overlay--t2]="currentEntry()?.threshold === slaT2"
       (click)="dismiss()"
     >
       <div class="ew-card" (click)="$event.stopPropagation()">
@@ -43,10 +44,10 @@ const SESSION_KEY = 'shila_early_warned_ids';
 
         <!-- Header -->
         <div class="ew-header">
-          <div class="ew-badge" [class.ew-badge--t2]="currentEntry()?.threshold === (dataStore.slaConfig().warningThreshold2 ?? 90)">
-            {{ currentEntry()?.threshold }}% SLA Threshold Reached
+          <div class="ew-badge" [class.ew-badge--t2]="currentEntry()?.threshold === slaT2">
+            {{ currentEntry()?.threshold }}% {{ 'early_warning.threshold_reached' | translate }}
           </div>
-          <h2 class="ew-title">Early Warning Alert</h2>
+          <h2 class="ew-title">{{ 'early_warning.title' | translate }}</h2>
         </div>
 
         <!-- Document info -->
@@ -56,17 +57,17 @@ const SESSION_KEY = 'shila_early_warned_ids';
 
           <div class="ew-metrics">
             <div class="ew-metric">
-              <span class="ew-metric-label">Elapsed Time</span>
+              <span class="ew-metric-label">{{ 'early_warning.elapsed' | translate }}</span>
               <span class="ew-metric-value">{{ entry.elapsed }} min</span>
             </div>
             <div class="ew-metric-divider"></div>
             <div class="ew-metric">
-              <span class="ew-metric-label">{{ entry.threshold }}% Threshold</span>
+              <span class="ew-metric-label">{{ entry.threshold }}% {{ 'early_warning.threshold' | translate }}</span>
               <span class="ew-metric-value">{{ entry.thresholdMinutes }} min</span>
             </div>
             <div class="ew-metric-divider"></div>
             <div class="ew-metric">
-              <span class="ew-metric-label">SLA Limit</span>
+              <span class="ew-metric-label">{{ 'early_warning.limit' | translate }}</span>
               <span class="ew-metric-value">{{ entry.maxSlaMinutes }} min</span>
             </div>
           </div>
@@ -75,14 +76,14 @@ const SESSION_KEY = 'shila_early_warned_ids';
           <div class="ew-sla-bar-wrap">
             <div class="ew-sla-bar-label">
               <span>0</span>
-              <span>SLA Progress</span>
+              <span>{{ 'early_warning.progress' | translate }}</span>
               <span>{{ entry.maxSlaMinutes }} min</span>
             </div>
             <div class="ew-sla-bar-track">
-              <div class="ew-sla-bar-fill" [style.width.%]="getSlaPercent(entry)" [class.ew-sla-bar-fill--warn]="entry.threshold < (dataStore.slaConfig().warningThreshold2 ?? 90)" [class.ew-sla-bar-fill--crit]="entry.threshold >= (dataStore.slaConfig().warningThreshold2 ?? 90)"></div>
+              <div class="ew-sla-bar-fill" [style.width.%]="getSlaPercent(entry)" [class.ew-sla-bar-fill--warn]="entry.threshold < slaT2" [class.ew-sla-bar-fill--crit]="entry.threshold >= slaT2"></div>
               <!-- Threshold markers -->
-              <div class="ew-threshold-marker ew-threshold-marker--t1" [style.left.%]="dataStore.slaConfig().warningThreshold1 ?? 75"></div>
-              <div class="ew-threshold-marker ew-threshold-marker--t2" [style.left.%]="dataStore.slaConfig().warningThreshold2 ?? 90"></div>
+              <div class="ew-threshold-marker ew-threshold-marker--t1" [style.left.%]="slaT1"></div>
+              <div class="ew-threshold-marker ew-threshold-marker--t2" [style.left.%]="slaT2"></div>
             </div>
           </div>
         </div>
@@ -97,17 +98,17 @@ const SESSION_KEY = 'shila_early_warned_ids';
             </svg>
             <span class="ew-countdown-num">{{ countdown() }}</span>
           </div>
-          <span class="ew-countdown-label">Auto-dismissing in {{ countdown() }}s</span>
+          <span class="ew-countdown-label">{{ 'early_warning.auto_dismiss' | translate }} {{ countdown() }}s</span>
         </div>
 
         <!-- Dismiss hint -->
         <div class="ew-dismiss-hint" (click)="dismiss()">
-          Click anywhere to dismiss
+          {{ 'early_warning.click_dismiss' | translate }}
         </div>
 
         <!-- Queue indicator -->
         <div class="ew-queue" *ngIf="queue().length > 1">
-          +{{ queue().length - 1 }} more alert{{ queue().length - 1 > 1 ? 's' : '' }} pending
+          +{{ queue().length - 1 }} {{ 'early_warning.more_pending' | translate }}
         </div>
       </div>
     </div>
@@ -381,6 +382,10 @@ const SESSION_KEY = 'shila_early_warned_ids';
 export class EarlyWarningModalComponent implements OnInit, OnDestroy {
   dataStore = inject(DataStoreService);
 
+  // Computed threshold values — avoids ?? in templates (NG8102)
+  get slaT1(): number { return this.dataStore.slaConfig().warningThreshold1; }
+  get slaT2(): number { return this.dataStore.slaConfig().warningThreshold2; }
+
   visible = signal(false);
   countdown = signal(30);
   queue = signal<WarningEntry[]>([]);
@@ -393,36 +398,49 @@ export class EarlyWarningModalComponent implements OnInit, OnDestroy {
 
   private countdownTimer: ReturnType<typeof setInterval> | null = null;
   private autoDismissTimer: ReturnType<typeof setTimeout> | null = null;
+  private alertAudio: HTMLAudioElement | null = null;
 
   constructor() {
-    // React to LC data / SLA config changes
+    // allowSignalWrites: true is required because checkLcsForWarnings
+    // writes to queue/visible/currentEntry signals. Without it Angular 17+
+    // throws NG0600 and the modal never fires.
     effect(() => {
       const lcs = this.dataStore.lcs();
       const sla = this.dataStore.slaConfig();
-      this.checkLcsForWarnings(lcs, sla);
-    });
+      // Defer writes out of the reactive context to avoid NG0600
+      setTimeout(() => this.checkLcsForWarnings(lcs, sla), 0);
+    }, { allowSignalWrites: true });
   }
 
-  ngOnInit() {}
+
+  ngOnInit() { }
 
   ngOnDestroy() {
     this.clearTimers();
   }
 
   private checkLcsForWarnings(lcs: any[], sla: any): void {
-    const t1 = sla.warningThreshold1 ?? 75;
-    const t2 = sla.warningThreshold2 ?? 90;
+    const t1 = sla.warningThreshold1;
+    const t2 = sla.warningThreshold2;
     const thresholds = [t1, t2].sort((a, b) => a - b);
 
+    // super_admin does not receive early warning modals
+    if (this.dataStore.currentRole() === 'super_admin') return;
+
     const skipStatuses = new Set(['Released', 'Exception', 'Breached', 'Breached with Exception']);
+
     const newEntries: WarningEntry[] = [];
 
     for (const lc of lcs) {
       if (skipStatuses.has(lc.status)) continue;
 
-      let maxSla = sla.importSlaMaxMinutes ?? 120;
-      if (lc.transactionType === 'Export') maxSla = sla.exportSlaMaxMinutes ?? 120;
-      if (lc.transactionType === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes ?? 120;
+      // Role-scoped filtering: only warn about LCs the current role can access.
+      // executive and super_admin have scope 'All' so they see everything.
+      if (!this.dataStore.canAccessTransaction(lc.transactionType)) continue;
+
+      let maxSla = sla.importSlaMaxMinutes;
+      if (lc.transactionType === 'Export') maxSla = sla.exportSlaMaxMinutes;
+      if (lc.transactionType === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
 
       const elapsed = this.getElapsedMinutes(lc);
 
@@ -479,6 +497,14 @@ export class EarlyWarningModalComponent implements OnInit, OnDestroy {
 
     this.clearTimers();
 
+    // Play alert sound — loop until modal closes
+    try {
+      this.alertAudio = new Audio('/suara_sapi.m4a');
+      this.alertAudio.loop = true;
+      this.alertAudio.currentTime = 0;
+      this.alertAudio.play().catch(() => { /* autoplay blocked — ignore silently */ });
+    } catch { /* ignore */ }
+
     // Countdown tick every second
     this.countdownTimer = setInterval(() => {
       this.countdown.update(c => {
@@ -490,6 +516,7 @@ export class EarlyWarningModalComponent implements OnInit, OnDestroy {
       });
     }, 1000);
   }
+
 
   dismiss(): void {
     this.clearTimers();
@@ -517,6 +544,10 @@ export class EarlyWarningModalComponent implements OnInit, OnDestroy {
     if (this.autoDismissTimer !== null) {
       clearTimeout(this.autoDismissTimer);
       this.autoDismissTimer = null;
+    }
+    if (this.alertAudio !== null) {
+      this.alertAudio.pause();
+      this.alertAudio = null;
     }
   }
 

@@ -12,6 +12,8 @@ type updateSLARequest struct {
 	ImportSLAMaxMinutes int `json:"importSlaMaxMinutes" binding:"required,gte=1"`
 	ExportSLAMaxMinutes int `json:"exportSlaMaxMinutes" binding:"required,gte=1"`
 	BgSLAMaxMinutes     int `json:"bgSlaMaxMinutes" binding:"required,gte=1"`
+	WarningThreshold1   int `json:"warningThreshold1"`
+	WarningThreshold2   int `json:"warningThreshold2"`
 }
 
 func (h *Handler) GetSLA(c *gin.Context) {
@@ -47,6 +49,14 @@ func (h *Handler) UpdateSLA(c *gin.Context) {
 	cfg.ImportSLAMaxMinutes = req.ImportSLAMaxMinutes
 	cfg.ExportSLAMaxMinutes = req.ExportSLAMaxMinutes
 	cfg.BgSLAMaxMinutes = req.BgSLAMaxMinutes
+
+	// Only update thresholds if provided (non-zero); fall back to DB defaults
+	if req.WarningThreshold1 > 0 {
+		cfg.WarningThreshold1 = req.WarningThreshold1
+	}
+	if req.WarningThreshold2 > 0 {
+		cfg.WarningThreshold2 = req.WarningThreshold2
+	}
 
 	if err := h.db.Save(&cfg).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
