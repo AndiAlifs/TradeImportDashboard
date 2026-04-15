@@ -247,6 +247,26 @@ body {
   color: var(--sidebar-text);
 }
 
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.logout-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* ---------- Main Content ---------- */
 .main-content {
   margin-left: var(--sidebar-width);

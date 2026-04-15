@@ -4,6 +4,8 @@ export interface SlaConfig {
   importSlaMaxMinutes: number;
   exportSlaMaxMinutes: number;
   bgSlaMaxMinutes: number;
+  warningThreshold1: number; // percentage, e.g. 75
+  warningThreshold2: number; // percentage, e.g. 90
 }
 
 export interface CreateLCOrderRequest {
@@ -42,7 +44,7 @@ const MOCK_ROLE_KEY = 'shila_mock_role';
 const EXEC_DASHBOARD_RANGE_KEY = 'shila_exec_date_range';
 const OPS_DASHBOARD_RANGE_KEY = 'shila_ops_date_range';
 
-const DEFAULT_SLA: SlaConfig = { importSlaMaxMinutes: 120, exportSlaMaxMinutes: 120, bgSlaMaxMinutes: 120 };
+const DEFAULT_SLA: SlaConfig = { importSlaMaxMinutes: 120, exportSlaMaxMinutes: 120, bgSlaMaxMinutes: 120, warningThreshold1: 75, warningThreshold2: 90 };
 
 export type MockRole =
   | 'super_admin'
@@ -80,6 +82,31 @@ const ROLE_OPTIONS: RoleOption[] = [
   { value: 'bg_staff', label: 'BG Staff', scope: 'Bank Guarantee' },
 ];
 
+const ROLE_PASSWORDS: Record<MockRole, string> = {
+  super_admin: 'shielacantik',
+  executive: 'ferrytos',
+  import_officer: 'tonytos',
+  import_staff: 'timimport',
+  export_officer: 'rendytos',
+  export_staff: 'timexport',
+  bg_officer: 'hardytos',
+  bg_staff: 'timbg',
+};
+
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+function setCookie(name: string, value: string, days = 7): void {
+  const maxAge = days * 24 * 60 * 60;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}`;
+}
+
+function deleteCookie(name: string): void {
+  document.cookie = `${name}=; path=/; max-age=0`;
+}
+
 function parseStoredRole(raw: string | null): MockRole {
   if (ROLE_OPTIONS.some((r) => r.value === raw)) {
     return raw as MockRole;
@@ -104,7 +131,8 @@ export class DataStoreService {
   assignees = signal<any[]>([]);
   officers = signal<any[]>([]);
   isBackendOnline = signal<boolean>(false);
-  currentRole = signal<MockRole>(parseStoredRole(localStorage.getItem(MOCK_ROLE_KEY)));
+  isAuthenticated = signal<boolean>(ROLE_OPTIONS.some(r => r.value === getCookie(MOCK_ROLE_KEY)));
+  currentRole = signal<MockRole>(parseStoredRole(getCookie(MOCK_ROLE_KEY)));
   executiveDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(EXEC_DASHBOARD_RANGE_KEY));
   operationsDateRange = signal<DashboardDateRange>(this.loadDashboardDateRange(OPS_DASHBOARD_RANGE_KEY));
   activeDashboardContext = signal<DashboardContext>('executive');
@@ -135,7 +163,20 @@ export class DataStoreService {
 
   setMockRole(role: MockRole): void {
     this.currentRole.set(role);
-    localStorage.setItem(MOCK_ROLE_KEY, role);
+    setCookie(MOCK_ROLE_KEY, role);
+  }
+
+  validateAndLogin(role: MockRole, password: string): boolean {
+    if (ROLE_PASSWORDS[role] !== password) return false;
+    this.currentRole.set(role);
+    setCookie(MOCK_ROLE_KEY, role);
+    this.isAuthenticated.set(true);
+    return true;
+  }
+
+  logout(): void {
+    deleteCookie(MOCK_ROLE_KEY);
+    this.isAuthenticated.set(false);
   }
 
   getRoleLabel(role: MockRole = this.currentRole()): string {

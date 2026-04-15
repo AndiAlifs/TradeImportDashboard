@@ -3,23 +3,28 @@ import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { TopbarComponent } from './components/topbar/topbar.component';
+import { RoleLoginComponent } from './components/role-login/role-login.component';
 import { DataStoreService } from './services/data-store.service';
 import { TranslatePipe } from './pipes/translate.pipe';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, TranslatePipe],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, RoleLoginComponent, TranslatePipe],
   template: `
-    <app-sidebar></app-sidebar>
-    <div class="sidebar-overlay" id="sidebar-overlay" (click)="closeSidebar()"></div>
+    <app-role-login *ngIf="!dataStore.isAuthenticated()"></app-role-login>
 
-    <main class="main-content" style="display: flex; flex-direction: column;">
-      <app-topbar></app-topbar>
-      <div class="view active" style="overflow-y: auto; flex: 1; display: block; position: relative;">
-        <router-outlet></router-outlet>
-      </div>
-    </main>
+    <ng-container *ngIf="dataStore.isAuthenticated()">
+      <app-sidebar></app-sidebar>
+      <div class="sidebar-overlay" id="sidebar-overlay" (click)="closeSidebar()"></div>
+
+      <main class="main-content" style="display: flex; flex-direction: column;">
+        <app-topbar></app-topbar>
+        <div class="view active" style="overflow-y: auto; flex: 1; display: block; position: relative;">
+          <router-outlet></router-outlet>
+        </div>
+      </main>
+    </ng-container>
 
     <div id="toast-container" class="toast-container"></div>
   `,

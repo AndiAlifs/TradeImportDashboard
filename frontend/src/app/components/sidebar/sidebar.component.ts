@@ -1,16 +1,15 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslatePipe } from '../../pipes/translate.pipe';
-import { DataStoreService, MockRole } from '../../services/data-store.service';
+import { DataStoreService } from '../../services/data-store.service';
 import { TranslationService } from '../../services/translation.service';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, TranslatePipe],
+    imports: [CommonModule, RouterLink, RouterLinkActive, TranslatePipe],
   template: `
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-brand">
@@ -22,13 +21,6 @@ import { TranslationService } from '../../services/translation.service';
         </div>
 
         <nav class="sidebar-nav">
-            <div class="mock-role-card">
-                <div class="mock-role-title">Mock Role Mode</div>
-                <select class="mock-role-select" [ngModel]="dataStore.currentRole()" (ngModelChange)="onRoleChange($event)">
-                    <option *ngFor="let role of dataStore.roleOptions" [value]="role.value">{{ role.label }}</option>
-                </select>
-            </div>
-
             <div class="nav-section-label">{{ 'nav.main_menu' | translate }}</div>
 
             <div class="nav-item" *ngIf="dataStore.canAccessMenu('exec')" routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">
@@ -202,6 +194,11 @@ import { TranslationService } from '../../services/translation.service';
                                 <div class="user-name">{{ dataStore.getRoleLabel() }}</div>
                                 <div class="user-role">Mock RBAC</div>
             </div>
+            <button class="logout-btn" (click)="onLogout()" title="Logout">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </button>
         </div>
     </aside>
   `
@@ -211,12 +208,9 @@ export class SidebarComponent {
     private router = inject(Router);
     private ts = inject(TranslationService);
 
-    async onRoleChange(role: MockRole) {
-        this.dataStore.setMockRole(role);
-        await this.dataStore.refreshData();
-        if (!this.dataStore.canAccessPath(this.router.url)) {
-            this.router.navigateByUrl(this.dataStore.defaultRouteForRole());
-        }
+    onLogout() {
+        this.dataStore.logout();
+        this.router.navigateByUrl('/');
     }
 
     allLcsRangeBadge(): string {
