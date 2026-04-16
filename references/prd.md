@@ -14,6 +14,45 @@ The Trade Finance Processing Time Tracker (internal name: SHILA) is an internal 
 
 The current product is a manual-intake workflow. Automated inbox ingestion and backend LLM-generated summaries are target-state capabilities and are not implemented in this codebase.
 
+### System Architecture Overview
+
+```mermaid
+flowchart TB
+    subgraph client["Client (Browser)"]
+        angular["Angular 18+ SPA\nSignals · i18n · localStorage fallback"]
+    end
+
+    subgraph server["Application Server (Go / Gin)"]
+        api["/api — REST endpoints"]
+        sse["/events/stream — SSE"]
+        rbac["RBAC Middleware\nX-Mock-Role headers"]
+    end
+
+    subgraph database["MySQL Database"]
+        tables["lcs · events · lc_exceptions\nassignees · officers · sla_config"]
+    end
+
+    subgraph automations["n8n Automations"]
+        sum["AI Summarizer\nwebhook — on-demand"]
+        ew["Early Warning Tracker\nevery 10 minutes"]
+        rcm["Root Cause Mining\nMonday 07:00"]
+    end
+
+    subgraph channels["Notification Channels"]
+        email["Email"]
+        slack["Slack"]
+        wa["WhatsApp"]
+    end
+
+    angular <-->|"HTTP + X-Mock-Role headers"| api
+    angular -->|"SSE subscribe + auto-reconnect"| sse
+    api --> rbac
+    rbac <--> tables
+    sse --> tables
+    automations -->|"REST GET /api/..."| api
+    ew --> channels
+```
+
 ## 3. Product Mission
 
 The product exists to improve operational control and management visibility by:
@@ -103,6 +142,47 @@ RBAC is currently mock-based, enforced by both frontend route/menu guards and ba
 | Breached | — | — | ✅ | ✅ | — | — | ✅ |
 | Breached w/ Exception | — | — | ✅ | ✅ | — | — | ✅ |
 | Exception | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+
+#### Status Lifecycle State Diagram
+
+```mermaid
+stateDiagram-v2
+    state "Checking Underlying" as checking
+    state "Breached with Exception" as bwe
+
+    [*] --> Received : create
+
+    Received --> Drafting       : start drafting
+    Drafting  --> Received      : return
+
+    Drafting  --> checking      : start checking
+    checking  --> Drafting      : return
+
+    checking  --> Released      : release (officer only)
+    checking  --> Breached      : mark breached
+    checking  --> bwe           : mark breached w/ exception
+
+    Breached  --> checking      : return
+    Breached  --> Released      : release
+
+    bwe       --> checking      : return
+    bwe       --> Released      : release
+
+    Received  --> Exception     : mark exception
+    Drafting  --> Exception     : mark exception
+    checking  --> Exception     : mark exception
+    Breached  --> Exception     : mark exception
+    bwe       --> Exception     : mark exception
+
+    Exception --> Received      : resolve to
+    Exception --> Drafting      : resolve to
+    Exception --> checking      : resolve to
+    Exception --> Released      : resolve to
+    Exception --> Breached      : resolve to
+    Exception --> bwe           : resolve to
+
+    Released  --> [*]
+```
 
 ### 5.3 Event Capture and Auditability
 
@@ -348,6 +428,70 @@ A unified modal used across Executive Dashboard, Queue, All Transactions, and No
 
 Unique constraint: `(name, section)` compound index on both tables.
 
+### Entity-Relationship Diagram
+
+```mermaid
+erDiagram
+    lcs {
+        uint64  id               PK
+        string  urn              UK
+        string  transactionType
+        string  status
+        string  assignedTo
+        string  approvedBy
+        datetime receivedAt
+        datetime draftingStartedAt
+        datetime checkingStartedAt
+        datetime releasedAt
+        datetime exceptionStartedAt
+        int     exceptionTotalMinutes
+        string  previousStatus
+    }
+    lc_exceptions {
+        uint64  id               PK
+        uint64  lcId             FK
+        text    reason
+        datetime startedAt
+        datetime resolvedAt
+        int     resolutionMinutes
+        string  resolvedToStatus
+        string  resolvedBy
+    }
+    events {
+        uint64  id               PK
+        uint64  lcId             FK
+        string  urn
+        string  userId
+        string  action
+        string  fromStatus
+        string  toStatus
+        datetime occurredAt
+    }
+    sla_config {
+        uint64  id               PK
+        int     importSLAMaxMinutes
+        int     exportSLAMaxMinutes
+        int     bgSLAMaxMinutes
+        int     warningThreshold1
+        int     warningThreshold2
+    }
+    assignees {
+        uint64  id               PK
+        string  name
+        string  section
+        bool    isActive
+    }
+    officers {
+        uint64  id               PK
+        string  name
+        string  section
+        bool    isActive
+    }
+
+    lcs          ||--o{ lc_exceptions : "has"
+    lcs          ||--o{ events        : "generates"
+```
+
 ## 7. Current vs Target State
 
 | Capability | Current State | Target State |
@@ -564,7 +708,176 @@ Unique constraint: `(name, section)` compound index on both tables.
 3. Add reporting/export and audit-focused policy controls.
 4. Add server-side notification persistence and push capability.
 
-## 14. Acceptance Baseline for Current Release
+## 14. External Automation Workflows (n8n)
+
+Three n8n automation workflows are implemented in `automations/` and operate independently of the Angular/Go stack. They call the backend REST API directly and are not orchestrated by the application itself.
+
+### 14.1 AI Summarizer (`ai_summarizer.json`)
+
+**Purpose**: On-demand bilingual executive summary of the current trade operations queue.
+
+**Trigger**: HTTP `POST` to n8n webhook path `/ai-summarizer-trade-shila`.
+
+**LLM models**: Ollama `qwen3.5:397b` (primary) with Google Gemini `gemini-3.1-pro-preview` as fallback.
+
+**Agent tools** (calls backend API):
+
+| Tool | Endpoint called |
+| --- | --- |
+| `get_sla_config` | `GET /api/sla` |
+| `get_lc_queue` | `GET /api/lc?limit=500&fromDate=...&toDate=...` |
+| `get_lc_events` | `GET /api/events?limit=500&urn=...` |
+| `get_lc_exceptions` | `GET /api/lc/:id/exceptions` |
+| `get_staff_assignees` | `GET /api/assignees` |
+| `get_officers` | `GET /api/officers` |
+
+**Output**: Plain text returned in the webhook response — a bilingual (Bahasa Indonesia + English) executive summary containing:
+- Status overview table: active, released, breached, warning, safe, SLA compliance % by stream.
+- Critical L/C list with elapsed time, bottleneck stage, root cause, and recommendation per item.
+- At-risk L/C list with remaining SLA time and recommendation per item.
+- Staff workload table with active count, breach count, and overload flag.
+- Top 3 strategic recommendations.
+
+```mermaid
+flowchart LR
+    A["POST\n/ai-summarizer-trade-shila"] --> B
+
+    subgraph agent["AI Agent — Ollama qwen3.5:397b / Gemini gemini-3.1-pro-preview"]
+        B["1. get_sla_config"]
+        C["2. get_lc_queue (today)"]
+        D["3. get_lc_events (per breach/warning URN)"]
+        E["4. get_lc_exceptions (per exception LC)"]
+        F["5. get_staff_assignees"]
+        G["6. get_officers"]
+    end
+
+    B --> C --> D --> E --> F --> G --> H
+
+    H["Respond to Webhook\n(plain text)"] --> I["Bilingual Executive Summary\nID + EN\n\n• Status overview by stream\n• Critical LCs + root cause\n• At-risk LCs\n• Staff workload table\n• Top 3 recommendations"]
+```
+
+### 14.2 Early Warning Tracker (`early_warning_tracker.json`)
+
+**Purpose**: Automated polling for SLA threshold breaches; dispatches structured notifications to multiple channels when alerts are detected.
+
+**Triggers**:
+- Schedule: every 10 minutes (automatic polling).
+- HTTP `POST` to webhook path `/early-warning-trade-shila` (manual on-demand trigger).
+
+**LLM models**: Google Gemini `gemini-2.5-pro` (primary) with Ollama `minimax-m2.7` as fallback.
+
+**Agent tools** (calls backend API):
+
+| Tool | Endpoint called |
+| --- | --- |
+| `get_sla_config` | `GET /api/sla` |
+| `get_active_lcs` | `GET /api/lc?limit=500` |
+| `get_lc_events` | `GET /api/events?limit=500&urn=...` |
+| `get_lc_exceptions` | `GET /api/lc/:id/exceptions` |
+| `get_staff_workload` | `GET /api/assignees` |
+
+**Classification logic**:
+- KRITIS: status is `Breached` / `Breached with Exception`, or elapsed > SLA max.
+- PERINGATAN: elapsed ≥ 75% of SLA max and ≤ SLA max.
+- AMAN: elapsed < 75% of SLA max.
+
+**Output format**: Structured JSON with `alertLevel`, `summary`, `criticalAlerts[]`, `warningAlerts[]`, `staffWorkloadAnalysis[]`, and bilingual executive summary strings.
+
+**Notification channels** (configured in workflow, currently disabled):
+- Email to Executive.
+- Email to Officer (scoped to their relevant L/Cs).
+- Slack alert (compact formatted message).
+- WhatsApp message (condensed summary with top 3 critical items).
+
+**Conditional dispatch**: An `Ada Alert?` branch node suppresses all outbound notifications when alert level is AMAN; the webhook responds with a plain "all clear" JSON payload instead.
+
+```mermaid
+flowchart TD
+    T1["⏱ Schedule — every 10 min"]  --> AG
+    T2["POST /early-warning-trade-shila"] --> AG
+
+    subgraph agent["Early Warning AI Agent — Gemini 2.5 Pro / Ollama minimax-m2.7"]
+        AG["Classify all active LCs\nKRITIS · PERINGATAN · AMAN"]
+        S1["get_sla_config"]
+        S2["get_active_lcs"]
+        S3["get_lc_events (per at-risk URN)"]
+        S4["get_lc_exceptions (per breach ID)"]
+        S5["get_staff_workload"]
+    end
+
+    S1 & S2 & S3 & S4 & S5 --> AG
+    AG --> P["Parse & Format Messages\n(JS node)"]
+    P  --> IF{"Ada Alert?\nKRITIS or PERINGATAN?"}
+
+    IF -->|Yes| E1["📧 Email → Executive"]
+    IF -->|Yes| E2["📧 Email → Officer"]
+    IF -->|Yes| E3["💬 Slack Alert"]
+    IF -->|Yes| E4["📱 WhatsApp Message"]
+    IF -->|Yes| R1["Respond JSON\ncriticalAlerts · warningAlerts\nstaffWorkloadAnalysis"]
+
+    IF -->|No| R2["Respond AMAN\nalertLevel = AMAN"]
+```
+
+*Email, Slack, and WhatsApp nodes are currently configured but disabled.*
+
+### 14.3 Root Cause Mining (`root_cause_mining.json`)
+
+**Purpose**: Weekly deep-dive analysis of the past 7 days of processing data to discover systemic patterns driving SLA breaches.
+
+**Triggers**:
+- Schedule: every Monday at 07:00 (automatic weekly run).
+- HTTP `POST` to webhook path `/root-cause-mining` (manual on-demand trigger).
+
+**LLM models**: Google Gemini `gemini-2.5-pro` (primary) with Ollama `qwen3.5:397b` as fallback.
+
+**Agent tools** (calls backend API):
+
+| Tool | Endpoint called |
+| --- | --- |
+| `get_sla_config` | `GET /api/sla` |
+| `get_all_lcs` | `GET /api/lc?limit=500&fromDate=...&toDate=...` |
+| `get_all_events` | `GET /api/events?limit=500&fromDate=...&toDate=...` |
+| `get_lc_exceptions` | `GET /api/lc/:id/exceptions` |
+| `get_staff_workload` | `GET /api/assignees` |
+
+**Analysis framework** (performed by the agent):
+1. **Bottleneck stage analysis**: average dwell time per lifecycle stage; flags stages consuming > 50% of SLA budget.
+2. **Exception pattern mining**: groups exceptions by reason; identifies top 3 causes by frequency and average resolution time.
+3. **Staff workload correlation**: breach rate per assignee; flags staff-to-transaction-type pairings with elevated breach rates.
+4. **Temporal pattern detection**: groups breaches by day-of-week and hour-of-day to surface recurring hotspots.
+5. **Transaction type breakdown**: SLA compliance rate comparison across Import, Export, and Bank Guarantee.
+
+**Output**: Bilingual (English + Bahasa Indonesia) structured weekly report with tables for each analysis section and top 3 strategic recommendations. Delivered as plain text in the webhook response and optionally via email (SMTP node, currently disabled).
+
+```mermaid
+flowchart TD
+    T1["⏰ Monday 07:00"] --> AG
+    T2["POST /root-cause-mining"] --> AG
+
+    subgraph agent["Root Cause Mining Agent — Gemini 2.5 Pro / Ollama qwen3.5:397b"]
+        AG["Analyze last 7 days"]
+        S1["get_sla_config"]
+        S2["get_all_lcs (last 7 days)"]
+        S3["get_all_events (last 7 days)"]
+        S4["get_lc_exceptions (per breach)"]
+        S5["get_staff_workload"]
+    end
+
+    S1 & S2 & S3 & S4 & S5 --> AG
+
+    AG --> F["Format Output"]
+
+    F --> R1["Respond to Webhook\n(plain text report)"]
+    F --> R2["📧 Email Report via SMTP\n(disabled)"]
+
+    R1 --> RPT["Bilingual Weekly Report\n\n1. Bottleneck stage analysis\n2. Exception pattern mining\n3. Staff workload correlation\n4. Temporal hotspot detection\n5. Transaction type health\n6. Strategic recommendations"]
+```
+
+*Email node is currently configured but disabled.*
+
+---
+
+## 15. Acceptance Baseline for Current Release
 
 The current release is considered aligned with this PRD when all conditions below are met:
 
