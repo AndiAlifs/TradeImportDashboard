@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,7 +6,7 @@ import { ActivatedRoute } from '@angular/router';
 import { DataStoreService, UpdateLCRequest } from '../services/data-store.service';
 import { TranslatePipe } from '../pipes/translate.pipe';
 import { TranslationService } from '../services/translation.service';
-import { getTimelineLabel } from '../utils/stage-duration';
+import { getTimelineLabel, computeLcStageDurations, formatMinutesLabel } from '../utils/stage-duration';
 import { LcDetailModalComponent } from '../components/lc-detail-modal/lc-detail-modal.component';
 
 @Component({
@@ -46,6 +47,7 @@ import { LcDetailModalComponent } from '../components/lc-detail-modal/lc-detail-
             <button class="filter-btn" *ngFor="let f of filters"
               [class.active]="currentFilter() === f.value"
               (click)="setFilter(f.value)">{{ f.label }}</button>
+            <button class="export-btn" type="button" (click)="exportToExcel()" [disabled]="isExporting">{{ isExporting ? '…' : ('action.export_excel' | translate) }}</button>
           </div>
         </div>
         <div class="table-scroll" style="max-height: calc(100vh - 250px);">
@@ -181,7 +183,21 @@ import { LcDetailModalComponent } from '../components/lc-detail-modal/lc-detail-
       </div>
 
     </div>
-  `
+  `,
+  styles: [`
+    .export-btn {
+      padding: 6px 14px;
+      background: #217346;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .export-btn:hover { background: #1a5c38; }
+  `]
 })
 export class AllLcsComponent implements OnInit {
   getTimelineLabel = getTimelineLabel;
@@ -200,6 +216,7 @@ export class AllLcsComponent implements OnInit {
   savingEdit = false;
   deleteTargetLc: any = null;
   deletingLc = false;
+  isExporting = false;
   editForm: UpdateLCRequest = this.emptyEditForm();
   transactionType = signal<string>('Import');
   customFrom = '';
@@ -633,6 +650,125 @@ export class AllLcsComponent implements OnInit {
     if (elapsed <= warningThreshold) return `<span class="sla-indicator green">✓ ${this.ts.translate('sla.ok')}</span>`;
     if (elapsed <= maxSla) return `<span class="sla-indicator yellow">⚠ ${this.ts.translate('sla.warning')}</span>`;
     return `<span class="sla-indicator red">✗ ${this.ts.translate('sla.breach')}</span>`;
+  }
+
+  private getSlaStatusText(r: any): string {
+    const sla = this.dataStore.slaConfig();
+    let maxSla = sla.importSlaMaxMinutes;
+    if (r.transactionType === 'Export') maxSla = sla.exportSlaMaxMinutes;
+    if (r.transactionType === 'Bank Guarantee') maxSla = sla.bgSlaMaxMinutes;
+    const warningThreshold = Math.floor(maxSla * 0.75);
+    if (r.status === 'Breached with Exception') return `${this.ts.translate('sla.breach')} w/ Exception`;
+    if (r.status === 'Released' && r.releasedAt) {
+      const total = Math.round((new Date(r.releasedAt).getTime() - new Date(r.receivedAt).getTime()) / 60000);
+      if (total <= warningThreshold) return this.ts.translate('sla.ok');
+      if (total <= maxSla) return this.ts.translate('sla.warning');
+      return this.ts.translate('sla.breach');
+    }
+    const elapsed = this.getElapsedMinutes(r);
+    if (elapsed <= warningThreshold) return this.ts.translate('sla.ok');
+    if (elapsed <= maxSla) return this.ts.translate('sla.warning');
+    return this.ts.translate('sla.breach');
+  }
+
+  async exportToExcel(): Promise<void> {
+    if (this.isExporting) return;
+    this.isExporting = true;
+    try {
+      const rows = this.filteredRecords();
+      const t = (k: string) => this.ts.translate(k);
+
+      // Fetch exception history only for LCs that have had exceptions
+      const exceptionMap = new Map<any, any[]>();
+      const lcWithExceptions = rows.filter(r => r.exceptionStartedAt || (r.exceptionTotalMinutes ?? 0) > 0);
+      await Promise.all(lcWithExceptions.map(async r => {
+        const history = await this.dataStore.getLCExceptions(r.id);
+        exceptionMap.set(r.id, history);
+      }));
+
+      // ── Sheet 1: Summary ──
+      const summaryData = rows.map(r => ({
+        [t('excel.col.urn')]: r.urn,
+        [t('excel.col.type')]: r.transactionType,
+        [t('excel.col.drafted_by')]: r.assignedTo,
+        [t('excel.col.released_by')]: r.approvedBy ?? '—',
+        [t('excel.col.status')]: r.status,
+        [t('excel.col.received_datetime')]: r.receivedAt ? this.formatDateTime(r.receivedAt) : '—',
+        [t('excel.col.released_datetime')]: r.releasedAt ? this.formatDateTime(r.releasedAt) : '—',
+        [t('excel.col.elapsed')]: r._elapsedFormatted,
+        [t('excel.col.sla_status')]: this.getSlaStatusText(r),
+        [t('excel.col.exc_count')]: (exceptionMap.get(r.id) ?? []).length,
+        [t('excel.col.exc_minutes')]: r.exceptionTotalMinutes ?? 0,
+      }));
+
+      // ── Sheet 2: Stage Detail ──
+      const stageNames: Record<string, string> = { inbox: 'Inbox', drafting: 'Drafting', checking: 'Checking', exception: 'Exception' };
+      const stageStart = (r: any, key: string): string => {
+        if (key === 'inbox') return r.receivedAt;
+        if (key === 'drafting') return r.draftingStartedAt;
+        if (key === 'checking') return r.checkingStartedAt;
+        if (key === 'exception') return r.exceptionStartedAt;
+        return '';
+      };
+      const stageEnd = (r: any, key: string): string => {
+        if (key === 'inbox') return r.draftingStartedAt;
+        if (key === 'drafting') return r.checkingStartedAt;
+        if (key === 'checking') return r.releasedAt;
+        if (key === 'exception') return r.exceptionResolvedAt;
+        return '';
+      };
+      const stageData: any[] = [];
+      for (const r of rows) {
+        const stages = computeLcStageDurations(r);
+        for (const stage of stages) {
+          const start = stageStart(r, stage.key);
+          const end = stageEnd(r, stage.key);
+          stageData.push({
+            [t('excel.col.urn')]: r.urn,
+            [t('excel.col.type')]: r.transactionType,
+            [t('excel.col.drafted_by')]: r.assignedTo,
+            [t('excel.col.status')]: r.status,
+            [t('excel.col.stage')]: stageNames[stage.key] ?? stage.key,
+            [t('excel.col.started_at')]: start ? this.formatDateTime(start) : '—',
+            [t('excel.col.ended_at')]: end ? this.formatDateTime(end) : (stage.isActive ? '*(active)*' : '—'),
+            [t('excel.col.duration_min')]: stage.minutes,
+            [t('excel.col.duration')]: formatMinutesLabel(stage.minutes),
+          });
+        }
+      }
+
+      // ── Sheet 3: Exception History ──
+      const excData: any[] = [];
+      for (const r of rows) {
+        const history = exceptionMap.get(r.id) ?? [];
+        history.forEach((ex: any, idx: number) => {
+          excData.push({
+            [t('excel.col.urn')]: r.urn,
+            [t('excel.col.type')]: r.transactionType,
+            [t('excel.col.drafted_by')]: r.assignedTo,
+            [t('excel.col.exc_no')]: idx + 1,
+            [t('excel.col.exc_started')]: ex.startedAt ? this.formatDateTime(ex.startedAt) : '—',
+            [t('excel.col.exc_resolved')]: ex.resolvedAt ? this.formatDateTime(ex.resolvedAt) : '*(unresolved)*',
+            [t('excel.col.duration_min')]: ex.resolutionMinutes ?? '—',
+            [t('excel.col.exc_reason')]: ex.reason ?? '—',
+            [t('excel.col.exc_returned_to')]: ex.resolvedToStatus ?? '—',
+            [t('excel.col.exc_resolved_by')]: ex.resolvedBy ?? '—',
+          });
+        });
+      }
+
+      // ── Build workbook ──
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(stageData.length ? stageData : [{}]), 'Stage Detail');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(excData.length ? excData : [{}]), 'Exception History');
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      const typePart = this.transactionType().replace(/\s+/g, '_');
+      XLSX.writeFile(wb, `${typePart}_LCs_${dateStr}.xlsx`);
+    } finally {
+      this.isExporting = false;
+    }
   }
 
   private getElapsedMinutes(r: any): number {
