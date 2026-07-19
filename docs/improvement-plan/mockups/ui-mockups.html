@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHILA UI/UX Mockups — Before / After</title>
+<style>
+  /* Self-contained: system fonts only, zero external requests (principle U1) */
+  :root{
+    /* Proposed Mandiri-aligned tokens (approx — confirm vs brand guideline) */
+    --blue-900:#002B5C; --blue-700:#003D79; --blue-500:#0057A8; --blue-050:#EBF3FB;
+    --gold-500:#FDB913; --gold-700:#C98F00;
+    --safe:#0E7A46; --warn:#B45309; --danger:#B91C1C;
+    --bg:#F6F8FB; --card:#fff; --text:#0B1F35; --text2:#51637A; --border:#DCE4EE;
+    /* Current (before) palette */
+    --old-accent:#6366f1; --old-sidebar:#0f172a; --old-warn:#f59e0b; --old-danger:#ef4444; --old-safe:#10b981;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#e8ecf2;color:var(--text);padding:24px;line-height:1.45}
+  h1{font-size:1.4rem;margin-bottom:4px} .sub{color:var(--text2);margin-bottom:24px;font-size:.9rem}
+  h2{font-size:1.05rem;margin:32px 0 12px;border-left:4px solid var(--gold-500);padding-left:10px}
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:1100px){.pair{grid-template-columns:1fr}}
+  .frame{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(11,31,53,.06)}
+  .frame-label{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 14px;border-bottom:1px solid var(--border)}
+  .frame-label.before{background:#fef2f2;color:#991b1b}.frame-label.after{background:#ecfdf5;color:#065f46}
+  .app{display:flex;min-height:360px;font-size:12.5px}
+  .note{font-size:.8rem;color:var(--text2);padding:10px 14px;border-top:1px dashed var(--border)}
+  .note b{color:var(--text)}
+
+  /* ---- shared mini-app scaffolding ---- */
+  .side{width:150px;flex-shrink:0;color:#94a3b8;padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+  .side .brand{font-weight:800;color:#fff;font-size:.95rem;padding:6px 8px 12px;display:flex;align-items:center;gap:6px}
+  .side a{display:block;padding:6px 9px;border-radius:7px;color:inherit;text-decoration:none}
+  .main{flex:1;background:var(--bg);padding:14px;overflow:hidden}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;font-size:11.5px}
+  th{text-align:left;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;padding:7px 8px;border-bottom:1px solid var(--border)}
+  td{padding:7px 8px;border-bottom:1px solid #eef2f7;vertical-align:middle}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-weight:600;font-size:.66rem}
+  .btn{display:inline-block;border:none;border-radius:7px;padding:5px 10px;font-weight:600;font-size:.7rem;cursor:default}
+  .bar{height:6px;border-radius:4px;background:#e5e7eb;position:relative;min-width:70px}
+  .bar i{position:absolute;inset:0 auto 0 0;border-radius:4px}
+
+  /* ---- BEFORE skin ---- */
+  .b .side{background:var(--old-sidebar)}
+  .b .side .active{background:#334155;color:#f1f5f9}
+  .b .mockrole{margin:8px 4px;padding:7px;border:1px solid #47556933;border-radius:8px;background:#0b1220;font-size:.6rem;color:#cbd5e1}
+  .b .kpi{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px}
+  .b .kpi .v{font-size:1.25rem;font-weight:800;color:var(--old-accent)}
+  .b .btn{background:var(--old-accent);color:#fff}
+  .b .pill.s{background:#d1fae5;color:#065f46}.b .pill.w{background:#fef3c7;color:#92400e}.b .pill.d{background:#fee2e2;color:#991b1b}
+
+  /* ---- AFTER skin ---- */
+  .a .side{background:var(--blue-900)}
+  .a .side .active{background:rgba(255,255,255,.09);color:#fff;border-left:3px solid var(--gold-500);border-radius:0 7px 7px 0}
+  .a .waves{display:inline-block;width:18px;height:12px;background:
+      linear-gradient(100deg,transparent 40%,var(--gold-500) 40% 52%,transparent 52% 62%,var(--gold-500) 62% 74%,transparent 74% 84%,var(--gold-500) 84% 96%,transparent 96%)}
+  .a .kpi{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;border-top:3px solid var(--blue-700)}
+  .a .kpi .v{font-size:1.25rem;font-weight:800;color:var(--blue-700)}
+  .a .btn{background:var(--blue-700);color:#fff}
+  .a .btn.ghost{background:var(--blue-050);color:var(--blue-700)}
+  .a .pill.s{background:#E7F4EC;color:var(--safe)}.a .pill.w{background:#FBF0E1;color:var(--warn)}.a .pill.d{background:#FBEAEA;color:var(--danger)}
+  .a .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);background:#fff;border-radius:99px;padding:3px 10px;font-size:.68rem;font-weight:600;color:var(--text2)}
+  .a .chip.on{background:var(--blue-050);border-color:var(--blue-500);color:var(--blue-700)}
+  .a .sla{display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.7rem}
+  .a kbd{background:#fff;border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;padding:0 4px;font-size:.62rem;color:var(--text2)}
+  .a .atrisk{background:#FFF9EC}
+  .a .atrisk td:first-child{box-shadow:inset 3px 0 0 var(--warn)}
+
+  /* token strip */
+  .tokens{display:flex;flex-wrap:wrap;gap:10px}
+  .tok{width:150px;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:.7rem}
+  .tok .sw{height:44px;display:flex;align-items:flex-end;padding:4px 8px;font-weight:700}
+  .tok .m{padding:6px 8px;color:var(--text2)}
+  .ok{color:var(--safe);font-weight:700}.no{color:var(--danger);font-weight:700}
+</style>
+</head>
+<body>
+<h1>SHILA — UI/UX Improvement Mockups</h1>
+<p class="sub">Before / after direction mockups (illustrative, not pixel specs) · self-contained file, zero external assets · companion to <code>2026-07-20-ui-ux-improvement-plan.md</code></p>
+
+<h2>1 · Operator Queue — the daily work surface</h2>
+<div class="pair">
+  <!-- BEFORE QUEUE -->
+  <div class="frame b">
+    <div class="frame-label before">Before — current</div>
+    <div class="app">
+      <nav class="side">
+        <div class="brand">🕐 Shila</div>
+        <div class="mockrole">MOCK ROLE<br><b style="color:#fff">import_staff ▾</b></div>
+        <a>Executive</a><a class="active">Import Queue</a><a>All Import</a><a>Create</a>
+      </nav>
+      <div class="main">
+        <table>
+          <tr><th>URN</th><th>Subject</th><th>Status</th><th>Elapsed</th><th>SLA</th><th>Action</th></tr>
+          <tr><td>IMP-2201</td><td>LC PT Sinar A…</td><td><span class="pill w">Drafting</span></td><td>41m</td><td><div class="bar"><i style="width:45%;background:var(--old-warn)"></i></div></td><td><button class="btn">Start Checking</button></td></tr>
+          <tr><td>IMP-2199</td><td>LC PT Baja M…</td><td><span class="pill s">Received</span></td><td>12m</td><td><div class="bar"><i style="width:13%;background:var(--old-safe)"></i></div></td><td><button class="btn">Start Drafting</button></td></tr>
+          <tr><td>IMP-2195</td><td>SKBDN CV Ta…</td><td><span class="pill d">Checking</span></td><td>84m</td><td><div class="bar"><i style="width:93%;background:var(--old-danger)"></i></div></td><td><button class="btn">Release</button></td></tr>
+          <tr><td>IMP-2203</td><td>LC PT Kimia…</td><td><span class="pill s">Received</span></td><td>4m</td><td><div class="bar"><i style="width:5%;background:var(--old-safe)"></i></div></td><td><button class="btn">Start Drafting</button></td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="note"><b>Issues:</b> generic indigo brand · most-at-risk row (2195) buried mid-list · SLA bar is color-only (F-6) · every action opens a confirm modal · mock-role card visible (F-8) · no keyboard path.</div>
+  </div>
+
+  <!-- AFTER QUEUE -->
+  <div class="frame a">
+    <div class="frame-label after">After — proposed</div>
+    <div class="app">
+      <nav class="side">
+        <div class="brand"><span class="waves"></span> SHILA</div>
+        <a>Executive</a><a class="active">Import Queue</a><a>All Import</a><a>Create</a>
+      </nav>
+      <div class="main">
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <span class="chip on">⚠ At-risk first</span><span class="chip">Breached</span><span class="chip">Mine</span><span class="chip">Exception</span>
+          <span class="chip" style="margin-left:auto">Press <kbd>?</kbd> for shortcuts</span>
+        </div>
+        <table>
+          <tr><th>URN</th><th>Subject</th><th>Status</th><th>Time to SLA</th><th>Action</th></tr>
+          <tr class="atrisk"><td><b>IMP-2195</b></td><td>SKBDN CV Ta…</td><td><span class="pill d">⏱ Checking</span></td>
+            <td><span class="sla" style="color:var(--danger)">▲ 6m left <span class="bar" style="width:64px"><i style="width:93%;background:var(--danger)"></i></span> 93%</span></td>
+            <td><button class="btn">Release <kbd style="border-color:#ffffff55;color:#fff">R</kbd></button></td></tr>
+          <tr><td>IMP-2201</td><td>LC PT Sinar A…</td><td><span class="pill w">✎ Drafting</span></td>
+            <td><span class="sla" style="color:var(--warn)">● 49m left <span class="bar" style="width:64px"><i style="width:45%;background:var(--warn)"></i></span> 45%</span></td>
+            <td><button class="btn ghost">Start Checking</button></td></tr>
+          <tr><td>IMP-2199</td><td>LC PT Baja M…</td><td><span class="pill s">✓ Received</span></td>
+            <td><span class="sla" style="color:var(--safe)">● 78m left <span class="bar" style="width:64px"><i style="width:13%;background:var(--safe)"></i></span> 13%</span></td>
+            <td><button class="btn ghost">Start Drafting</button></td></tr>
+        </table>
+        <div style="margin-top:8px;background:var(--blue-050);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:.7rem;color:var(--blue-700)">
+          ✓ IMP-2199 → Drafting · <b>Undo</b> (4s) — optimistic UI, reconciled by SSE
+        </div>
+      </div>
+    </div>
+    <div class="note"><b>Changes:</b> Mandiri blue-900 sidebar + gold active bar · at-risk sorted to top with amber row & edge mark · SLA chip = time-left + % + icon (never color alone, U3) · quick-filter chips · inline action + undo toast replaces confirm modal · keyboard hints (<b>P1-1…P1-5</b>).</div>
+  </div>
+</div>
+
+<h2>2 · Executive Dashboard — header & KPI band</h2>
+<div class="pair">
+  <!-- BEFORE EXEC -->
+  <div class="frame b">
+    <div class="frame-label before">Before — current</div>
+    <div class="app">
+      <nav class="side"><div class="brand">🕐 Shila</div><a class="active">Executive</a><a>Import</a><a>Export</a><a>BG</a></nav>
+      <div class="main">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">IMPORT SLA</div><div class="v">98.2%</div></div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">EXPORT SLA</div><div class="v">99.1%</div></div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">BG SLA</div><div class="v">97.4%</div></div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">BREACHES</div><div class="v" style="color:var(--old-danger)">7</div></div>
+        </div>
+        <div style="margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:10px;height:110px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:.75rem">(blank while loading — panels jump when data lands)</div>
+      </div>
+    </div>
+    <div class="note"><b>Issues:</b> four equal cards, no hierarchy — the headline number doesn't lead · indigo accents · blank panels during load (F-10) · charts rely on legend + color only.</div>
+  </div>
+
+  <!-- AFTER EXEC -->
+  <div class="frame a">
+    <div class="frame-label after">After — proposed</div>
+    <div class="app">
+      <nav class="side"><div class="brand"><span class="waves"></span> SHILA</div><a class="active">Executive</a><a>Import</a><a>Export</a><a>BG</a></nav>
+      <div class="main">
+        <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:8px">
+          <div class="kpi" style="border-top-color:var(--gold-700)">
+            <div style="font-size:.6rem;color:var(--text2)">OVERALL SLA COMPLIANCE — THIS PERIOD</div>
+            <div class="v" style="font-size:1.7rem">98.4% <span style="font-size:.7rem;color:var(--safe)">▲ +1.2 pt vs prev</span></div>
+            <div style="font-size:.62rem;color:var(--text2)">1,204 transactions · 7 breaches</div>
+          </div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">📦 IMPORT</div><div class="v" style="font-size:1.05rem">98.2%</div></div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">🚢 EXPORT</div><div class="v" style="font-size:1.05rem">99.1%</div></div>
+          <div class="kpi"><div style="font-size:.6rem;color:var(--text2)">🛡 BG</div><div class="v" style="font-size:1.05rem">97.4%</div></div>
+        </div>
+        <div style="margin-top:10px;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px">
+          <div style="font-size:.65rem;color:var(--text2);margin-bottom:6px">AVG STAGE DURATION vs SLA TARGET (direct-labeled)</div>
+          <div style="display:flex;align-items:flex-end;gap:14px;height:64px;position:relative">
+            <div style="position:absolute;left:0;right:0;top:12px;border-top:2px dashed var(--gold-700);font-size:.58rem;color:var(--gold-700)"><span style="background:#fff;padding:0 4px">SLA target 90m</span></div>
+            <div style="width:52px;background:var(--blue-700);height:58%;border-radius:5px 5px 0 0;color:#fff;font-size:.6rem;text-align:center">78m<br>Import</div>
+            <div style="width:52px;background:var(--blue-500);height:47%;border-radius:5px 5px 0 0;color:#fff;font-size:.6rem;text-align:center">63m<br>Export</div>
+            <div style="width:52px;background:#7BA3C9;height:38%;border-radius:5px 5px 0 0;color:#fff;font-size:.6rem;text-align:center">51m<br>BG</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><b>Changes:</b> one primary KPI leads (gold-topped card) with trend + context, streams become secondary (E-1) · SLA target drawn on chart, bars direct-labeled (E-2) · skeletons replace blank panels (E-3) · brand header with wave motif (E-6).</div>
+  </div>
+</div>
+
+<h2>3 · Proposed token palette (approx — confirm vs official guideline)</h2>
+<div class="tokens">
+  <div class="tok"><div class="sw" style="background:#002B5C;color:#fff">blue-900</div><div class="m">Sidebar / header · on-white text <span class="ok">AA ✓ 12.6:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#003D79;color:#fff">blue-700</div><div class="m">Primary actions, links <span class="ok">AA ✓ 9.9:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#0057A8;color:#fff">blue-500</div><div class="m">Hover / secondary <span class="ok">AA ✓ 6.5:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#FDB913">gold-500</div><div class="m">Accent only — <span class="no">text on white ✗ 1.9:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#C98F00;color:#fff">gold-700</div><div class="m">Small gold accents on white <span class="ok">3.1:1 (large/AA-lg)</span></div></div>
+  <div class="tok"><div class="sw" style="background:#0E7A46;color:#fff">status-safe</div><div class="m">Replaces #10b981 <span class="ok">AA ✓ 5.0:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#B45309;color:#fff">status-warning</div><div class="m">Replaces #f59e0b <span class="ok">AA ✓ 4.6:1</span></div></div>
+  <div class="tok"><div class="sw" style="background:#B91C1C;color:#fff">status-danger</div><div class="m">Replaces #ef4444 <span class="ok">AA ✓ 6.2:1</span></div></div>
+</div>
+
+<p class="sub" style="margin-top:26px">Every state above also carries an icon/label — color is never the only signal (U3). Audio on the early-warning modal becomes opt-in; urgency moves to visual hierarchy (A-3).</p>
+</body>
+</html>
