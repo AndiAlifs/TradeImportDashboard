@@ -422,11 +422,41 @@ Route/menu guards and backend middleware extend the current `X-Mock-Role` model;
 
 ## 19. Notification Architecture
 
-Move from today's client-side computed notifications to a **server-side notification service** (already anticipated in PRD Phase B):
+Move from today's client-side computed notifications to a **server-side notification service** in the Go backend (already anticipated in PRD Phase B). The service is transport-agnostic; the primary transport is the bank's **on-prem SMTP relay** (Exchange / mail gateway), which satisfies the no-cloud constraint (**P6**) — email never leaves bank infrastructure. In-app, Slack, and WhatsApp remain secondary internal channels.
 
-- **Internal alerts** (early warning, stranded transaction, SWIFT NAK, discrepancy) → existing channels (in-app, and the disabled n8n Email/Slack/WhatsApp, re-enabled for *internal* recipients).
-- **Customer notifications** → governed bank email now, KOPRA portal next; every send is logged, de-duplicated, and preference-aware.
-- **Separation:** customer-facing and internal channels are distinct pipelines with different governance. n8n is fine for internal ops alerts; customer comms go through approved bank infrastructure.
+### 19.1 Three follow-up tracks (same SMTP transport, different rules)
+
+| Track | Audience | Content | Cadence | Governance |
+| --- | --- | --- | --- | --- |
+| **Internal — Staff** | Assignee / officer | "You have N at-risk transactions", action nudges, escalation | Event + digest | Operational detail permitted; internal relay |
+| **Internal — Executive** | Managers / execs | Breach escalations, stranded-transaction alerts, daily/weekly rollup | Digest + on-breach | Operational detail permitted; internal relay |
+| **External — Customer** | Registered customer contact | Plain-language **milestones only** (§14) | Event-driven per milestone | Milestone-only, no confidential terms, anti-phishing, relationship-managed for rejection/breach |
+
+- **Escalation ladder** (feature #1): if the assignee does not act within a threshold, the follow-up climbs staff → officer → manager. An alert cannot die silently.
+- **Digest vs event split** to prevent email fatigue: execs get a daily rollup (not one email per event); customers get one email per milestone; staff are nudged only when action is needed.
+
+### 19.2 Reliability
+
+- Outbound email is an **async queued job** with retry + backoff — **never in the request path**.
+- Every send is logged as `sent / bounced / failed` (via `customer_notifications`, extended to internal recipients) and de-duplicated by `dedupeKey`.
+- **Bounce / failure fallback:** surface in-app and route to RM/officer follow-up; a notification is never silently lost.
+- **Rate-limiting / batching** protects the relay under volume peaks.
+
+### 19.3 Deliverability & anti-spoofing (customer mail)
+
+- **SPF / DKIM / DMARC** aligned on the sending domain; consistent branding and sender identity.
+- **No credential prompts and no data-entry links** — only a normal KOPRA login link. This trains customers *against* phishing (reinforces §14.3).
+
+### 19.4 Policy guards
+
+- **No customer "we're delayed" mail while on a compliance hold** (**P1**).
+- **Breach is never auto-announced to a customer** — executive track only; any customer message is a deliberate, relationship-managed choice (§14.4).
+- Optional **business-hours send window** for customer mail (respect the business calendar).
+- **Security:** SMTP credentials vaulted; TLS to the relay; least privilege.
+
+### 19.5 Channel separation (enforced)
+
+Customer mail flows **only** through the governed Go notification service over the internal relay. **n8n stays internal-only** (ops alerts to Slack / WhatsApp / internal email) and never sends customer-facing mail.
 
 ## 20. Edge Cases
 
@@ -516,7 +546,7 @@ Grouped by area. These are the cases most likely to bite in production.
 3. **KOPRA integration** — API/security approval path and timeline for portal status.
 4. **Intake / Review sub-SLA targets** — numeric minutes per transaction type.
 5. **SWIFT ACK threshold** — minutes after Release before a missing-ACK alert.
-6. **Governed customer-email channel** — which approved bank infrastructure sends customer notifications.
+6. **SMTP relay & deliverability** — which on-prem relay (Exchange / gateway) sends notifications; SPF/DKIM/DMARC and sender domain for customer mail; distribution lists for the executive track.
 7. **Business calendar** — working hours, cut-off times, holiday source per branch/timezone.
 8. **Customer contact master** — authoritative source of recipient + language.
 
