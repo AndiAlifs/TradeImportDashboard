@@ -155,6 +155,10 @@ Detailed design for each pillar is in **Part B**.
 | Customers proactively notified per stage | 0% | 100% of eligible transactions |
 | Complaints about "no update / where is my L/C" | Untracked | Establish baseline, then reduce |
 | Compliance decisions with SLA pressure flagged | N/A | 0 (by design) |
+| **First-Time-Right rate** (no internal rework loop) | Untracked | Establish baseline, then ≥ 95% (App. E-3) |
+| **ETA kept** (issued at/before the communicated committed-by time) | N/A | ≥ 95% of communicated ETAs (App. E-1) |
+| **Time from breach to customer contact by RM** | Untracked (complaint-driven) | < 1 business hour (App. E-2) |
+| **Post-release customer pulse (CSAT)** | Not collected | Establish baseline (App. E-6) |
 
 ## 9. Roadmap & Phasing
 
@@ -373,6 +377,7 @@ Additive to the existing schema (see PRD §6). New/changed elements:
 - `sourceSystem` (`KOPRA` / `manual` / `RPA`), `eximbillsRef`
 - `committedClockStartedAt` (TSC receipt), `committedClockStoppedAt` (Release)
 - SWIFT: `swiftMsgType`, `swiftDispatchedAt`, `swiftAckAt`, `swiftStatus`
+- **Enhancement set (Appendix E):** `siteId` (multi-site replication readiness, E-8), `customerTier` (triage tie-break only, E-7), `committedByAt` (communicated ETA, E-1), `parentLcId` + `transactionKind` (`Original`/`Amendment`) for MT707 amendments as first-class linked records (E-9), `reworkCount` (E-3)
 
 **`segments` (new)** — one row per segment instance
 - `id`, `lcId`, `segmentType` (`Intake`/`Review`/`Processing`), `ownerUnit`
@@ -512,6 +517,8 @@ Grouped by area. These are the cases most likely to bite in production.
 - **Privacy:** data minimization on all customer-facing surfaces; PII/trade-detail stays in authenticated systems.
 - **Auditability:** append-only event and timestamp-source logs; discrepancy and override reporting.
 - **Performance:** SSE real-time behavior retained; segment math precomputed where possible to keep dashboards responsive at volume (3,915+ and growing).
+- **Continuity of measurement:** a dashboard outage must never become a measurement gap — Eximbills remains the system of record, and the RPA/reconciliation path **backfills** all timestamps on recovery; provisional manual entries reconcile automatically (extends §12). SLA reporting marks backfilled windows transparently.
+- **Data retention & archival:** transaction/event/audit data retained per bank & regulatory retention policy (period to confirm — Appendix C); an archival strategy (e.g., yearly partition/archive tables) keeps the live DB fast on 8c/16GB as volume grows.
 
 ---
 
@@ -549,6 +556,8 @@ Grouped by area. These are the cases most likely to bite in production.
 6. **SMTP relay & deliverability** — which on-prem relay (Exchange / gateway) sends notifications; SPF/DKIM/DMARC and sender domain for customer mail; distribution lists for the executive track.
 7. **Business calendar** — working hours, cut-off times, holiday source per branch/timezone.
 8. **Customer contact master** — authoritative source of recipient + language.
+9. **Retention policy** — regulatory/bank retention period for transaction, event, and audit data (drives the archival design in §21).
+10. **Cut-off times & customer-tier source** — official daily cut-offs per product/site (E.4) and the authoritative customer-tier flag in the customer master (E.7).
 
 ## Appendix D — On-Prem, CPU-Only AI Approach & Feature Backlog
 
@@ -613,3 +622,73 @@ CPU-only, quantized (Q4_K_M GGUF via llama.cpp / Ollama). Budget ~4–6 GB, leav
 ### D.6 Recommended entry points
 
 Start with **#7 (integrity monitor)** — zero model, fastest credibility win — and **#2 (predictive breach detection)** — tiny classical ML, biggest breach-prevention payoff. Both fit the hardware comfortably with no LLM.
+
+## Appendix E — Enhancement Set 2 (aligned feature additions)
+
+Features identified after the base plan, each tested against the four vision anchors — *best service*, *transparency + commitment*, *reputational-risk prevention*, *better Trade-Ops customer experience* — and against the P6 constraint (on-prem, CPU-only; all items below are rules/app-logic, no model required).
+
+### E.1 Committed-By Time — state the promise, don't just measure it *(flagship)*
+
+**Gap:** the plan measures the promise but never *states* it to the customer.
+**Feature:** at TSC receipt, compute a **committed-by time** = receipt + applicable E2E budget, business-calendar aware (`committedByAt`), and include it in the first customer notification: *"Permohonan diterima — akan diterbitkan paling lambat 14:30 WIB."* Recalculate and re-communicate only when a **customer-caused pause** shifts it ("resumes after we receive your documents"); bank-internal delay never moves the promise silently.
+**Alignment:** turns "transparent process" into an explicit, auditable **commitment** — the literal meaning of SLA to the customer. **New metric:** *ETA kept ≥ 95%* (§8).
+**Guards:** communicated ETA may include a small buffer over the internal budget (configurable, e.g. +15%), so internal early-warning fires before the external promise is at risk; never communicate an ETA while `requiresBUReview` outcome is unknown — first mail then says "under review, ETA follows on approval."
+
+### E.2 Service Recovery Workflow — a breach becomes a managed incident *(flagship)*
+
+**Gap:** the plan detects and escalates breaches internally, but what happens *next* is unstructured — exactly where reputational damage is decided.
+**Feature:** when a breach (or ETA-at-risk on a tiered customer) fires, open a lightweight **recovery case** with a guided checklist: ① exec notified (auto) → ② RM/TSC contacts customer with recovery script (deliberate, per §14.4) → ③ root-cause tag selected (feeds Root Cause Mining) → ④ corrective action recorded → ⑤ case closed with outcome. Dashboard tracks open recovery cases and **time-to-customer-contact** (§8 target < 1 business hour).
+**Alignment:** reputational risk is contained by *how fast and how well the bank responds*, not just by breach counts. Converts the worst moment of the journey into evidence of care.
+
+### E.3 First-Time-Right & rework-loop tracking — quality beside speed
+
+**Gap:** backward transitions (Checking → Drafting) exist but aren't measured; pure speed metrics can quietly incentivize sloppy drafting that Checking bounces back.
+**Feature:** count every backward transition as a **rework loop** (`reworkCount`), publish a **First-Time-Right (FTR) rate** per stream/staff alongside SLA compliance, and feed rework patterns into Root Cause Mining (D.4).
+**Alignment:** protects the integrity pillar from a second gaming vector (speed-over-quality) and directly improves customer outcome quality. Evaluation stays fair: FTR complements, never replaces, workload-normalized metrics (§15).
+
+### E.4 Cut-Off Cockpit — the daily deadline made visible
+
+**Gap:** the PRD ships only a static cut-off reminder; real trade ops revolve around hard daily cut-offs (same-day value, SWIFT windows).
+**Feature:** a queue-level **cut-off countdown**: "N transactions must complete before today's 15:00 cut-off," with at-risk-for-cut-off highlighting distinct from SLA-at-risk, using the business calendar (§16). Missing cut-off ≠ SLA breach, but it is a customer-visible delay (value date slips a day) — tracked as its own metric.
+**Alignment:** prevents a whole class of "technically within SLA, still disappoints the customer" outcomes.
+
+### E.5 Pre-Submission Requirements Checklist — prevent the round-trip
+
+**Gap:** the biggest E2E killer is `Returned to Customer` loops; the plan pauses the clock for them but does nothing to *prevent* them.
+**Feature:** per product type (Import L/C, SKBDN, BG, amendment), a maintained **document/requirements checklist** surfaced at intake — in the KOPRA form, in TSC's intake screen, and in the "action needed" email (which lists exactly what is missing, from a controlled taxonomy, never free-typed confidential detail).
+**Alignment:** fewer round-trips = faster E2E for the customer and fewer pauses to govern; the controlled missing-item taxonomy also gives Root Cause Mining clean prevention data.
+
+### E.6 Post-Release Customer Pulse — close the loop with evidence
+
+**Gap:** "best service to customer" is asserted by internal metrics only; no customer voice.
+**Feature:** after `Released` (and SWIFT ACK where tracked), the final milestone email includes a **1-question satisfaction pulse** (1–5 + optional comment) landing in an on-prem endpoint; results correlate with SLA/FTR per stream on the executive dashboard.
+**Guards:** per-customer frequency cap (max one ask per N transactions/month); no incentives tied to raw scores (prevents score-begging); anonymized in staff-facing views.
+**Alignment:** converts the vision into a measured customer outcome — and gives leadership proof the 99% *feels* like 99%.
+
+### E.7 Customer-Tier-Aware Triage — protect the most reputation-sensitive relationships
+
+**Feature:** a `customerTier` flag (e.g., Priority/Standard, sourced from customer master) that acts **only as a tie-break** in at-risk ordering and in recovery-case prioritization (E.2).
+**Guards (fairness):** every customer keeps the same published SLA and the same committed-by promise; tier never extends anyone's budget, never delays a non-tiered transaction that is closer to breach, and tier logic is visible in the audit trail.
+**Alignment:** reputational risk is concentrated in high-value corporate relationships (deck: *"melindungi hubungan nasabah korporat"*); this operationalizes that sentence without discriminating on the promise itself.
+
+### E.8 Multi-Site Readiness — replication without retrofit
+
+**Gap:** the deck's roadmap #1 is replication (e.g., TOS Jakarta); the current data model is single-site.
+**Feature:** add `siteId` now to `lcs`, `segments`, `sla_config`, `business_calendars`, and master data; scope dashboards/roles by site; keep config (SLA budgets, calendars, cut-offs) per site.
+**Alignment:** replication becomes "configuration + onboarding," exactly as the deck promises — one schema decision now avoids a painful migration later.
+
+### E.9 Amendments (MT707) as First-Class Transactions
+
+**Gap:** amendments were an edge case (§20 #16) — in real trade ops they are a high-volume product of their own.
+**Feature:** promote amendments to a linked transaction kind (`parentLcId`, `transactionKind = Amendment`) with their **own (shorter) SLA budget and committed-by time**, own milestones, and roll-up view under the parent L/C in the detail modal.
+**Alignment:** the customer experiences an amendment as a promise too; measuring it honestly is the same commitment principle applied to the second-most-common request they make.
+
+### E.10 Priority & sequencing
+
+| Wave | Items | Rationale |
+| --- | --- | --- |
+| **With Phase 2 (E2E)** | E.8 multi-site fields · E.9 amendment kind · E.3 FTR counters | Pure schema/logic — cheapest done together with the segment model |
+| **With Phase 3 (customer comms)** | E.1 committed-by · E.5 checklist · E.6 pulse | All ride the same notification/KOPRA surfaces |
+| **Own mini-phase (anytime after Phase 1)** | E.2 recovery workflow · E.4 cut-off cockpit · E.7 tier triage | Independent, high reputational-risk payoff |
+
+All items are deterministic app logic — zero conflict with Appendix D.
