@@ -22,6 +22,7 @@
 3. **Theme:** **Light only** for now; design tokens structured so dark mode can be added later without rework.
 4. **Deliverable:** This document **plus** before/after visual mockups.
 5. Inherited from the E2E plan: **P6 — no cloud, no GPU**; every asset must be served on-prem.
+6. **E2E alignment:** this plan is the UI counterpart of the E2E plan — every E2E capability that reaches a screen (segments, typed pauses, provenance, committed-by promise, recovery cases, new roles, Enhancement Set 2 / Appendix E) has a surface defined here (§5 P3), and UI phases are synced to E2E phases (§6).
 
 ---
 
@@ -55,6 +56,8 @@
 - **U4 — Mandiri brand, used correctly.** Deep blue leads; **gold is an accent, never text on light backgrounds** (F-9). Exact brand values to be confirmed against the official brand guideline (Pantone → hex).
 - **U5 — Calm urgency.** At-risk and breach states must be unmissable without being noisy: strong visual hierarchy instead of sound; audio becomes opt-in.
 - **U6 — Tokens first.** All colors/spacing/type flow from CSS design tokens so brand alignment is a token swap and dark mode remains a future toggle, not a rewrite.
+- **U7 — Show the promise and the proof.** The committed-by time (E2E App. E.1) is visible wherever the transaction is, and every timestamp carries its provenance (Eximbills-authoritative ✓ vs manual-provisional) — the UI makes trustworthy data *look* trustworthy and provisional data look provisional (E2E Pillar 1).
+- **U8 — Compliance looks calm.** A compliance hold is styled as a neutral, informative state — never with warning/danger colors, countdowns, or urgency cues. The screen itself must not pressure a compliance decision (E2E principle P1).
 
 ## 4. Design Tokens (proposed)
 
@@ -131,6 +134,23 @@ Rules: status colors darkened vs today's `#f59e0b`/`#ef4444` to pass AA on white
 | E-5 | **Demo-clean chrome** | Hide mock-role card & reset button behind a dev flag (F-8); topbar shows environment badge only in non-prod |
 | E-6 | **Micro-branding** | Mandiri three-wave motif as subtle header accent; consistent favicon/logo; ID/EN copy review pass |
 
+### P3 — E2E & Enhancement Surfaces (synced to the E2E plan)
+
+Every screen-reaching capability of the E2E plan and its Enhancement Set 2 (Appendix E), designed under U7/U8. Ships **with** the E2E phase that delivers the backend capability — see §6.
+
+| ID | Surface | Detail | E2E ref |
+| --- | --- | --- | --- |
+| X-1 | **End-to-end journey timeline** | Detail modal timeline extends to Intake → BU Review → Ops stages → Released → SWIFT chip; segments rendered as owned blocks (TSC/BU/Ops) with sub-SLA ticks and breach attribution ("late because Review took 3×") | §11, §13.3 |
+| X-2 | **Typed pause UI** | Pause/resume replaces the single-exception flow: Customer ⏸ (amber-neutral), External 🌐 (neutral), **Compliance 🛡 (calm neutral per U8 — no urgency styling, no countdown)**; paused rows show "clock paused — resumes …" with business-calendar awareness | §11.3, §16 |
+| X-3 | **Provenance badges** | Every timestamp shows source: ✓ Eximbills (authoritative) vs ◌ manual (provisional, visibly lighter); discrepancy icon when both exist; override action gated + reason field (audit) | §12, U7 |
+| X-4 | **Committed-by promise chip** | Queue + detail show the communicated ETA distinctly from the internal budget; ETA-at-risk state fires *before* the external promise is threatened (buffer per E.1) | App. E.1 |
+| X-5 | **Recovery case panel** | Breach opens a guided checklist card (exec notified → RM contact w/ timer → root-cause tag → action → close); open-cases widget on exec dashboard with time-to-contact | App. E.2 |
+| X-6 | **Cut-off cockpit strip** | Queue-top banner: "N must complete before 15:00 cut-off" with distinct styling from SLA-at-risk (different icon + label per U3) | App. E.4 |
+| X-7 | **New role screens** | TSC intake screen (register + requirements checklist E.5), BU decision screen (approve / return / reject with handoff stamps), compliance hold controls (compliance_officer only) | §13, §18 |
+| X-8 | **Escalation-aware notifications** | Notification center gains **acknowledge / snooze-with-reason**; escalation level visible (staff → officer → manager); early-warning modal gains ack button (audio stays opt-in per A-3) | §19.1 |
+| X-9 | **Quality & fairness indicators** | Rework badge on bounced rows + FTR% in performance tables (E.3); tier marker as subtle tie-break chip **without** queue-jumping visuals (E.7); CSAT tile on exec dashboard (E.6) | App. E.3/6/7 |
+| X-10 | **Site & stranded states** | Site switcher for multi-site scoping (E.8); "stranded — no owning unit" row state with alert styling | App. E.8, §13.2 |
+
 ### Supporting (enabler, scheduled opportunistically)
 
 | ID | Item | Detail |
@@ -147,13 +167,26 @@ flowchart LR
     P1a["P1 — Operator Efficiency\nqueue triage · shortcuts · fewer clicks"]
     P1b["P1 — Accessibility\nmodals · live regions · audio opt-in"]
     P2["P2 — Executive Polish\nhierarchy · charts · states · print"]
+    P3["P3 — E2E & Enhancement Surfaces\nX-1…X-10, shipped with matching E2E phases"]
     P0 --> P1a
     P0 --> P1b
     P1a --> P2
     P1b --> P2
+    P2 --> P3
 ```
 
 P0 is small but blocking (asset pipeline + tokens). P1 efficiency and P1 accessibility can run in parallel after P0. S-1/S-2 land as the first touch of each large file, not as a separate refactor project.
+
+**P3 ↔ E2E phase sync** (a surface ships in the same release as its backend capability):
+
+| E2E plan phase | UI surfaces that ship with it |
+| --- | --- |
+| E2E Phase 1 — Data Integrity | X-3 provenance badges (+ override UI) |
+| E2E Phase 2 — End-to-End SLA | X-1 journey timeline · X-2 typed pauses · X-7 role screens · X-10 site/stranded · X-9 FTR/rework |
+| E2E Phase 3 — Customer Transparency | X-4 committed-by chip · X-8 escalation notifications · X-9 CSAT tile |
+| Recovery mini-phase (E2E App. E.10) | X-5 recovery panel · X-6 cut-off strip · X-9 tier chip |
+
+UI phases P0–P2 have no E2E dependency and should **not wait** for it; P3 items must **not ship ahead** of their backend capability (a promise chip without a real committed-by calculation would be theater).
 
 ## 7. Success Metrics
 
@@ -166,6 +199,9 @@ P0 is small but blocking (asset pipeline + tokens). P1 efficiency and P1 accessi
 | Modal keyboard operability | none | 100% (trap/Esc/return) |
 | Early-warning audio complaints in open office | anecdotal | 0 (opt-in audio) |
 | Exec dashboard first-paint blank panels | present | 0 (skeletons everywhere) |
+| Timestamps displaying provenance (X-3) | 0% | 100% once E2E Phase 1 ships |
+| Compliance-hold rows using urgency styling (U8 violation) | n/a | 0, verified by design review |
+| Alerts acknowledged (not expired) in notification center (X-8) | untracked | ≥ 90% |
 
 ## 8. Risks & Notes
 
@@ -184,7 +220,8 @@ Before/after mockups for the two highest-traffic screens live at
 
 1. **Queue (operator)** — before: current indigo UI, color-only bars, modal-heavy actions; after: Mandiri brand, at-risk-first sort, SLA countdown chips with icons, quick-filter chips, keyboard hints.
 2. **Executive dashboard (header + KPI band)** — before: current layout; after: brand header, primary-KPI hierarchy, skeleton/empty-state examples, AA status colors.
-3. **Token strip** — the proposed palette with contrast annotations.
+3. **E2E transaction detail (new surface)** — the P3 flagship in one frame: segment journey bar (Intake/Review/Processing) with a calm compliance pause, committed-by promise chip, provenance badges (Eximbills ✓ vs manual ◌), SWIFT chip, and a recovery-case strip.
+4. **Token strip** — the proposed palette with contrast annotations.
 
 Mockups are illustrative of direction, not pixel specs.
 
@@ -194,3 +231,5 @@ Mockups are illustrative of direction, not pixel specs.
 2. **Tailwind usage depth** — inventory decides P0-1 path (proper build vs removal); current custom CSS appears to carry most styling.
 3. **Operator hardware** — assumed desktop-first with occasional tablet; no dedicated mobile redesign this cycle (S-3).
 4. **Audio-alert policy** — assumed opt-in is acceptable to ops leadership given escalation ladder (E2E plan §19) now guarantees follow-up.
+5. **P3 surface timing** — assumed the E2E plan's phases land in the stated order; if an E2E phase re-sequences, its X-items move with it (§6 sync table is the source of truth).
+6. **Customer-facing UI (KOPRA status page)** is owned by the KOPRA/channel team — this plan covers only the *internal* dashboard surfaces; milestone naming (E2E §14.1) is shared vocabulary between both.

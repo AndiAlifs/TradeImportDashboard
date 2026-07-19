@@ -188,7 +188,50 @@
   </div>
 </div>
 
-<h2>3 · Proposed token palette (approx — confirm vs official guideline)</h2>
+<h2>3 · New surface — E2E transaction detail (P3, aligned with the E2E plan)</h2>
+<div class="frame a" style="max-width:980px">
+  <div class="frame-label after">New — ships with E2E phases (X-1…X-5)</div>
+  <div style="padding:16px;background:var(--bg);font-size:12.5px">
+
+    <!-- header: URN + tier + promise chip -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <b style="font-size:1rem">IMP-2195</b>
+      <span class="pill" style="background:var(--blue-050);color:var(--blue-700)">Import L/C</span>
+      <span class="chip" title="tie-break only">★ Priority customer</span>
+      <span class="chip on" style="margin-left:auto">🕐 Committed to customer: <b>&nbsp;today 14:30 WIB</b></span>
+      <span class="chip">Internal budget: 13:52</span>
+    </div>
+
+    <!-- segment journey bar -->
+    <div style="font-size:.62rem;color:var(--text2);letter-spacing:.06em;margin-bottom:4px">END-TO-END JOURNEY — SEGMENTS &amp; SUB-SLAS (X-1)</div>
+    <div style="display:flex;height:34px;border-radius:8px;overflow:hidden;border:1px solid var(--border);font-size:.62rem;font-weight:700;color:#fff;text-align:center">
+      <div style="flex:0 0 16%;background:var(--blue-500);display:flex;align-items:center;justify-content:center">TSC · Intake<br>14m / 20m ✓</div>
+      <div style="flex:0 0 30%;background:repeating-linear-gradient(135deg,#8CA6BF 0 8px,#7B95AE 8px 16px);display:flex;align-items:center;justify-content:center" title="compliance hold — calm styling, no urgency (U8)">BU · Review 🛡<br>clock paused — hold</div>
+      <div style="flex:1;background:var(--blue-700);display:flex;align-items:center;justify-content:center">Trade Ops · Processing<br>41m / 90m</div>
+      <div style="flex:0 0 12%;background:#E7EDF4;color:var(--text2);display:flex;align-items:center;justify-content:center">SWIFT<br>MT700 —</div>
+    </div>
+    <div style="font-size:.68rem;color:var(--text2);margin:6px 0 14px">🛡 <b>Compliance hold:</b> neutral colors, no countdown, no alert sound — the screen never pressures a compliance decision (U8 / E2E P1). Resumes automatically when the hold clears; paused time excluded from evaluation.</div>
+
+    <!-- timeline with provenance -->
+    <div style="font-size:.62rem;color:var(--text2);letter-spacing:.06em;margin-bottom:4px">TIMELINE — EVERY TIMESTAMP SHOWS ITS SOURCE (X-3)</div>
+    <table style="font-size:11px;margin-bottom:12px">
+      <tr><th>Event</th><th>Time</th><th>Source</th><th>By</th></tr>
+      <tr><td>Received by TSC (clock start)</td><td>09:12</td><td><span class="pill" style="background:#E7F4EC;color:var(--safe)">✓ Eximbills</span></td><td>system</td></tr>
+      <tr><td>Forwarded to Business Unit</td><td>09:26</td><td><span class="pill" style="background:#E7F4EC;color:var(--safe)">✓ Eximbills</span></td><td>tsc.rina</td></tr>
+      <tr><td>Compliance hold set</td><td>09:41</td><td><span class="pill" style="background:var(--blue-050);color:var(--blue-700)">🛡 Compliance</span></td><td>comp.officer</td></tr>
+      <tr><td>Start Drafting</td><td>10:58</td><td><span class="pill" style="background:#F1F5F9;color:var(--text2)">◌ manual — provisional</span> <span title="awaiting reconciliation">⟳</span></td><td>staff.budi</td></tr>
+    </table>
+
+    <!-- recovery strip -->
+    <div style="border:1px solid var(--border);border-left:4px solid var(--danger);border-radius:8px;background:#fff;padding:8px 12px;font-size:.72rem">
+      <b style="color:var(--danger)">Recovery case #R-102 (X-5)</b> — opened on breach ·
+      ① Exec notified ✓ 2m · ② RM contacted customer ✓ 38m · ③ Root cause: <i>correspondent delay</i> ✓ · ④ Corrective action ⏳ · <b>time-to-contact 38m &lt; 1h target ✓</b>
+    </div>
+  </div>
+  <div class="note"><b>What this frame shows:</b> the promise beside the internal budget (X-4, E.1) · owned segments with sub-SLAs and a calm compliance pause (X-1/X-2) · Eximbills-vs-manual provenance with reconciliation pending (X-3, Pillar 1) · SWIFT as post-release chip · breach handled as a managed recovery case (X-5, E.2).</div>
+</div>
+
+<h2>4 · Proposed token palette (approx — confirm vs official guideline)</h2>
 <div class="tokens">
   <div class="tok"><div class="sw" style="background:#002B5C;color:#fff">blue-900</div><div class="m">Sidebar / header · on-white text <span class="ok">AA ✓ 12.6:1</span></div></div>
   <div class="tok"><div class="sw" style="background:#003D79;color:#fff">blue-700</div><div class="m">Primary actions, links <span class="ok">AA ✓ 9.9:1</span></div></div>

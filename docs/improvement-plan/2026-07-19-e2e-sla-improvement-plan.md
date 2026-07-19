@@ -15,7 +15,7 @@
 | Version | 0.1 (draft) |
 | Date | 2026-07-19 |
 | Owner | Zahra Ashiela Maghdiyyah — Sign Officer Import, Trade Operations Surabaya |
-| Related docs | `references/prd.md` (As-Built PRD v4.0), SHIELA Business Transformation deck |
+| Related docs | `references/prd.md` (As-Built PRD v4.0), SHIELA Business Transformation deck, `2026-07-20-ui-ux-improvement-plan.md` (UI counterpart — every screen-reaching capability here has a surface defined there, §5 P3) |
 | Scope | Extend the proven Trade-Operations SLA tracker into an end-to-end, tamper-resistant, customer-transparent trade service commitment |
 
 ### Decisions locked for this draft (confirmed with owner)
