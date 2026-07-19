@@ -117,6 +117,7 @@ Reputational risk in trade finance materializes when the bank **fails a commitme
 - **P3 — Fair measurement.** Time the bank does not control (customer waits, compliance holds, correspondent-bank waits) is excluded from staff evaluation.
 - **P4 — Minimum necessary disclosure.** The customer sees progress milestones, not internal mechanics or confidential terms.
 - **P5 — Additive, not disruptive.** Extend the live product; preserve what already works.
+- **P6 — On-prem, CPU-only, deterministic-first intelligence.** No data leaves the bank and there is no GPU. All "intelligence" is deterministic rules or small classical ML by default; a language model is optional, self-hosted, CPU-bound, async, and may only *phrase* pre-computed numbers — never compute or invent them. See **Appendix D**.
 
 ## 7. The Four Pillars (Overview)
 
@@ -175,7 +176,7 @@ flowchart TD
 | **1 — Data Integrity** | 99% becomes *trustworthy*; gaming eliminated | Highest priority — protects the program |
 | **2 — End-to-End SLA** | One clock across three units; SWIFT dispatch tracked | The core "commitment" expansion |
 | **3 — Customer Transparency** | Proactive plain-language updates | Email first (fast win), KOPRA next |
-| **4 — Predictive & AI** | Prediction + document pre-checking | Matches existing roadmap (deck slide 5) |
+| **4 — Predictive & AI** | Prediction + document pre-checking | Matches existing roadmap (deck slide 5); **on-prem, CPU-only, deterministic-first** — see **Appendix D** |
 
 ## 10. Risks, Dependencies & Assumptions (Strategy-level)
 
@@ -187,6 +188,7 @@ flowchart TD
 | Customer emails must go through a governed bank channel (not ad-hoc n8n) | Compliance/brand | Route customer-facing comms through approved bank email infrastructure; n8n for internal alerts only |
 | Business-hours/holiday calendar per branch/timezone | Wrong SLA math | Configurable calendar in Phase 0 |
 | Over-notifying customers | Notification fatigue, brand harm | Milestone-only + digest option + per-customer preferences |
+| **Existing n8n AI workflows target cloud/oversized models** (`qwen3.5:397b`, cloud Gemini) — cannot run on 8c/16GB and violate no-cloud | Automations won't execute; data-egress risk | Rework as on-prem rules/classical-ML jobs (or small CPU SLM, async); keep them calling the Go API + internal Slack/WhatsApp only. See **Appendix D** |
 
 ---
 
@@ -517,3 +519,67 @@ Grouped by area. These are the cases most likely to bite in production.
 6. **Governed customer-email channel** — which approved bank infrastructure sends customer notifications.
 7. **Business calendar** — working hours, cut-off times, holiday source per branch/timezone.
 8. **Customer contact master** — authoritative source of recipient + language.
+
+## Appendix D — On-Prem, CPU-Only AI Approach & Feature Backlog
+
+### D.1 The constraint (design fact, not a limitation)
+
+- **Hardware:** ~8 vCPU / 16 GB RAM, shared by the Go app + MySQL. **No GPU.**
+- **Data boundary:** **no cloud** — customer/trade data must not leave the bank. No external LLM APIs.
+- **Consequence:** every "smart" feature must run **on-prem and CPU-only**. For a bank this is a *strength* — fully auditable, explainable, and free of data-egress risk.
+
+> ⚠ Any current automation that points at a cloud model or an oversized local model (e.g. `qwen3.5:397b`, cloud Gemini) is **out of scope by policy and infeasible on this hardware**, and must be reworked per D.4.
+
+### D.2 Guardrail — what "AI" means in this project
+
+**Deterministic rules and small classical ML come first. A language model is optional, self-hosted, CPU-bound, async, and may only *phrase* pre-computed numbers — never compute or invent them.** This keeps every figure traceable to a calculation, not a model.
+
+### D.3 Feature backlog, ranked by fit to the constraint
+
+**Tier 1 — No model; rules / statistics / app logic. Buildable anytime.**
+
+| # | Feature | Technique |
+| --- | --- | --- |
+| 7 | Integrity / anti-gaming monitor | Statistics + threshold rules (e.g., Start→Complete gaps below a floor, sudden speed outliers) |
+| 9 | Smart assignment / workload balancer | Rules + simple optimization over live load, section, risk |
+| 10 | Capacity & staffing forecast | Time-series stats (moving average / Holt-Winters) |
+| 1 | Early-warning escalation ladder | Server-side timers + existing internal channels |
+| 6 | Longitudinal trend analytics | Aggregation queries; day-of-week × hour heatmap |
+
+**Tier 2 — Tiny classical ML (trains in seconds, model < ~10 MB) or small CPU embeddings.**
+
+| # | Feature | Technique |
+| --- | --- | --- |
+| 2 | Predictive breach detection | Gradient-boosted trees / logistic regression on stage velocity, assignee load, historical patterns |
+| 4 | Exception taxonomy & clustering | Keyword rules, or a ~120 MB multilingual embedding model on CPU for semantic grouping |
+
+**Tier 3 — Fits with care (CPU-only realities).**
+
+| # | Feature | Technique |
+| --- | --- | --- |
+| 3 | Daily narrative summary | **Deterministic NLG templates** (primary). Optional small SLM (see D.5), **async/off-peak only**, phrasing pre-computed numbers |
+| 8 | AI Trade Checking (discrepancy pre-check) | **Tesseract OCR + UCP 600 rules engine** (primary); optional IndoBERT NER (~450 MB) for field extraction — **not** a generative LLM |
+
+### D.4 Reworking the existing n8n automations
+
+The three workflows (AI Summarizer, Early Warning Tracker, Root Cause Mining) stay valuable, but must be reworked to:
+- **Remove cloud/oversized model calls.** Replace the "agent" reasoning with deterministic aggregation + classical ML, or a small on-prem SLM (D.5) for phrasing only.
+- Keep calling the **Go REST API** for data and dispatching to **internal** Slack / WhatsApp / email channels (never customer-facing from n8n — see §14/§19).
+- Promote the weekly root-cause job toward a **daily prescriptive** internal summary once deterministic.
+
+### D.5 Optional self-hosted SLM (only if narrative phrasing is wanted)
+
+CPU-only, quantized (Q4_K_M GGUF via llama.cpp / Ollama). Budget ~4–6 GB, leaving headroom for the app + MySQL. **Async batch use only — never in the request path; never generates numbers.**
+
+| Model | Size (Q4) | Bahasa Indonesia | Approx. speed (8 vCPU) | Note |
+| --- | --- | --- | --- | --- |
+| Qwen2.5 1.5B Instruct | ~1 GB | Good | ~15–25 tok/s | Best balance |
+| Gemma 2 2B | ~1.6 GB | Good | ~10–18 tok/s | Good alternative |
+| Qwen2.5 3B / Llama 3.2 3B | ~2 GB | Good / OK | ~6–12 tok/s | Higher quality, slower |
+
+- **Embeddings** (classification/clustering): `paraphrase-multilingual-MiniLM` (~120 MB) runs well on CPU.
+- **Deploy separation:** prefer an off-hours window or a small separate VM; on the shared box, cap threads so inference never starves the app or DB.
+
+### D.6 Recommended entry points
+
+Start with **#7 (integrity monitor)** — zero model, fastest credibility win — and **#2 (predictive breach detection)** — tiny classical ML, biggest breach-prevention payoff. Both fit the hardware comfortably with no LLM.
